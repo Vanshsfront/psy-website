@@ -52,7 +52,9 @@ export default {
 
       if (isOnAdmin && !isLoginPage) {
         if (isLoggedIn) return true
-        return false // Redirect unauthenticated users to login page
+        // Redirect unauthenticated users to login page using the request's own origin
+        // (returning false would use NEXTAUTH_URL which may be localhost in production)
+        return Response.redirect(new URL('/admin/login', nextUrl))
       } else if (isLoggedIn && isLoginPage) {
         return Response.redirect(new URL('/admin', nextUrl))
       }
