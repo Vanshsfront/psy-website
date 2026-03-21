@@ -22,15 +22,15 @@ export default function CustomCursor() {
     const onMouseMove = (e: MouseEvent) => {
       setPosition({ x: e.clientX, y: e.clientY })
       setIsHidden(false)
-
+      
       const target = e.target as HTMLElement
-      const isClickable =
+      const isClickable = 
         window.getComputedStyle(target).cursor === "pointer" ||
         target.tagName.toLowerCase() === "a" ||
         target.tagName.toLowerCase() === "button" ||
         target.closest("a") !== null ||
         target.closest("button") !== null
-
+        
       setIsPointer(isClickable)
     }
 
@@ -56,20 +56,26 @@ export default function CustomCursor() {
         * { cursor: none !important; }
       `}} />
       <motion.div
-        className="fixed top-0 left-0 w-5 h-5 rounded-full border-2 border-bone/80 pointer-events-none z-[9999] -ml-2.5 -mt-2.5 mix-blend-difference"
+        className="fixed top-0 left-0 w-4 h-4 rounded-full bg-bone mix-blend-difference pointer-events-none z-[9999] flex items-center justify-center -ml-2 -mt-2"
         animate={{
           x: position.x,
           y: position.y,
-          scale: isPointer ? 2.5 : 1,
-          opacity: 1,
+          scale: isPointer ? 3.5 : 1,
+          opacity: 1
         }}
         transition={{
           x: { duration: 0 },
           y: { duration: 0 },
           scale: { type: "spring", damping: 20, stiffness: 300, mass: 0.5 },
-          opacity: { duration: 0.2 },
+          opacity: { duration: 0.2 }
         }}
-      />
+      >
+        <motion.div 
+          className="w-1 h-1 bg-ink rounded-full"
+          animate={{ opacity: isPointer ? 1 : 0 }}
+          transition={{ duration: 0.2 }}
+        />
+      </motion.div>
     </>
   )
 }
