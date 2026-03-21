@@ -1,0 +1,167 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Primary */
+  --ink-black: #0A0A0A;
+  --bone-white: #F5F3EF;
+  --muted-taupe: #B8ADA4;
+
+  /* Accent */
+  --psy-green: #3BA37C;
+  --deep-moss: #2F6F5E;
+  --deep-wine: #2C233A;
+  --muted-terracotta: #C0654A;
+  --soft-antique-gold: #C6A96B;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
+@layer base {
+  body {
+    @apply bg-ink text-bone font-sans;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+    background-blend-mode: overlay;
+  }
+
+  ::selection {
+    background-color: #3BA37C;
+    color: #0A0A0A;
+  }
+}
+
+@layer utilities {
+  /* Animated underline for text CTAs */
+  .text-cta {
+    @apply relative inline-block text-bone no-underline;
+  }
+  .text-cta::after {
+    content: '';
+    @apply absolute bottom-0 left-0 h-[1px] w-0 bg-bone;
+    transition: width 500ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .text-cta:hover::after {
+    @apply w-full;
+  }
+
+  /* CTA glow pulse on hover */
+  .text-cta:hover {
+    text-shadow: 0 0 20px rgba(245, 243, 239, 0.15);
+  }
+
+  /* Taupe divider */
+  .divider-taupe {
+    @apply w-full h-[1px] bg-taupe/20;
+  }
+
+  /* Hide scrollbar utility */
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Micro-float animation for decorative elements */
+  .micro-float {
+    animation: microFloat 6s ease-in-out infinite;
+  }
+
+  /* Shimmer effect for featured items */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 40%,
+      rgba(245, 243, 239, 0.03) 50%,
+      transparent 60%
+    );
+    animation: shimmer 3s ease-in-out infinite;
+  }
+
+  /* Button press feedback */
+  .btn-press:active {
+    transform: scale(0.97);
+    transition: transform 0.1s ease;
+  }
+}
+
+/* ─── CSS 3D Jewelry Placeholder ─── */
+@keyframes psyRotate {
+  0% {
+    transform: rotateY(0deg) rotateX(0deg);
+  }
+  100% {
+    transform: rotateY(360deg) rotateX(360deg);
+  }
+}
+
+.psy-rotate-cube {
+  animation: psyRotate 8s linear infinite;
+}
+
+.group:hover .psy-rotate-cube {
+  animation-duration: 4s;
+}
+
+.group:hover .psy-rotate-cube div {
+  box-shadow: var(--psy-glow, 0 0 20px rgba(59, 163, 124, 0.4));
+}
+
+/* ─── TipTap Editor ─── */
+.ProseMirror {
+  outline: none;
+  min-height: 160px;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: #B8ADA4;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* ─── Skeleton loader ─── */
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+.skeleton {
+  background-color: #1a1a1a;
+  animation: skeletonPulse 2s ease-in-out infinite;
+}
+
+/* ─── Microanimation Keyframes ─── */
+@keyframes microFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes subtlePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ─── Scroll Progress Indicator ─── */
+@keyframes lineGrow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
