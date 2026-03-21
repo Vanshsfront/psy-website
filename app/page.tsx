@@ -26,11 +26,11 @@ export default function Home() {
       <div className="md:hidden absolute left-0 right-0 top-1/2 z-20 h-[1px] bg-taupe/20 pointer-events-none" />
 
       {/* LEFT SIDE — PSY TATTOOS */}
-      <motion.div
-        className="relative flex items-center justify-center h-[50vh] md:h-screen md:w-1/2 cursor-pointer group overflow-hidden"
+      <Link
+        href="/studio"
+        className="relative flex items-center justify-center h-[50vh] md:h-screen md:w-1/2 cursor-pointer group overflow-hidden block"
         onMouseEnter={() => setHoveredSide("left")}
         onMouseLeave={() => setHoveredSide(null)}
-        transition={{ duration: 0.6, ease: PSY_EASE }}
       >
         {/* Background image */}
         <Image
@@ -87,22 +87,19 @@ export default function Home() {
           </FadeInOnScroll>
 
           <FadeInOnScroll direction="up" delay={0.9}>
-            <Link
-              href="/studio"
-              className="text-cta font-sans uppercase tracking-widest text-caption text-bone"
-            >
+            <span className="text-cta font-sans uppercase tracking-widest text-caption text-bone">
               Explore Studio →
-            </Link>
+            </span>
           </FadeInOnScroll>
         </div>
-      </motion.div>
+      </Link>
 
       {/* RIGHT SIDE — PSY SHOP */}
-      <motion.div
-        className="relative flex items-center justify-center h-[50vh] md:h-screen md:w-1/2 cursor-pointer group overflow-hidden"
+      <Link
+        href="/shop"
+        className="relative flex items-center justify-center h-[50vh] md:h-screen md:w-1/2 cursor-pointer group overflow-hidden block"
         onMouseEnter={() => setHoveredSide("right")}
         onMouseLeave={() => setHoveredSide(null)}
-        transition={{ duration: 0.6, ease: PSY_EASE }}
       >
         {/* Background image */}
         <Image
@@ -159,15 +156,12 @@ export default function Home() {
           </FadeInOnScroll>
 
           <FadeInOnScroll direction="up" delay={1.1}>
-            <Link
-              href="/shop"
-              className="text-cta font-sans uppercase tracking-widest text-caption text-bone"
-            >
+            <span className="text-cta font-sans uppercase tracking-widest text-caption text-bone">
               View Shop →
-            </Link>
+            </span>
           </FadeInOnScroll>
         </div>
-      </motion.div>
+      </Link>
     </main>
   )
 }

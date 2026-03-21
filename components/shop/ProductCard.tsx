@@ -2,18 +2,18 @@
 
 import { Product } from "@/types"
 import Link from "next/link"
-import { Heart } from "lucide-react"
+import { Heart, Plus, Minus } from "lucide-react"
 import { useCartStore } from "@/store/cartStore"
 import { useWishlistStore } from "@/store/wishlistStore"
 import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 
 const PSY_EASE = [0.16, 1, 0.3, 1] as [number, number, number, number]
 
 export default function ProductCard({ product }: { product: Product }) {
   const [mounted, setMounted] = useState(false)
   const [isImageLoaded, setIsImageLoaded] = useState(false)
-  const addItemToCart = useCartStore((state) => state.addItem)
+  const { addItem: addItemToCart, removeItem, updateQuantity, items } = useCartStore()
   const {
     addItem: addWishlist,
     removeItem: removeWishlist,
@@ -29,23 +29,50 @@ export default function ProductCard({ product }: { product: Product }) {
 
   const isWished = mounted ? isInWishlist(product.id) : false
 
+  // Get current quantity in cart for this product (first variant)
+  const defaultVariant = product.variants?.[0] || null
+  const cartItem = mounted
+    ? items.find(
+        (i) =>
+          i.product_id === product.id &&
+          JSON.stringify(i.variant) === JSON.stringify(defaultVariant)
+      )
+    : undefined
+  const cartQty = cartItem?.quantity || 0
+
   const handleWishlist = (e: React.MouseEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     if (isWished) removeWishlist(product.id)
     else addWishlist(product)
   }
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleIncrement = (e: React.MouseEvent) => {
     e.preventDefault()
-    addItemToCart({
-      product_id: product.id,
-      name: product.name,
-      slug: product.slug,
-      price: product.price,
-      image_url: primaryImage,
-      variant: product.variants?.[0] || null,
-      quantity: 1,
-    })
+    e.stopPropagation()
+    if (cartQty === 0) {
+      addItemToCart({
+        product_id: product.id,
+        name: product.name,
+        slug: product.slug,
+        price: product.price,
+        image_url: primaryImage,
+        variant: defaultVariant,
+        quantity: 1,
+      })
+    } else {
+      updateQuantity(product.id, defaultVariant, cartQty + 1)
+    }
+  }
+
+  const handleDecrement = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (cartQty <= 1) {
+      removeItem(product.id, defaultVariant)
+    } else {
+      updateQuantity(product.id, defaultVariant, cartQty - 1)
+    }
   }
 
   return (
@@ -100,17 +127,61 @@ export default function ProductCard({ product }: { product: Product }) {
             </span>
           )}
 
-          {/* Quick add overlay — appears at bottom on hover */}
+          {/* Quick add overlay — +/− stepper */}
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-ink/80 to-transparent px-4 py-3 opacity-0 group-hover:opacity-100 transition-all duration-[400ms] translate-y-2 group-hover:translate-y-0">
-            <button
-              onClick={handleAddToCart}
-              disabled={!product.stock_status}
-              className="w-full text-center cursor-pointer disabled:cursor-not-allowed"
-            >
-              <span className="text-cta font-sans uppercase tracking-widest text-micro text-bone">
-                {product.stock_status ? "Add to Cart →" : "Unavailable"}
+            {!product.stock_status ? (
+              <span className="block text-center font-sans uppercase tracking-widest text-micro text-taupe/60">
+                Unavailable
               </span>
-            </button>
+            ) : (
+              <div className="flex items-center justify-center gap-3">
+                <AnimatePresence mode="wait">
+                  {cartQty > 0 ? (
+                    <motion.div
+                      key="stepper"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex items-center gap-4"
+                    >
+                      <button
+                        onClick={handleDecrement}
+                        className="w-8 h-8 rounded-full border border-bone/30 flex items-center justify-center text-bone hover:bg-bone/10 transition-all duration-300 cursor-pointer active:scale-90"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <motion.span
+                        key={cartQty}
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="font-sans text-caption text-bone w-4 text-center"
+                      >
+                        {cartQty}
+                      </motion.span>
+                      <button
+                        onClick={handleIncrement}
+                        className="w-8 h-8 rounded-full border border-bone/30 flex items-center justify-center text-bone hover:bg-bone/10 transition-all duration-300 cursor-pointer active:scale-90"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </motion.div>
+                  ) : (
+                    <motion.button
+                      key="add"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ duration: 0.2 }}
+                      onClick={handleIncrement}
+                      className="w-9 h-9 rounded-full border border-bone/40 flex items-center justify-center text-bone hover:bg-bone/10 transition-all duration-300 cursor-pointer active:scale-90"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
           </div>
         </div>
 

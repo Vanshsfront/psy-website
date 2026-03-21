@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Product } from "@/types"
 import { AnimatePresence, motion } from "framer-motion"
-import { Heart, Truck, Info, ChevronRight } from "lucide-react"
+import { Heart, Truck, Info, ChevronRight, Plus, Minus } from "lucide-react"
 import { useCartStore } from "@/store/cartStore"
 import { useWishlistStore } from "@/store/wishlistStore"
 import ProductCard from "./ProductCard"
@@ -23,7 +23,7 @@ export default function ProductDetailClient({
     Record<string, any> | null
   >(product.variants?.[0] || null)
 
-  const addItemToCart = useCartStore((state) => state.addItem)
+  const { addItem: addItemToCart, removeItem, updateQuantity, items } = useCartStore()
   const {
     addItem: addWishlist,
     removeItem: removeWishlist,
@@ -32,16 +32,36 @@ export default function ProductDetailClient({
 
   const isWished = isInWishlist(product.id)
 
-  const handleAddToCart = () => {
-    addItemToCart({
-      product_id: product.id,
-      name: product.name,
-      slug: product.slug,
-      price: product.price,
-      image_url: product.images[0] || "",
-      variant: selectedVariant,
-      quantity: 1,
-    })
+  // Get current quantity in cart for this product + selected variant
+  const cartItem = items.find(
+    (i) =>
+      i.product_id === product.id &&
+      JSON.stringify(i.variant) === JSON.stringify(selectedVariant)
+  )
+  const cartQty = cartItem?.quantity || 0
+
+  const handleIncrement = () => {
+    if (cartQty === 0) {
+      addItemToCart({
+        product_id: product.id,
+        name: product.name,
+        slug: product.slug,
+        price: product.price,
+        image_url: product.images[0] || "",
+        variant: selectedVariant,
+        quantity: 1,
+      })
+    } else {
+      updateQuantity(product.id, selectedVariant, cartQty + 1)
+    }
+  }
+
+  const handleDecrement = () => {
+    if (cartQty <= 1) {
+      removeItem(product.id, selectedVariant)
+    } else {
+      updateQuantity(product.id, selectedVariant, cartQty - 1)
+    }
   }
 
   return (
@@ -174,14 +194,64 @@ export default function ProductDetailClient({
             </div>
           )}
 
-          {/* Add to Cart — primary button */}
-          <button
-            onClick={handleAddToCart}
-            disabled={!product.stock_status}
-            className="w-full border border-psy-green bg-transparent text-psy-green uppercase tracking-widest text-caption py-4 rounded-[2px] hover:bg-psy-green hover:text-ink transition-all duration-[400ms] disabled:opacity-50 disabled:cursor-not-allowed mb-3 cursor-pointer"
-          >
-            {product.stock_status ? "Add to Cart" : "Currently Unavailable"}
-          </button>
+          {/* Add to Cart — +/− stepper */}
+          <div className="mb-3">
+            <AnimatePresence mode="wait">
+              {!product.stock_status ? (
+                <motion.button
+                  key="unavailable"
+                  disabled
+                  className="w-full border border-taupe/30 bg-transparent text-taupe uppercase tracking-widest text-caption py-4 rounded-[2px] opacity-50 cursor-not-allowed"
+                >
+                  Currently Unavailable
+                </motion.button>
+              ) : cartQty > 0 ? (
+                <motion.div
+                  key="stepper"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.25 }}
+                  className="w-full border border-psy-green rounded-[2px] flex items-center justify-between py-2 px-4"
+                >
+                  <button
+                    onClick={handleDecrement}
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-psy-green hover:bg-psy-green/10 transition-all duration-300 cursor-pointer active:scale-90"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <motion.span
+                    key={cartQty}
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="font-sans text-body-lg text-psy-green"
+                  >
+                    {cartQty}
+                  </motion.span>
+                  <button
+                    onClick={handleIncrement}
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-psy-green hover:bg-psy-green/10 transition-all duration-300 cursor-pointer active:scale-90"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.button
+                  key="add"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.25 }}
+                  onClick={handleIncrement}
+                  className="w-full border border-psy-green bg-transparent text-psy-green uppercase tracking-widest text-caption py-4 rounded-[2px] hover:bg-psy-green hover:text-ink transition-all duration-[400ms] cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add to Cart</span>
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* Save to Wishlist — ghost button */}
           <button

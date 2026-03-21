@@ -160,6 +160,23 @@ html {
   50% { opacity: 0.7; }
 }
 
+/* ─── Text Micro Animations ─── */
+@keyframes textBreathe {
+  0%, 100% { letter-spacing: 0em; }
+  50% { letter-spacing: 0.04em; }
+}
+
+.text-breathe {
+  animation: textBreathe 4s ease-in-out infinite;
+}
+
+.text-glow-hover {
+  transition: text-shadow 0.5s ease;
+}
+.text-glow-hover:hover {
+  text-shadow: 0 0 30px rgba(245, 243, 239, 0.2), 0 0 60px rgba(245, 243, 239, 0.08);
+}
+
 /* ─── Scroll Progress Indicator ─── */
 @keyframes lineGrow {
   from { transform: scaleX(0); }
