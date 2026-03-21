@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 
 export default function CustomCursor() {
   const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [isPointer, setIsPointer] = useState(false)
   const [isHidden, setIsHidden] = useState(true)
   const [isDesktop, setIsDesktop] = useState(true)
   const pathname = usePathname()
@@ -21,6 +22,16 @@ export default function CustomCursor() {
     const onMouseMove = (e: MouseEvent) => {
       setPosition({ x: e.clientX, y: e.clientY })
       setIsHidden(false)
+
+      const target = e.target as HTMLElement
+      const isClickable =
+        window.getComputedStyle(target).cursor === "pointer" ||
+        target.tagName.toLowerCase() === "a" ||
+        target.tagName.toLowerCase() === "button" ||
+        target.closest("a") !== null ||
+        target.closest("button") !== null
+
+      setIsPointer(isClickable)
     }
 
     const onMouseLeave = () => setIsHidden(true)
@@ -49,11 +60,13 @@ export default function CustomCursor() {
         animate={{
           x: position.x,
           y: position.y,
+          scale: isPointer ? 2.5 : 1,
           opacity: 1,
         }}
         transition={{
           x: { duration: 0 },
           y: { duration: 0 },
+          scale: { type: "spring", damping: 20, stiffness: 300, mass: 0.5 },
           opacity: { duration: 0.2 },
         }}
       />
