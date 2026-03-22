@@ -4,6 +4,7 @@ import { createServiceClient } from "./lib/supabase-server"
 import bcrypt from "bcryptjs"
 
 export default {
+  trustHost: true,
   providers: [
     Credentials({
       name: "Admin Login",
