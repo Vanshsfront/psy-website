@@ -1,6 +1,8 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useState, useMemo } from "react"
 import TextReveal from "@/components/animations/TextReveal"
 import FadeInOnScroll from "@/components/animations/FadeInOnScroll"
 import StaggeredGrid from "@/components/animations/StaggeredGrid"
@@ -28,6 +30,23 @@ export default function ShopClient({
     offset: ["start end", "end start"]
   })
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "20%"])
+
+  // Client-side category filtering to avoid full page reload
+  const [currentCategory, setCurrentCategory] = useState(activeCategory)
+
+  const filteredProducts = useMemo(() => {
+    if (currentCategory === "All") return products
+    return products.filter(p => p.category === currentCategory)
+  }, [currentCategory, products])
+
+  const handleCategoryChange = (cat: string) => {
+    setCurrentCategory(cat)
+    // Smooth scroll to collection section instead of page top
+    const el = document.getElementById("collection")
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" })
+    }
+  }
 
   return (
     <main className="min-h-screen bg-ink pb-24 relative" ref={containerRef}>
@@ -112,17 +131,17 @@ export default function ShopClient({
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-wrap justify-center gap-8 mb-16">
             {categories.map((cat) => (
-              <Link
+              <button
                 key={cat}
-                href={`/shop${cat === "All" ? "" : `?category=${encodeURIComponent(cat)}`}`}
-                className={`relative font-sans text-caption uppercase tracking-widest transition-colors duration-[400ms] pb-1 ${
-                  activeCategory === cat
+                onClick={() => handleCategoryChange(cat)}
+                className={`relative font-sans text-caption uppercase tracking-widest transition-colors duration-[400ms] pb-1 cursor-pointer bg-transparent border-none ${
+                  currentCategory === cat
                     ? "text-bone after:absolute after:bottom-0 after:left-0 after:w-full after:h-[1px] after:bg-bone"
                     : "text-taupe hover:text-bone"
                 }`}
               >
                 {cat}
-              </Link>
+              </button>
             ))}
           </div>
 
@@ -134,9 +153,9 @@ export default function ShopClient({
       {/* ━━━ PRODUCT GRID ━━━ */}
       <section className="px-6">
         <div className="max-w-7xl mx-auto">
-          {products && products.length > 0 ? (
+          {filteredProducts && filteredProducts.length > 0 ? (
             <StaggeredGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-16">
-              {products.map((p) => (
+              {filteredProducts.map((p) => (
                 <HoverLift key={p.id} lift={-6}>
                   <ProductCard product={p} />
                 </HoverLift>

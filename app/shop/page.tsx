@@ -1,5 +1,4 @@
 import { createSSRClient } from "@/lib/supabase-server"
-import Link from "next/link"
 import ShopClient from "@/components/shop/ShopClient"
 
 export const revalidate = 60 // ISR: revalidate every 60 seconds
@@ -11,15 +10,13 @@ export default async function ShopHome({
 }) {
   const supabase = await createSSRClient()
 
+  // Fetch ALL products — filtering is now done client-side to avoid page reload
+  const { data: products } = await supabase
+    .from("products")
+    .select("*")
+    .eq("is_deleted", false)
+
   const category = searchParams?.category || "All"
-
-  let query = supabase.from("products").select("*").eq("is_deleted", false)
-
-  if (category !== "All") {
-    query = query.eq("category", category)
-  }
-
-  const { data: products } = await query
 
   const categories = [
     "All",

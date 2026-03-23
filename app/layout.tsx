@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
 import BottomBlur from "@/components/layout/BottomBlur";
 import LenisProvider from "@/components/layout/LenisProvider";
 import CustomCursor from "@/components/ui/CustomCursor";
@@ -58,6 +59,7 @@ export default function RootLayout({
           <Navbar />
           <BottomBlur />
           {children}
+          <Footer />
         </LenisProvider>
       </body>
     </html>

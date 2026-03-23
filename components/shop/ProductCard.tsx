@@ -128,7 +128,7 @@ export default function ProductCard({ product }: { product: Product }) {
           )}
 
           {/* Quick add overlay — +/− stepper */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-ink/80 to-transparent px-4 py-3 opacity-0 group-hover:opacity-100 transition-all duration-[400ms] translate-y-2 group-hover:translate-y-0">
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-ink/90 via-ink/50 to-transparent px-4 py-4 opacity-60 group-hover:opacity-100 transition-all duration-[400ms] translate-y-0">
             {!product.stock_status ? (
               <span className="block text-center font-sans uppercase tracking-widest text-micro text-taupe/60">
                 Unavailable
@@ -174,7 +174,7 @@ export default function ProductCard({ product }: { product: Product }) {
                       exit={{ opacity: 0, scale: 0.8 }}
                       transition={{ duration: 0.2 }}
                       onClick={handleIncrement}
-                      className="w-9 h-9 rounded-full border border-bone/40 flex items-center justify-center text-bone hover:bg-bone/10 transition-all duration-300 cursor-pointer active:scale-90"
+                      className="w-9 h-9 rounded-full bg-bone/20 backdrop-blur-sm border border-bone/50 flex items-center justify-center text-bone hover:bg-bone/30 hover:border-bone/70 transition-all duration-300 cursor-pointer active:scale-90 shadow-[0_0_10px_rgba(245,243,239,0.1)]"
                     >
                       <Plus className="w-4 h-4" />
                     </motion.button>
