@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { createSSRClient, createServiceClient } from "@/lib/supabase-server";
+import { createServiceClient } from "@/lib/supabase-server";
 
 export async function GET(
   request: NextRequest,
@@ -15,7 +15,7 @@ export async function GET(
   }
 
   try {
-    const supabase = await createSSRClient();
+    const supabase = createServiceClient();
     const { data, error } = await supabase
       .from("bookings")
       .select("*, artists(name)")
