@@ -1,4 +1,4 @@
-import { createSSRClient } from "@/lib/supabase-server"
+import { createServiceClient } from "@/lib/supabase-server"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache"
 export const revalidate = 0
 
 export default async function AdminBookingDetail({ params }: { params: { id: string } }) {
-  const supabase = await createSSRClient()
+  const supabase = createServiceClient()
   const { data: booking, error } = await supabase
     .from("bookings")
     .select("*")
@@ -23,7 +23,7 @@ export default async function AdminBookingDetail({ params }: { params: { id: str
     "use server"
     const newStatus = formData.get("status") as string
     const adminNotes = formData.get("admin_notes") as string
-    const sbp = await createSSRClient()
+    const sbp = createServiceClient()
     await sbp.from("bookings").update({
       status: newStatus,
       admin_notes: adminNotes || null,

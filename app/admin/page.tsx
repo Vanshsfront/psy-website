@@ -1,4 +1,4 @@
-import { createSSRClient } from "@/lib/supabase-server"
+import { createServiceClient } from "@/lib/supabase-server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Package, ShoppingCart, Calendar, IndianRupee } from "lucide-react"
 import Link from "next/link"
@@ -6,7 +6,7 @@ import Link from "next/link"
 export const revalidate = 0 // Never cache the admin dashboard stats
 
 export default async function AdminDashboard() {
-  const supabase = await createSSRClient()
+  const supabase = createServiceClient()
 
   // Wait for all aggregations
   const [
