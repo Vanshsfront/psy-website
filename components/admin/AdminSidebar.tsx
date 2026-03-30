@@ -22,19 +22,9 @@ const navItems = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { label: "Products", href: "/admin/products", icon: Package },
   { label: "Portfolio", href: "/admin/portfolio", icon: ImageIcon },
-  {
-    label: "Orders",
-    href: "/admin/orders",
-    icon: ShoppingBag,
-    comingSoon: true,
-  },
-  {
-    label: "Bookings",
-    href: "/admin/bookings",
-    icon: Calendar,
-    comingSoon: true,
-  },
-  { label: "Artists", href: "/admin/artists", icon: Users, comingSoon: true },
+  { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
+  { label: "Bookings", href: "/admin/bookings", icon: Calendar },
+  { label: "Artists", href: "/admin/artists", icon: Users },
 ];
 
 export default function AdminSidebar({
@@ -65,21 +55,15 @@ export default function AdminSidebar({
           return (
             <Link
               key={item.href}
-              href={item.comingSoon ? "#" : item.href}
+              href={item.href}
               className={`flex items-center gap-3 px-4 py-2.5 rounded text-sm font-medium transition-colors relative ${
                 active
                   ? "bg-surfaceLighter text-neon-green border-l-2 border-neon-green"
                   : "text-mutedText hover:bg-surfaceLighter hover:text-white"
-              } ${item.comingSoon ? "opacity-50 cursor-not-allowed" : ""}`}
-              onClick={(e) => item.comingSoon && e.preventDefault()}
+              }`}
             >
               <Icon className="w-5 h-5 shrink-0" />
               <span className="tracking-wide">{item.label}</span>
-              {item.comingSoon && (
-                <span className="ml-auto text-[10px] bg-borderDark text-mutedText px-1.5 py-0.5 rounded uppercase font-mono">
-                  Soon
-                </span>
-              )}
             </Link>
           );
         })}

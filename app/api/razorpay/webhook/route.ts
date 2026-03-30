@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
-import { createSSRClient } from '@/lib/supabase-server'
+import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = "force-dynamic"
+
+// Service-role client for webhook ops (bypasses RLS)
+function createWebhookClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  )
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,13 +23,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing signature or secret' }, { status: 400 })
     }
 
-    // Verify signature
+    // Verify HMAC-SHA256 signature
     const expectedSignature = crypto
       .createHmac('sha256', secret)
       .update(body)
       .digest('hex')
 
     if (expectedSignature !== signature) {
+      console.error('Webhook signature mismatch')
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
 
@@ -31,38 +41,49 @@ export async function POST(req: NextRequest) {
       const razorpayOrderId = payment.order_id
       const razorpayPaymentId = payment.id
 
-      const supabase = await createSSRClient()
+      const supabase = createWebhookClient()
 
-      // Update order status in Supabase
-      // Using service role for webhooks would be better, but SSR client works if order RLS allows 
-      // Admin update via Service Role Key
-      const supabaseAdmin = require('@supabase/supabase-js').createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-      )
-
-      const { error } = await supabaseAdmin
+      // Update order: mark as paid, store payment ID
+      const { data, error } = await supabase
         .from('orders')
         .update({
           status: 'paid',
           razorpay_payment_id: razorpayPaymentId,
         })
         .eq('razorpay_order_id', razorpayOrderId)
+        .select('id, order_number, customer_email, customer_name')
+        .single()
 
       if (error) {
         console.error("Webhook DB update failed:", error)
         return NextResponse.json({ error: "DB Update Failed" }, { status: 500 })
       }
-      
-      // TODO: Here send confirmation email via Resend API (Requirement noted)
 
-      return NextResponse.json({ status: 'success' })
+      console.log(`✅ Order ${data?.order_number} marked as paid (${razorpayPaymentId})`)
+
+      // TODO: Send confirmation email via Resend API
+      // await sendOrderConfirmationEmail(data)
+
+      return NextResponse.json({ status: 'success', orderId: data?.id })
     }
 
-    return NextResponse.json({ status: 'ignored' })
+    if (event.event === 'payment.failed') {
+      const payment = event.payload.payment.entity
+      const razorpayOrderId = payment.order_id
+
+      const supabase = createWebhookClient()
+
+      // Log failed payment (keep status as pending)
+      console.error(`❌ Payment failed for Razorpay order: ${razorpayOrderId}`)
+
+      return NextResponse.json({ status: 'payment_failed_logged' })
+    }
+
+    // Unhandled event type — acknowledge it
+    return NextResponse.json({ status: 'ignored', event: event.event })
 
   } catch (err: any) {
-    console.error('Webhook error:', err)
+    console.error('Webhook processing error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }

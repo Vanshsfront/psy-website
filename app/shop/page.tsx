@@ -18,15 +18,11 @@ export default async function ShopHome({
 
   const category = searchParams?.category || "All"
 
-  const categories = [
-    "All",
-    "Rings",
-    "Necklaces",
-    "Earrings",
-    "Bracelets",
-    "Cuffs",
-    "Limited Edition",
-  ]
+  // Derive categories dynamically from actual product data
+  const uniqueCategories = Array.from(
+    new Set((products || []).map((p) => p.category))
+  ).sort()
+  const categories = ["All", ...uniqueCategories]
 
   return (
     <ShopClient

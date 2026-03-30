@@ -19,11 +19,15 @@ export default async function AdminBookingDetail({ params }: { params: { id: str
   }
 
   // Server Action to update status
-  async function updateStatus(formData: FormData) {
+  async function updateBooking(formData: FormData) {
     "use server"
     const newStatus = formData.get("status") as string
+    const adminNotes = formData.get("admin_notes") as string
     const sbp = await createSSRClient()
-    await sbp.from("bookings").update({ status: newStatus }).eq("id", params.id)
+    await sbp.from("bookings").update({
+      status: newStatus,
+      admin_notes: adminNotes || null,
+    }).eq("id", params.id)
     revalidatePath(`/admin/bookings/${params.id}`)
     revalidatePath(`/admin/bookings`)
   }
@@ -122,15 +126,27 @@ export default async function AdminBookingDetail({ params }: { params: { id: str
 
           <div className="bg-surface border border-borderDark p-6 rounded space-y-6">
             <h2 className="font-display text-xl font-bold">Manage Request</h2>
-            <form action={updateStatus} className="flex flex-col gap-4">
-              <select name="status" defaultValue={booking.status} className="h-10 rounded border border-borderDark bg-background px-3 text-sm focus-visible:ring-neon-purple">
-                <option value="pending">Pending Review</option>
-                <option value="contacted">Client Contacted</option>
-                <option value="confirmed">Session Confirmed</option>
-                <option value="completed">Tattoo Completed</option>
-                <option value="cancelled">Cancelled / Rejected</option>
-              </select>
-              <Button type="submit" variant="neon" className="w-full">Update Status</Button>
+            <form action={updateBooking} className="flex flex-col gap-4">
+              <div>
+                <label className="text-xs text-mutedText uppercase tracking-wider mb-1 block">Status</label>
+                <select name="status" defaultValue={booking.status} className="w-full h-10 rounded border border-borderDark bg-background px-3 text-sm focus-visible:ring-neon-purple">
+                  <option value="pending">Pending Review</option>
+                  <option value="contacted">Client Contacted</option>
+                  <option value="confirmed">Session Confirmed</option>
+                  <option value="completed">Tattoo Completed</option>
+                  <option value="cancelled">Cancelled / Rejected</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-mutedText uppercase tracking-wider mb-1 block">Admin Notes</label>
+                <textarea
+                  name="admin_notes"
+                  defaultValue={booking.admin_notes || ""}
+                  placeholder="Internal notes (deposit received, session length, etc.)"
+                  className="w-full h-24 rounded border border-borderDark bg-background px-3 py-2 text-sm focus:ring-1 focus:ring-neon-purple outline-none resize-none"
+                />
+              </div>
+              <Button type="submit" variant="neon" className="w-full">Save Changes</Button>
             </form>
             <p className="text-xs text-mutedText mt-4 text-center">Note: Updating status does not automatically email the client. Please contact them manually.</p>
           </div>

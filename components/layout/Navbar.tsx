@@ -34,8 +34,6 @@ export default function Navbar() {
     { name: "Studio", path: "/studio" },
     { name: "Shop", path: "/shop" },
     { name: "About", path: "/about" },
-    { name: "Artists", path: "/studio/artists" },
-    { name: "Book", path: "/studio#book" },
   ]
 
   // Hide on admin routes

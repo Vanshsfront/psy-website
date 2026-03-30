@@ -92,12 +92,24 @@ export default function CheckoutClient() {
       if (!response.ok)
         throw new Error(result.error || "Failed to create order")
 
+      // If Razorpay is not configured yet, redirect directly to confirmation
+      if (result.paymentMode === "manual") {
+        clearCart()
+        router.push(`/shop/order-confirmed/${result.dbOrderId}`)
+        return
+      }
+
+      // Razorpay payment flow
+      if (!window.Razorpay) {
+        throw new Error("Payment system is loading. Please try again.")
+      }
+
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: result.amount,
         currency: "INR",
         name: "PSY",
-        description: "PSY Jewels Purchase",
+        description: `Order ${result.orderNumber}`,
         order_id: result.razorpayOrderId,
         handler: function (response: any) {
           clearCart()
@@ -116,12 +128,12 @@ export default function CheckoutClient() {
       const rzp = new window.Razorpay(options)
       rzp.on("payment.failed", function (response: any) {
         console.error(response.error)
-        alert("Something went quiet. Try again.")
+        alert("Payment failed. Please try again.")
       })
       rzp.open()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      alert("Something went quiet. Try again.")
+      alert(err.message || "Something went wrong. Please try again.")
     } finally {
       setIsProcessing(false)
     }

@@ -93,22 +93,27 @@ CREATE TABLE IF NOT EXISTS products (
 
 -- 7. orders
 CREATE TABLE IF NOT EXISTS orders (
-  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_name      TEXT        NOT NULL,
-  customer_email     TEXT        NOT NULL,
-  customer_phone     TEXT,
-  shipping_address   JSONB       NOT NULL,
-  items              JSONB       NOT NULL,
-  subtotal           NUMERIC(10, 2) NOT NULL,
-  shipping           NUMERIC(10, 2) NOT NULL,
-  total              NUMERIC(10, 2) NOT NULL,
-  razorpay_order_id  TEXT,
+  id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_number        TEXT        UNIQUE,
+  customer_name       TEXT        NOT NULL,
+  customer_email      TEXT        NOT NULL,
+  customer_phone      TEXT,
+  shipping_address    JSONB       NOT NULL,
+  items               JSONB       NOT NULL,
+  subtotal            NUMERIC(10, 2) NOT NULL,
+  shipping            NUMERIC(10, 2) NOT NULL,
+  total               NUMERIC(10, 2) NOT NULL,
+  razorpay_order_id   TEXT,
   razorpay_payment_id TEXT,
-  status             TEXT        DEFAULT 'pending', -- pending | paid | shipped | delivered | refunded
-  created_at         TIMESTAMPTZ DEFAULT NOW()
+  status              TEXT        DEFAULT 'pending', -- pending | paid | shipped | delivered | refunded
+  tracking_number     TEXT,
+  courier_name        TEXT,
+  admin_notes         TEXT,
+  created_at          TIMESTAMPTZ DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ DEFAULT NOW()
 );
 
--- auto-update updated_at on products
+-- auto-update updated_at on products & orders
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -121,6 +126,29 @@ DROP TRIGGER IF EXISTS update_products_updated_at ON products;
 CREATE TRIGGER update_products_updated_at
   BEFORE UPDATE ON products
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
+CREATE TRIGGER update_orders_updated_at
+  BEFORE UPDATE ON orders
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Order number auto-generation (PSY-0001, PSY-0002, etc.)
+CREATE SEQUENCE IF NOT EXISTS order_number_seq START 1;
+
+CREATE OR REPLACE FUNCTION generate_order_number()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.order_number IS NULL THEN
+    NEW.order_number = 'PSY-' || LPAD(nextval('order_number_seq')::TEXT, 4, '0');
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS set_order_number ON orders;
+CREATE TRIGGER set_order_number
+  BEFORE INSERT ON orders
+  FOR EACH ROW EXECUTE FUNCTION generate_order_number();
 
 
 -- ═════════════════════════════════════════════════════════════════
@@ -170,6 +198,10 @@ CREATE POLICY "Public can insert orders"
 DROP POLICY IF EXISTS "Allow read access to orders by ID" ON orders;
 CREATE POLICY "Allow read access to orders by ID"
   ON orders FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow update on orders" ON orders;
+CREATE POLICY "Allow update on orders"
+  ON orders FOR UPDATE USING (true) WITH CHECK (true);
 
 
 -- ═════════════════════════════════════════════════════════════════
