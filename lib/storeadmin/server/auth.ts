@@ -7,10 +7,10 @@ const JWT_SECRET = new TextEncoder().encode(
 );
 const JWT_EXPIRE_HOURS = 24;
 
-export type UserRole = "admin" | "finance";
+export type UserRole = "admin" | "superadmin";
 
 export function getRoleForUser(username: string): UserRole {
-  if (username === "yogesh") return "finance";
+  if (username === "yogesh") return "superadmin";
   return "admin";
 }
 

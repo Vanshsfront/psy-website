@@ -127,7 +127,7 @@ function ExpensesContent() {
         }
     };
 
-    const canTopup = role === "finance" || role === "admin";
+    const canTopup = role === "superadmin";
 
     if (authLoading || !isAuthenticated) {
         return (

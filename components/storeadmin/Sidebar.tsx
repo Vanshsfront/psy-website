@@ -20,14 +20,14 @@ import {
 import type { UserRole } from "@/components/storeadmin/AuthProvider";
 
 const allNavItems = [
-    { label: "Dashboard", href: "/storeadmin", icon: LayoutDashboard, roles: ["admin"] as UserRole[] },
-    { label: "Customers", href: "/storeadmin/customers", icon: Users, roles: ["admin"] as UserRole[] },
-    { label: "Orders", href: "/storeadmin/orders", icon: ClipboardList, roles: ["admin"] as UserRole[] },
-    { label: "New Order", href: "/storeadmin/orders/new", icon: PlusCircle, roles: ["admin"] as UserRole[] },
-    { label: "Artists", href: "/storeadmin/artists", icon: Palette, roles: ["admin"] as UserRole[] },
-    { label: "Campaigns", href: "/storeadmin/campaigns", icon: Send, roles: ["admin"] as UserRole[] },
-    { label: "Finance", href: "/storeadmin/finance", icon: DollarSign, roles: ["finance"] as UserRole[] },
-    { label: "Petty Cash", href: "/storeadmin/expenses", icon: Wallet, roles: ["finance"] as UserRole[] },
+    { label: "Dashboard", href: "/storeadmin", icon: LayoutDashboard, roles: ["admin", "superadmin"] as UserRole[] },
+    { label: "Customers", href: "/storeadmin/customers", icon: Users, roles: ["admin", "superadmin"] as UserRole[] },
+    { label: "Orders", href: "/storeadmin/orders", icon: ClipboardList, roles: ["admin", "superadmin"] as UserRole[] },
+    { label: "New Order", href: "/storeadmin/orders/new", icon: PlusCircle, roles: ["admin", "superadmin"] as UserRole[] },
+    { label: "Artists", href: "/storeadmin/artists", icon: Palette, roles: ["admin", "superadmin"] as UserRole[] },
+    { label: "Campaigns", href: "/storeadmin/campaigns", icon: Send, roles: ["admin", "superadmin"] as UserRole[] },
+    { label: "Finance", href: "/storeadmin/finance", icon: DollarSign, roles: ["superadmin"] as UserRole[] },
+    { label: "Petty Cash", href: "/storeadmin/expenses", icon: Wallet, roles: ["admin", "superadmin"] as UserRole[] },
 ];
 
 export default function Sidebar() {

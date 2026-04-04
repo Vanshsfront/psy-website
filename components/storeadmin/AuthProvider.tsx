@@ -3,7 +3,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from "react";
 import { api } from "@/lib/storeadmin/api";
 
-export type UserRole = "admin" | "finance";
+export type UserRole = "admin" | "superadmin";
 
 interface AuthContextType {
     isAuthenticated: boolean;

@@ -19,7 +19,7 @@ import {
 import Link from "next/link";
 
 function DashboardContent() {
-    const { isAuthenticated, loading: authLoading, username } = useAuth();
+    const { isAuthenticated, loading: authLoading, username, role } = useAuth();
     const router = useRouter();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
@@ -129,15 +129,17 @@ function DashboardContent() {
                 ) : (
                     <>
                         {/* KPI Cards */}
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                            <Link href="/storeadmin/finance" className="neo-card p-5 animate-fadeIn cursor-pointer">
-                                <div className="flex items-center justify-between pb-2">
-                                    <span className="text-sm font-medium text-[var(--muted)]">Revenue</span>
-                                    <DollarSign className="w-4 h-4 text-[var(--primary)]" />
-                                </div>
-                                <div className="text-3xl font-bold">{formatCurrency(revenueThisMonth)}</div>
-                                <p className="text-xs text-[var(--muted)] mt-1">This month</p>
-                            </Link>
+                        <div className={`grid gap-6 mb-12 ${role === "superadmin" ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2"}`}>
+                            {role === "superadmin" && (
+                                <Link href="/storeadmin/finance" className="neo-card p-5 animate-fadeIn cursor-pointer">
+                                    <div className="flex items-center justify-between pb-2">
+                                        <span className="text-sm font-medium text-[var(--muted)]">Revenue</span>
+                                        <DollarSign className="w-4 h-4 text-[var(--primary)]" />
+                                    </div>
+                                    <div className="text-3xl font-bold">{formatCurrency(revenueThisMonth)}</div>
+                                    <p className="text-xs text-[var(--muted)] mt-1">This month</p>
+                                </Link>
+                            )}
 
                             <Link href="/storeadmin/orders" className="neo-card p-5 animate-fadeIn cursor-pointer" style={{ animationDelay: "0.05s" }}>
                                 <div className="flex items-center justify-between pb-2">
@@ -157,16 +159,18 @@ function DashboardContent() {
                                 <p className="text-xs text-[var(--muted)] mt-1">+{newCustomersThisMonth} this month</p>
                             </Link>
 
-                            <Link href="/storeadmin/finance" className="neo-card p-5 animate-fadeIn cursor-pointer" style={{ animationDelay: "0.15s" }}>
-                                <div className="flex items-center justify-between pb-2">
-                                    <span className="text-sm font-medium text-[var(--muted)]">Avg Order</span>
-                                    <TrendingUp className="w-4 h-4 text-[var(--primary)]" />
-                                </div>
-                                <div className="text-3xl font-bold">
-                                    {formatCurrency(totalOrders > 0 ? totalRevenue / totalOrders : 0)}
-                                </div>
-                                <p className="text-xs text-[var(--muted)] mt-1">Across all orders</p>
-                            </Link>
+                            {role === "superadmin" && (
+                                <Link href="/storeadmin/finance" className="neo-card p-5 animate-fadeIn cursor-pointer" style={{ animationDelay: "0.15s" }}>
+                                    <div className="flex items-center justify-between pb-2">
+                                        <span className="text-sm font-medium text-[var(--muted)]">Avg Order</span>
+                                        <TrendingUp className="w-4 h-4 text-[var(--primary)]" />
+                                    </div>
+                                    <div className="text-3xl font-bold">
+                                        {formatCurrency(totalOrders > 0 ? totalRevenue / totalOrders : 0)}
+                                    </div>
+                                    <p className="text-xs text-[var(--muted)] mt-1">Across all orders</p>
+                                </Link>
+                            )}
                         </div>
 
                         {/* Main content grid */}
@@ -190,7 +194,9 @@ function DashboardContent() {
                                                     </p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-sm font-mono text-[var(--foreground)]">{formatCurrency(order.total)}</p>
+                                                    {role === "superadmin" && (
+                                                        <p className="text-sm font-mono text-[var(--foreground)]">{formatCurrency(order.total)}</p>
+                                                    )}
                                                     <p className="text-xs text-[var(--muted)]">{formatRelativeDate(order.order_date)}</p>
                                                 </div>
                                             </div>
@@ -219,7 +225,9 @@ function DashboardContent() {
                                                                 <span className="text-xs font-bold text-[var(--muted)] w-4">{idx + 1}</span>
                                                                 <span className="text-sm font-medium">{artist.name}</span>
                                                             </div>
-                                                            <span className="text-sm font-semibold text-[var(--primary)]">{formatCurrency(artist.revenue)}</span>
+                                                            {role === "superadmin" && (
+                                                                <span className="text-sm font-semibold text-[var(--primary)]">{formatCurrency(artist.revenue)}</span>
+                                                            )}
                                                         </div>
                                                         <div className="ml-6 h-1.5 bg-[var(--surface-hover)] rounded-full overflow-hidden">
                                                             <div
