@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     const username = await authenticateRequest(request);
     const role = getRoleForUser(username);
-    if (role !== "finance" && role !== "admin") {
+    if (role !== "superadmin") {
       return NextResponse.json({ detail: "Forbidden" }, { status: 403 });
     }
     const { amount, note } = await request.json();
