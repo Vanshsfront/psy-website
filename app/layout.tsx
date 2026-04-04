@@ -4,7 +4,6 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import BottomBlur from "@/components/layout/BottomBlur";
 import LenisProvider from "@/components/layout/LenisProvider";
-import CustomCursor from "@/components/ui/CustomCursor";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -54,7 +53,6 @@ export default function RootLayout({
       <body
         className={`${cormorant.variable} ${dmSans.variable} antialiased`}
       >
-        <CustomCursor />
         <LenisProvider>
           <Navbar />
           <BottomBlur />

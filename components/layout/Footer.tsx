@@ -30,8 +30,7 @@ export default function Footer() {
               PSY
             </Link>
             <p className="font-sans text-caption text-taupe mt-3 leading-relaxed max-w-xs">
-              Custom tattoo artistry and handcrafted jewelry. Each piece a
-              conversation between artist and skin.
+              Where the mind meets the skin. Psy Tattoos exists at the intersection of mind, art, people, and progress.
             </p>
           </div>
 
@@ -100,9 +99,23 @@ export default function Footer() {
 
         {/* Bottom */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <span className="font-sans text-micro text-taupe/50">
-            © {new Date().getFullYear()} PSY Tattoos. All rights reserved.
-          </span>
+          <div className="flex items-center gap-4">
+            <span className="font-sans text-micro text-taupe/50">
+              © {new Date().getFullYear()} PSY Tattoos. All rights reserved.
+            </span>
+            <Link
+              href="/privacypolicy"
+              className="font-sans text-micro text-taupe/30 hover:text-taupe/60 transition-colors duration-300"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              href="/termsofservice"
+              className="font-sans text-micro text-taupe/30 hover:text-taupe/60 transition-colors duration-300"
+            >
+              Terms of Service
+            </Link>
+          </div>
           <span className="font-display italic text-micro text-taupe/30">
             — where the mind meets the skin
           </span>

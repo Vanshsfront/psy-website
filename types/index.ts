@@ -66,3 +66,50 @@ export type CartItem = {
   variant: Record<string, unknown> | null;
   quantity: number;
 };
+
+export type CommunityPost = {
+  id: string;
+  title: string;
+  description: string | null;
+  type: "event" | "collab" | "announcement";
+  image_url: string | null;
+  event_date: string | null;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GuestSpot = {
+  id: string;
+  artist_name: string;
+  bio: string | null;
+  instagram: string | null;
+  portfolio_images: string[];
+  dates_available: string | null;
+  date_start: string | null;
+  date_end: string | null;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GuestSpotLead = {
+  id: string;
+  guest_spot_id: string | null;
+  name: string;
+  email: string;
+  phone: string | null;
+  message: string | null;
+  created_at: string;
+};
+
+export type CustomerTestimonial = {
+  id: string;
+  customer_name: string;
+  review_text: string | null;
+  rating: number | null;
+  image_url: string | null;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+};

@@ -40,7 +40,7 @@ export default function AboutPage() {
 
         <FadeInOnScroll direction="none" delay={0.7}>
           <p className="font-sans text-body text-taupe text-center max-w-lg leading-relaxed">
-            More than a studio — a philosophy etched in ink.
+            Psy Tattoos was born from a belief that existed long before we gave it a name, that tattooing is one of the oldest forms of emotional expression.
           </p>
         </FadeInOnScroll>
       </section>
@@ -135,36 +135,112 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* ━━━ STUDIO ETHOS ━━━ */}
+      {/* ━━━ OUR STORY / WHAT WE BELIEVE ━━━ */}
       <section className="py-24 px-6 bg-[#0d0d0d]">
-        <div className="max-w-5xl mx-auto text-center">
+        <div className="max-w-5xl mx-auto">
           <FadeInOnScroll direction="up" delay={0.1}>
             <h2 className="font-display text-display-lg text-bone leading-tight">
               Where the mind meets the skin.
             </h2>
           </FadeInOnScroll>
           <FadeInOnScroll direction="up" delay={0.2}>
-            <p className="font-sans text-body text-taupe leading-relaxed mt-8 max-w-2xl mx-auto">
-              PSY draws from the psychedelic — not in spectacle, but in depth. We believe every tattoo
-              carries a frequency, a meaning that resonates beyond the surface. Our studio is a space
-              of intention, where art meets ritual and ink becomes identity.
+            <p className="font-sans text-body text-taupe leading-relaxed mt-6 max-w-2xl">
+              Ink has never just been ink.
+            </p>
+            <p className="font-sans text-body text-taupe leading-relaxed mt-2 max-w-2xl">
+              It has always been about reclaiming something. Identity. Survival. Belonging.
             </p>
           </FadeInOnScroll>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20 pt-16 border-t border-taupe/10">
+          <div className="mt-20 pt-16 border-t border-taupe/10 max-w-2xl">
+            <FadeInOnScroll direction="up" delay={0.1}>
+              <span className="font-sans uppercase tracking-[0.2em] text-taupe text-micro block mb-8">
+                What We Believe
+              </span>
+              <p className="font-sans text-body text-taupe leading-relaxed">
+                Our logo is not just a symbol, it is rooted in the language of psychology.
+                Because everything we do begins there.
+              </p>
+              <p className="font-sans text-body text-taupe leading-relaxed mt-4">
+                This studio is not just a place where you get tattooed.
+                It is a space where you are witnessed.
+              </p>
+            </FadeInOnScroll>
+          </div>
+        </div>
+      </section>
+
+      {/* ━━━ THE PSY EXPERIENCE ━━━ */}
+      <section className="py-24 px-6">
+        <div className="max-w-5xl mx-auto">
+          <FadeInOnScroll direction="none">
+            <div className="flex items-center mb-16">
+              <span className="font-sans uppercase tracking-[0.2em] text-taupe text-micro shrink-0">
+                The PSY Experience
+              </span>
+              <div className="flex-1 mx-6 h-[1px] bg-taupe/20" />
+            </div>
+          </FadeInOnScroll>
+          <FadeInOnScroll direction="up" delay={0.1}>
+            <p className="font-sans text-body text-taupe leading-relaxed max-w-2xl">
+              Psy Tattoos exists at the intersection of mind, art, people, and progress.
+            </p>
+            <p className="font-display italic text-bone text-xl mt-4">
+              Not a trend. A movement.
+            </p>
+          </FadeInOnScroll>
+        </div>
+      </section>
+
+      {/* ━━━ OUR FOUNDATIONS ━━━ */}
+      <section className="py-24 px-6 bg-[#0d0d0d]">
+        <div className="max-w-5xl mx-auto">
+          <FadeInOnScroll direction="none">
+            <div className="flex items-center mb-4">
+              <span className="font-sans uppercase tracking-[0.2em] text-taupe text-micro shrink-0">
+                Our Foundations
+              </span>
+              <div className="flex-1 mx-6 h-[1px] bg-taupe/20" />
+            </div>
+            <p className="font-display text-display-lg text-bone leading-tight mb-16">
+              Psychology. Art. Community. Technology.
+            </p>
+          </FadeInOnScroll>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             {[
-              { number: "2024", label: "Established" },
-              { number: "500+", label: "Pieces Created" },
-              { number: "100%", label: "Custom Work" },
-              { number: "Mumbai", label: "Based In" },
-            ].map((stat, i) => (
-              <FadeInOnScroll key={stat.label} direction="up" delay={0.1 * i}>
-                <div className="text-center">
-                  <span className="font-display text-display-lg text-bone block">{stat.number}</span>
-                  <span className="font-sans text-caption text-taupe uppercase tracking-widest mt-2 block">
-                    {stat.label}
+              {
+                num: "01",
+                title: "Psychology",
+                body: "The mind is at the centre of everything we create. Tattooing is rarely just aesthetic, it is personal, healing, meaningful. We honour that.",
+              },
+              {
+                num: "02",
+                title: "Art",
+                body: "Every line carries intention. Nothing here is decoration, it is expression.",
+              },
+              {
+                num: "03",
+                title: "Community",
+                body: "More than a studio, a space to belong. For those who've felt outside, this is where you are seen.",
+              },
+              {
+                num: "04",
+                title: "Technology",
+                body: "Beyond the needle. We're rethinking how you discover, experience, and tell your story.",
+              },
+            ].map((pillar, i) => (
+              <FadeInOnScroll key={pillar.num} direction="up" delay={0.1 * i}>
+                <div className="border-t border-taupe/20 pt-8">
+                  <span className="font-display text-[2.5rem] leading-none text-bone/[0.12] select-none block mb-4">
+                    {pillar.num}
                   </span>
+                  <h3 className="font-display text-display-md text-bone mb-3">
+                    {pillar.title}
+                  </h3>
+                  <p className="font-sans text-body text-taupe leading-relaxed">
+                    {pillar.body}
+                  </p>
                 </div>
               </FadeInOnScroll>
             ))}

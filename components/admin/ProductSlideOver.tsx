@@ -316,7 +316,7 @@ export default function ProductSlideOver({
             </div>
 
             {/* Scrollable content */}
-            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
+            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6 space-y-8">
               {/* SECTION 1: Basic Info */}
               <section className="space-y-4">
                 <h3 className="text-sm font-bold text-mutedText uppercase tracking-wider">

@@ -1,8 +1,4 @@
 import { createSSRClient } from "@/lib/supabase-server"
-import Image from "next/image"
-import Link from "next/link"
-import Accordion from "@/components/studio/Accordion"
-import BookingForm from "@/components/studio/BookingForm"
 import StudioClient from "@/components/studio/StudioClient"
 
 export const revalidate = 60 // ISR: revalidate every 60 seconds
@@ -10,19 +6,46 @@ export const revalidate = 60 // ISR: revalidate every 60 seconds
 export default async function StudioHome() {
   const supabase = await createSSRClient()
 
-  const { data: artists } = await supabase.from("artists").select("*")
-  const { data: styles } = await supabase.from("styles").select("*")
-  const { data: portfolio } = await supabase
-    .from("portfolio_items")
-    .select("*, artists(name)")
-    .order("created_at", { ascending: false })
-    .limit(4)
+  const [
+    { data: artists },
+    { data: styles },
+    { data: portfolio },
+    { data: communityPosts },
+    { data: guestSpots },
+    { data: testimonials },
+  ] = await Promise.all([
+    supabase.from("artists").select("*"),
+    supabase.from("styles").select("*"),
+    supabase
+      .from("portfolio_items")
+      .select("*, artists(name)")
+      .order("created_at", { ascending: false })
+      .limit(4),
+    supabase
+      .from("community_posts")
+      .select("*")
+      .eq("is_published", true)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("guest_spots")
+      .select("*")
+      .eq("is_published", true)
+      .order("date_start", { ascending: true }),
+    supabase
+      .from("customer_testimonials")
+      .select("*")
+      .eq("is_published", true)
+      .order("created_at", { ascending: false }),
+  ])
 
   return (
     <StudioClient
       artists={artists || []}
       styles={styles || []}
       portfolio={portfolio || []}
+      communityPosts={communityPosts || []}
+      guestSpots={guestSpots || []}
+      testimonials={testimonials || []}
     />
   )
 }
