@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, DM_Sans } from "next/font/google";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
-import BottomBlur from "@/components/layout/BottomBlur";
-import LenisProvider from "@/components/layout/LenisProvider";
+import SiteShell from "@/components/layout/SiteShell";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -53,12 +50,9 @@ export default function RootLayout({
       <body
         className={`${cormorant.variable} ${dmSans.variable} antialiased`}
       >
-        <LenisProvider>
-          <Navbar />
-          <BottomBlur />
+        <SiteShell>
           {children}
-          <Footer />
-        </LenisProvider>
+        </SiteShell>
       </body>
     </html>
   );

@@ -272,13 +272,19 @@ export default function ProductSlideOver({
     [editor, tags, images, variants, isEditing, product, onSaved, onClose, toast]
   );
 
-  // Escape key
+  // Escape key + body scroll lock
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    if (isOpen) window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    if (isOpen) {
+      window.addEventListener("keydown", handler);
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      window.removeEventListener("keydown", handler);
+      document.body.style.overflow = "";
+    };
   }, [isOpen, onClose]);
 
   return (
@@ -316,7 +322,7 @@ export default function ProductSlideOver({
             </div>
 
             {/* Scrollable content */}
-            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6 space-y-8">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-6 space-y-8">
               {/* SECTION 1: Basic Info */}
               <section className="space-y-4">
                 <h3 className="text-sm font-bold text-mutedText uppercase tracking-wider">
