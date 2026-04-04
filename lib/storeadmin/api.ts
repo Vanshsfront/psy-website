@@ -75,12 +75,12 @@ async function apiFetch<T>(
 // Auth
 export const api = {
     login: (username: string, password: string) =>
-        apiFetch<{ token: string; username: string }>("/api/storeadmin/auth/login", {
+        apiFetch<{ token: string; username: string; role: string }>("/api/storeadmin/auth/login", {
             method: "POST",
             body: JSON.stringify({ username, password }),
         }),
 
-    me: () => apiFetch<{ username: string }>("/api/storeadmin/auth/me"),
+    me: () => apiFetch<{ username: string; role: string }>("/api/storeadmin/auth/me"),
 
     // Customers
     getCustomers: (params?: Record<string, string | number>) => {
@@ -219,6 +219,16 @@ export const api = {
     // Artists
     getArtists: () =>
         apiFetch<{ artists: import("@/types/storeadmin").Artist[] }>("/api/storeadmin/artists"),
+
+    // Petty Cash
+    getPettyCashBalance: () =>
+        apiFetch<{ balance: number; total_topups: number; total_expenses: number }>("/api/storeadmin/petty-cash/balance"),
+
+    topupPettyCash: (amount: number, note?: string) =>
+        apiFetch<{ success: boolean; expense: import("@/types/storeadmin").Expense }>("/api/storeadmin/petty-cash/topup", {
+            method: "POST",
+            body: JSON.stringify({ amount, note }),
+        }),
 
     // Export
     exportMastersheet: async (): Promise<Blob> => {

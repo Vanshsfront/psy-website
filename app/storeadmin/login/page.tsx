@@ -19,7 +19,12 @@ export default function LoginPage() {
         setLoading(true);
         try {
             await login(username, password);
-            router.push("/storeadmin");
+            // Finance role users go straight to finance page
+            if (username === "yogesh") {
+                router.push("/storeadmin/finance");
+            } else {
+                router.push("/storeadmin");
+            }
         } catch {
             setError("Invalid credentials");
         } finally {

@@ -18,6 +18,8 @@ import {
     ChevronRight,
     Search,
     X,
+    Wallet,
+    ArrowUpCircle,
 } from "lucide-react";
 
 const PAGE_SIZE = 25;
@@ -34,7 +36,7 @@ const catColors: Record<string, string> = {
 };
 
 function ExpensesContent() {
-    const { isAuthenticated, loading: authLoading } = useAuth();
+    const { isAuthenticated, loading: authLoading, role } = useAuth();
     const router = useRouter();
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [loading, setLoading] = useState(true);
@@ -48,6 +50,13 @@ function ExpensesContent() {
     const [parsing, setParsing] = useState(false);
     const [saving, setSaving] = useState(false);
 
+    // Petty cash balance
+    const [pettyCashBalance, setPettyCashBalance] = useState<number | null>(null);
+    const [showTopup, setShowTopup] = useState(false);
+    const [topupAmount, setTopupAmount] = useState("");
+    const [topupNote, setTopupNote] = useState("");
+    const [topupSaving, setTopupSaving] = useState(false);
+
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
     }, [authLoading, isAuthenticated, router]);
@@ -59,10 +68,14 @@ function ExpensesContent() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const res = await api.getExpenses();
+            const [res, balRes] = await Promise.all([
+                api.getExpenses(),
+                api.getPettyCashBalance(),
+            ]);
             setExpenses(res.expenses);
+            setPettyCashBalance(balRes.balance);
         } catch (e) {
-            console.error("Failed to load expenses:", e);
+            console.error("Failed to load:", e);
         } finally {
             setLoading(false);
         }
@@ -89,13 +102,32 @@ function ExpensesContent() {
             setParsedExpense(null);
             setExpenseText("");
             setShowInput(false);
-            loadData();
+            loadData(); // reloads balance too
         } catch {
             console.error("Confirm failed");
         } finally {
             setSaving(false);
         }
     };
+
+    const handleTopup = async () => {
+        const amount = parseFloat(topupAmount);
+        if (!amount || amount <= 0) return;
+        setTopupSaving(true);
+        try {
+            await api.topupPettyCash(amount, topupNote || undefined);
+            setTopupAmount("");
+            setTopupNote("");
+            setShowTopup(false);
+            loadData();
+        } catch {
+            console.error("Topup failed");
+        } finally {
+            setTopupSaving(false);
+        }
+    };
+
+    const canTopup = role === "finance" || role === "admin";
 
     if (authLoading || !isAuthenticated) {
         return (
@@ -135,9 +167,62 @@ function ExpensesContent() {
         <div className="flex min-h-screen">
             <Sidebar />
             <main className="flex-1 ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10 max-w-7xl">
+                {/* Petty Cash Balance Card */}
+                <div className="neo-card stat-accent stat-accent-gold p-5 mb-6 animate-fadeIn">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <Wallet className="w-4 h-4 text-[var(--accent)]" />
+                                <span className="text-sm font-medium text-[var(--muted)]">Petty Cash Balance</span>
+                            </div>
+                            <p className={`text-3xl font-bold tracking-tight ${(pettyCashBalance ?? 0) >= 0 ? "text-[var(--accent)]" : "text-[var(--danger)]"}`}>
+                                {pettyCashBalance !== null ? formatCurrency(pettyCashBalance) : "..."}
+                            </p>
+                        </div>
+                        {canTopup && (
+                            <button
+                                onClick={() => setShowTopup(!showTopup)}
+                                className="neo-btn neo-btn-primary px-4 py-2.5 text-sm flex items-center gap-2 cursor-pointer"
+                            >
+                                <ArrowUpCircle className="w-4 h-4" />
+                                Top Up
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Topup form */}
+                    {showTopup && (
+                        <div className="mt-4 pt-4 border-t border-[var(--border-color)] animate-fadeIn">
+                            <div className="flex gap-3">
+                                <input
+                                    type="number"
+                                    value={topupAmount}
+                                    onChange={(e) => setTopupAmount(e.target.value)}
+                                    placeholder="Amount"
+                                    className="w-40 px-4 py-2.5 neo-input text-sm"
+                                    min="1"
+                                />
+                                <input
+                                    value={topupNote}
+                                    onChange={(e) => setTopupNote(e.target.value)}
+                                    placeholder="Note (optional)"
+                                    className="flex-1 px-4 py-2.5 neo-input text-sm"
+                                />
+                                <button
+                                    onClick={handleTopup}
+                                    disabled={topupSaving || !topupAmount}
+                                    className="px-5 py-2.5 neo-btn neo-btn-primary text-sm disabled:opacity-50 cursor-pointer"
+                                >
+                                    {topupSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm"}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                     <div>
-                        <h1 className="font-display text-4xl font-bold">Expenses</h1>
+                        <h1 className="font-display text-4xl font-bold">Petty Cash</h1>
                         <p className="text-[var(--muted)] mt-1 text-sm">
                             {filtered.length} entries &middot; {formatCurrency(totalAmount)} total
                         </p>

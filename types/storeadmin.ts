@@ -123,6 +123,7 @@ export interface FinancialSummary {
     revenue: number;
     expenses: number;
     profit: number;
+    petty_cash_balance: number;
     category_breakdown: Record<string, number>;
     order_count: number;
     expense_count: number;

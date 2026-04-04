@@ -15,23 +15,25 @@ import {
     X,
     ClipboardList,
     Palette,
-    Receipt,
+    Wallet,
 } from "lucide-react";
+import type { UserRole } from "@/components/storeadmin/AuthProvider";
 
-const navItems = [
-    { label: "Dashboard", href: "/storeadmin", icon: LayoutDashboard },
-    { label: "Customers", href: "/storeadmin/customers", icon: Users },
-    { label: "Orders", href: "/storeadmin/orders", icon: ClipboardList },
-    { label: "New Order", href: "/storeadmin/orders/new", icon: PlusCircle },
-    { label: "Artists", href: "/storeadmin/artists", icon: Palette },
-    { label: "Campaigns", href: "/storeadmin/campaigns", icon: Send },
-    { label: "Finance", href: "/storeadmin/finance", icon: DollarSign },
-    { label: "Expenses", href: "/storeadmin/expenses", icon: Receipt },
+const allNavItems = [
+    { label: "Dashboard", href: "/storeadmin", icon: LayoutDashboard, roles: ["admin"] as UserRole[] },
+    { label: "Customers", href: "/storeadmin/customers", icon: Users, roles: ["admin"] as UserRole[] },
+    { label: "Orders", href: "/storeadmin/orders", icon: ClipboardList, roles: ["admin"] as UserRole[] },
+    { label: "New Order", href: "/storeadmin/orders/new", icon: PlusCircle, roles: ["admin"] as UserRole[] },
+    { label: "Artists", href: "/storeadmin/artists", icon: Palette, roles: ["admin"] as UserRole[] },
+    { label: "Campaigns", href: "/storeadmin/campaigns", icon: Send, roles: ["admin"] as UserRole[] },
+    { label: "Finance", href: "/storeadmin/finance", icon: DollarSign, roles: ["admin", "finance"] as UserRole[] },
+    { label: "Petty Cash", href: "/storeadmin/expenses", icon: Wallet, roles: ["admin", "finance"] as UserRole[] },
 ];
 
 export default function Sidebar() {
     const pathname = usePathname();
-    const { logout, username } = useAuth();
+    const { logout, username, role } = useAuth();
+    const navItems = allNavItems.filter(item => !role || item.roles.includes(role));
     const [mobileOpen, setMobileOpen] = useState(false);
 
     useEffect(() => {

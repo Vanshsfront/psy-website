@@ -9,7 +9,7 @@ import { formatCurrency } from "@/lib/storeadmin/utils";
 import type { FinancialSummary, Order } from "@/types/storeadmin";
 import {
     TrendingUp,
-    TrendingDown,
+    Wallet,
     DollarSign,
     Loader2,
     Download,
@@ -205,7 +205,7 @@ function FinanceContent() {
                             Export
                         </button>
                         <Link href="/storeadmin/expenses" className="neo-btn flex items-center gap-2 px-4 py-2.5 text-sm cursor-pointer text-[var(--foreground)]">
-                            Manage Expenses
+                            Petty Cash
                         </Link>
                     </div>
                 </div>
@@ -243,25 +243,27 @@ function FinanceContent() {
                                 <p className="text-xs text-[var(--muted)] mt-1">{summary.order_count} orders</p>
                             </div>
 
-                            <div className="neo-card stat-accent stat-accent-red p-5 animate-fadeIn" style={{ animationDelay: "0.05s" }}>
+                            <div className="neo-card stat-accent stat-accent-gold p-5 animate-fadeIn" style={{ animationDelay: "0.05s" }}>
                                 <div className="flex items-center justify-between pb-2">
-                                    <span className="text-sm font-medium text-[var(--muted)]">Expenses</span>
-                                    <TrendingDown className="w-4 h-4 text-[var(--danger)]" />
+                                    <span className="text-sm font-medium text-[var(--muted)]">Petty Cash Balance</span>
+                                    <Wallet className="w-4 h-4 text-[var(--accent)]" />
                                 </div>
-                                <p className="text-3xl font-bold tracking-tight text-[var(--danger)]">{formatCurrency(summary.expenses)}</p>
-                                <p className="text-xs text-[var(--muted)] mt-1">{summary.expense_count} entries</p>
+                                <p className={`text-3xl font-bold tracking-tight ${summary.petty_cash_balance >= 0 ? "text-[var(--accent)]" : "text-[var(--danger)]"}`}>
+                                    {formatCurrency(summary.petty_cash_balance)}
+                                </p>
+                                <p className="text-xs text-[var(--muted)] mt-1">{summary.expense_count} expenses logged</p>
                             </div>
 
                             <div className="neo-card stat-accent stat-accent-taupe p-5 animate-fadeIn" style={{ animationDelay: "0.1s" }}>
                                 <div className="flex items-center justify-between pb-2">
-                                    <span className="text-sm font-medium text-[var(--muted)]">Net Profit</span>
+                                    <span className="text-sm font-medium text-[var(--muted)]">Petty Expenses</span>
                                     <DollarSign className="w-4 h-4 text-[var(--muted)]" />
                                 </div>
-                                <p className={`text-3xl font-bold tracking-tight ${summary.profit >= 0 ? "text-[var(--primary)]" : "text-[var(--danger)]"}`}>
-                                    {formatCurrency(summary.profit)}
+                                <p className="text-3xl font-bold tracking-tight text-[var(--muted)]">
+                                    {formatCurrency(summary.expenses)}
                                 </p>
                                 <p className="text-xs text-[var(--muted)] mt-1">
-                                    {summary.revenue > 0 ? `${((summary.profit / summary.revenue) * 100).toFixed(1)}% margin` : "\u2014"}
+                                    Not deducted from revenue
                                 </p>
                             </div>
                         </div>

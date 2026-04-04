@@ -379,7 +379,7 @@ export async function createOrder(inputData: Record<string, unknown>) {
 
 export async function getExpenses(params: { date_from?: string; date_to?: string; category?: string; limit?: number } = {}) {
   const { date_from = "", date_to = "", category = "", limit = 200 } = params;
-  let q = getDb().from("expenses").select("*");
+  let q = getDb().from("expenses").select("*").neq("category", "topup");
   if (date_from) q = q.gte("expense_date", date_from);
   if (date_to) q = q.lte("expense_date", date_to);
   if (category) q = q.eq("category", category);
@@ -401,6 +401,34 @@ export async function createExpense(inputData: Record<string, unknown>) {
   for (const k of Object.keys(payload)) {
     if (payload[k] == null) delete payload[k];
   }
+  const { data } = await getDb().from("expenses").insert(payload).select();
+  return data?.[0] ?? {};
+}
+
+// ── Petty Cash ──
+
+export async function getPettyCashBalance() {
+  const { data: allExpenses } = await getDb().from("expenses").select("amount, category");
+  const list = allExpenses ?? [];
+  const totalTopups = list.filter(e => e.category === "topup").reduce((s, e) => s + Number(e.amount ?? 0), 0);
+  const totalExpenses = list.filter(e => e.category !== "topup").reduce((s, e) => s + Number(e.amount ?? 0), 0);
+  return {
+    balance: totalTopups - totalExpenses,
+    total_topups: totalTopups,
+    total_expenses: totalExpenses,
+  };
+}
+
+export async function createPettyCashTopup(amount: number, note?: string) {
+  const today = new Date().toISOString().split("T")[0];
+  const payload = {
+    expense_date: today,
+    amount,
+    category: "topup",
+    description: note || "Petty cash top-up",
+    vendor: null,
+    payment_mode: "cash",
+  };
   const { data } = await getDb().from("expenses").insert(payload).select();
   return data?.[0] ?? {};
 }
@@ -454,7 +482,8 @@ export async function getFinancialSummary(dateFrom = "", dateTo = "") {
   if (dateFrom) eq = eq.gte("expense_date", dateFrom);
   if (dateTo) eq = eq.lte("expense_date", dateTo);
   const { data: expensesData } = await eq;
-  const expensesList = expensesData ?? [];
+  // Exclude topup entries from expense calculations
+  const expensesList = (expensesData ?? []).filter(e => e.category !== "topup");
   const totalExpenses = expensesList.reduce((sum, e) => sum + Number(e.amount ?? 0), 0);
 
   const categoryTotals: Record<string, number> = {};
@@ -463,10 +492,14 @@ export async function getFinancialSummary(dateFrom = "", dateTo = "") {
     categoryTotals[cat] = (categoryTotals[cat] ?? 0) + Number(e.amount ?? 0);
   }
 
+  // Petty cash balance (all-time, not date-filtered)
+  const pettyCash = await getPettyCashBalance();
+
   return {
     revenue,
     expenses: totalExpenses,
-    profit: revenue - totalExpenses,
+    profit: revenue, // petty cash has no connection to revenue
+    petty_cash_balance: pettyCash.balance,
     category_breakdown: categoryTotals,
     order_count: (ordersData ?? []).length,
     expense_count: expensesList.length,

@@ -3,9 +3,12 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from "react";
 import { api } from "@/lib/storeadmin/api";
 
+export type UserRole = "admin" | "finance";
+
 interface AuthContextType {
     isAuthenticated: boolean;
     username: string | null;
+    role: UserRole | null;
     login: (username: string, password: string) => Promise<void>;
     logout: () => void;
     loading: boolean;
@@ -14,6 +17,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
     isAuthenticated: false,
     username: null,
+    role: null,
     login: async () => { },
     logout: () => { },
     loading: true,
@@ -22,6 +26,7 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [username, setUsername] = useState<string | null>(null);
+    const [role, setRole] = useState<UserRole | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -31,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .then((data) => {
                     setIsAuthenticated(true);
                     setUsername(data.username);
+                    setRole((data.role as UserRole) || "admin");
                 })
                 .catch(() => {
                     localStorage.removeItem("psyshot_token");
@@ -46,16 +52,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem("psyshot_token", data.token);
         setIsAuthenticated(true);
         setUsername(data.username);
+        setRole((data.role as UserRole) || "admin");
     };
 
     const logout = () => {
         localStorage.removeItem("psyshot_token");
         setIsAuthenticated(false);
         setUsername(null);
+        setRole(null);
     };
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, username, login, logout, loading }}>
+        <AuthContext.Provider value={{ isAuthenticated, username, role, login, logout, loading }}>
             {children}
         </AuthContext.Provider>
     );

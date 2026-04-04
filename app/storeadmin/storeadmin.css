@@ -23,7 +23,7 @@
   --foreground: #F5F3EF;
   --surface: #111111;
   --surface-hover: #1a1a1a;
-  --border-color: #2a2a2a;
+  --border-color: #1e1e1e;
   --muted: #B8ADA4;
 
   --font-display: "Cormorant Garamond", serif;
@@ -118,7 +118,7 @@
 }
 
 .storeadmin-scope .glass-panel:hover {
-  border-color: #3a3a3a;
+  border-color: #2a2a2a;
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -133,7 +133,7 @@
 }
 
 .storeadmin-scope .neo-card:hover {
-  border-color: #3a3a3a;
+  border-color: #2a2a2a;
   transform: translateY(-1px);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
 }
@@ -156,7 +156,7 @@
 
 .storeadmin-scope .neo-btn:hover {
   background: var(--surface-hover);
-  border-color: #3a3a3a;
+  border-color: #2a2a2a;
 }
 
 .storeadmin-scope .neo-btn:active,

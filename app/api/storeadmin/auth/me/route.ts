@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/storeadmin/server/auth";
+import { authenticateRequest, getRoleForUser } from "@/lib/storeadmin/server/auth";
 
 export async function GET(request: NextRequest) {
   try {
     const username = await authenticateRequest(request);
-    return NextResponse.json({ username });
+    const role = getRoleForUser(username);
+    return NextResponse.json({ username, role });
   } catch {
     return NextResponse.json({ detail: "Invalid or expired token" }, { status: 401 });
   }
