@@ -377,7 +377,7 @@ function ExpensesContent() {
                                         {paginated.map((exp, idx) => (
                                             <tr
                                                 key={exp.id}
-                                                className="border-b border-[var(--border-color)]/50 hover:bg-[var(--surface-hover)] transition-colors animate-fadeIn"
+                                                className="border-b border-[var(--border-color-subtle)] hover:bg-[var(--surface-hover)] transition-colors animate-fadeIn"
                                                 style={{ animationDelay: `${idx * 0.02}s` }}
                                             >
                                                 <td className="px-5 py-3 text-sm">{formatDate(exp.expense_date)}</td>

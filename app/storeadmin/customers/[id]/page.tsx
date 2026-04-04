@@ -130,7 +130,7 @@ function ProfileContent() {
                         <div className="glass-panel p-5 animate-fadeIn">
                             <div className="flex items-center justify-between mb-5">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-full bg-[var(--border-color)] flex items-center justify-center text-lg font-bold text-white">
+                                    <div className="w-12 h-12 rounded-full bg-[var(--surface-hover)] flex items-center justify-center text-lg font-bold text-white">
                                         {customer.name.charAt(0)}
                                     </div>
                                     <div>
@@ -292,7 +292,7 @@ function ProfileContent() {
                                         </thead>
                                         <tbody>
                                             {orders.map((order) => (
-                                                <tr key={order.id} className="border-b border-[var(--border-color)]/50 hover:bg-[var(--surface-hover)] transition-colors">
+                                                <tr key={order.id} className="border-b border-[var(--border-color-subtle)] hover:bg-[var(--surface-hover)] transition-colors">
                                                     <td className="px-5 py-3 text-sm">{formatDate(order.order_date)}</td>
                                                     <td className="px-5 py-3 text-sm max-w-[200px] truncate">{order.service_description || "—"}</td>
                                                     <td className="px-5 py-3 text-sm">{order.artists?.name || "—"}</td>

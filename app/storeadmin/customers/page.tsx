@@ -231,12 +231,12 @@ function CustomersContent() {
                                             <tr
                                                 key={customer.id}
                                                 onClick={() => router.push(`/storeadmin/customers/${customer.id}`)}
-                                                className="border-b border-[var(--border-color)]/50 hover:bg-[var(--surface-hover)] cursor-pointer transition-colors animate-fadeIn flex flex-col md:table-row p-4 md:p-0 gap-1 md:gap-0"
+                                                className="border-b border-[var(--border-color-subtle)] hover:bg-[var(--surface-hover)] cursor-pointer transition-colors animate-fadeIn flex flex-col md:table-row p-4 md:p-0 gap-1 md:gap-0"
                                                 style={{ animationDelay: `${idx * 0.02}s` }}
                                             >
                                                 <td className="px-2 md:px-5 py-1 md:py-3.5">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full bg-[var(--border-color)] flex items-center justify-center text-xs font-bold text-white">
+                                                        <div className="w-8 h-8 rounded-full bg-[var(--surface-hover)] flex items-center justify-center text-xs font-bold text-white">
                                                             {customer.name.charAt(0)}
                                                         </div>
                                                         <div>

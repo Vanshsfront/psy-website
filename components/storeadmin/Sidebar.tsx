@@ -26,8 +26,8 @@ const allNavItems = [
     { label: "New Order", href: "/storeadmin/orders/new", icon: PlusCircle, roles: ["admin"] as UserRole[] },
     { label: "Artists", href: "/storeadmin/artists", icon: Palette, roles: ["admin"] as UserRole[] },
     { label: "Campaigns", href: "/storeadmin/campaigns", icon: Send, roles: ["admin"] as UserRole[] },
-    { label: "Finance", href: "/storeadmin/finance", icon: DollarSign, roles: ["admin", "finance"] as UserRole[] },
-    { label: "Petty Cash", href: "/storeadmin/expenses", icon: Wallet, roles: ["admin", "finance"] as UserRole[] },
+    { label: "Finance", href: "/storeadmin/finance", icon: DollarSign, roles: ["finance"] as UserRole[] },
+    { label: "Petty Cash", href: "/storeadmin/expenses", icon: Wallet, roles: ["finance"] as UserRole[] },
 ];
 
 export default function Sidebar() {
@@ -122,7 +122,7 @@ export default function Sidebar() {
                 {/* User + Sign Out */}
                 <div className="p-4 border-t border-[var(--border-color)]">
                     <div className="flex items-center gap-3 text-sm text-[var(--muted)] mb-3">
-                        <div className="w-8 h-8 rounded-full bg-[var(--border-color)] flex items-center justify-center font-bold text-white uppercase text-xs">
+                        <div className="w-8 h-8 rounded-full bg-[var(--surface-hover)] flex items-center justify-center font-bold text-white uppercase text-xs">
                             {username?.[0] || "A"}
                         </div>
                         <span className="truncate">{username}</span>
