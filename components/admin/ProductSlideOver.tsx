@@ -345,7 +345,14 @@ export default function ProductSlideOver({
                   <label className="block text-sm font-medium mb-1.5 text-mutedText">
                     Slug
                   </label>
-                  <Input {...register("slug")} placeholder="onyx-ring" />
+                  <Input
+                    {...register("slug")}
+                    placeholder="onyx-ring"
+                    onChange={(e) => {
+                      const sanitized = e.target.value.replace(/\s+/g, "-").toLowerCase();
+                      setValue("slug", sanitized);
+                    }}
+                  />
                   <p className="text-xs text-mutedText/60 mt-1">
                     psy-jewels.com/shop/{watch("slug") || "..."}
                   </p>

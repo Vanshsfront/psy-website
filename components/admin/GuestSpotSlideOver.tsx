@@ -159,13 +159,19 @@ export default function GuestSpotSlideOver({
     toast,
   ]);
 
-  // Escape key
+  // Escape key + body scroll lock
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    if (isOpen) window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    if (isOpen) {
+      window.addEventListener("keydown", handler);
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      window.removeEventListener("keydown", handler);
+      document.body.style.overflow = "";
+    };
   }, [isOpen, onClose]);
 
   return (

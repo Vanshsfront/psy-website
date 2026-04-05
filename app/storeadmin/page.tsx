@@ -9,8 +9,6 @@ import { formatCurrency, formatRelativeDate, getSourceColor, getPaymentColor } f
 import type { Customer, Order, Artist } from "@/types/storeadmin";
 import {
     Users,
-    TrendingUp,
-    DollarSign,
     Loader2,
     ClipboardList,
     ArrowUpRight,
@@ -62,14 +60,12 @@ function DashboardContent() {
 
     // Compute metrics
     const totalCustomers = customers.length;
-    const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
     const totalOrders = orders.length;
 
     // This month's data
     const now = new Date();
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const ordersThisMonth = orders.filter(o => new Date(o.order_date) >= thisMonthStart);
-    const revenueThisMonth = ordersThisMonth.reduce((sum, o) => sum + (o.total || 0), 0);
     const newCustomersThisMonth = customers.filter(c => new Date(c.created_at) >= thisMonthStart).length;
 
     // Recent orders (last 5)
@@ -129,18 +125,7 @@ function DashboardContent() {
                 ) : (
                     <>
                         {/* KPI Cards */}
-                        <div className={`grid gap-6 mb-12 ${role === "superadmin" ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2"}`}>
-                            {role === "superadmin" && (
-                                <Link href="/storeadmin/finance" className="neo-card p-5 animate-fadeIn cursor-pointer">
-                                    <div className="flex items-center justify-between pb-2">
-                                        <span className="text-sm font-medium text-[var(--muted)]">Revenue</span>
-                                        <DollarSign className="w-4 h-4 text-[var(--primary)]" />
-                                    </div>
-                                    <div className="text-3xl font-bold">{formatCurrency(revenueThisMonth)}</div>
-                                    <p className="text-xs text-[var(--muted)] mt-1">This month</p>
-                                </Link>
-                            )}
-
+                        <div className="grid gap-6 mb-12 grid-cols-2">
                             <Link href="/storeadmin/orders" className="neo-card p-5 animate-fadeIn cursor-pointer" style={{ animationDelay: "0.05s" }}>
                                 <div className="flex items-center justify-between pb-2">
                                     <span className="text-sm font-medium text-[var(--muted)]">Orders</span>
@@ -158,19 +143,6 @@ function DashboardContent() {
                                 <div className="text-3xl font-bold">{totalCustomers}</div>
                                 <p className="text-xs text-[var(--muted)] mt-1">+{newCustomersThisMonth} this month</p>
                             </Link>
-
-                            {role === "superadmin" && (
-                                <Link href="/storeadmin/finance" className="neo-card p-5 animate-fadeIn cursor-pointer" style={{ animationDelay: "0.15s" }}>
-                                    <div className="flex items-center justify-between pb-2">
-                                        <span className="text-sm font-medium text-[var(--muted)]">Avg Order</span>
-                                        <TrendingUp className="w-4 h-4 text-[var(--primary)]" />
-                                    </div>
-                                    <div className="text-3xl font-bold">
-                                        {formatCurrency(totalOrders > 0 ? totalRevenue / totalOrders : 0)}
-                                    </div>
-                                    <p className="text-xs text-[var(--muted)] mt-1">Across all orders</p>
-                                </Link>
-                            )}
                         </div>
 
                         {/* Main content grid */}

@@ -394,7 +394,14 @@ function NewOrderContent() {
                                         </div>
                                         <div>
                                             <label className="block text-sm text-[var(--muted)] mb-1">Date</label>
-                                            <input type="date" value={manualForm.order_date} onChange={(e) => setManualForm({ ...manualForm, order_date: e.target.value })} className="w-full px-4 py-3 neo-input text-sm" />
+                                            <div className="relative">
+                                                <input
+                                                    type="date"
+                                                    value={manualForm.order_date}
+                                                    onChange={(e) => setManualForm({ ...manualForm, order_date: e.target.value })}
+                                                    className="w-full px-4 py-3 neo-input text-sm cursor-pointer [color-scheme:dark]"
+                                                />
+                                            </div>
                                         </div>
                                         <div>
                                             <label className="block text-sm text-[var(--muted)] mb-1">Type of Appointment</label>

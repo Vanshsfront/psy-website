@@ -41,7 +41,7 @@ function FinanceContent() {
     }, []);
 
     useEffect(() => {
-        if (isAuthenticated && dateFrom) loadData();
+        if (isAuthenticated) loadData();
     }, [isAuthenticated, dateFrom, dateTo]);
 
     const applyPreset = (preset: DatePreset) => {

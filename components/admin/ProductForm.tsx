@@ -171,7 +171,14 @@ export default function ProductForm({ initialData }: { initialData?: any }) {
         </div>
         <div>
           <label className="block text-sm font-medium mb-2 text-mutedText">Slug URL</label>
-          <Input {...register("slug")} placeholder="onyx-ring" />
+          <Input
+            {...register("slug")}
+            placeholder="onyx-ring"
+            onChange={(e) => {
+              const sanitized = e.target.value.replace(/\s+/g, "-").toLowerCase();
+              setValue("slug", sanitized);
+            }}
+          />
           {errors.slug && <p className="text-danger text-xs mt-1">{errors.slug.message}</p>}
         </div>
       </div>
