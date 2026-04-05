@@ -90,6 +90,12 @@ export default async function OrderConfirmedPage({
               <span>Subtotal</span>
               <span>₹{order.subtotal}</span>
             </div>
+            {order.discount_amount > 0 && (
+              <div className="flex justify-between font-sans text-caption text-psy-green">
+                <span>Discount{order.discount_code ? ` (${order.discount_code})` : ""}</span>
+                <span>-₹{Number(order.discount_amount).toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between font-sans text-caption text-taupe">
               <span>Shipping</span>
               <span>{Number(order.shipping) === 0 ? "FREE" : `₹${order.shipping}`}</span>

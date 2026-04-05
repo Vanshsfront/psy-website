@@ -13,7 +13,7 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { customer, items, subtotal, shippingCharge, total } = body
+    const { customer, items, subtotal, shippingCharge, total, discountCode, customerId } = body
 
     // ── 1. Validate request body ──────────────────────────────────
     if (!customer || !items || !Array.isArray(items) || items.length === 0) {
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (!customer.name || !customer.email || !customer.phone || 
+    if (!customer.name || !customer.email || !customer.phone ||
         !customer.address || !customer.city || !customer.state || !customer.pincode) {
       return NextResponse.json(
         { error: "Incomplete customer information" },
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     const productIds = items.map((item: any) => item.product_id)
     const { data: products, error: productsError } = await supabase
       .from("products")
-      .select("id, name, price, stock_status, is_deleted")
+      .select("id, name, price, stock_status, stock_quantity, is_deleted")
       .in("id", productIds)
 
     if (productsError) {
@@ -72,10 +72,16 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         )
       }
+      // Check quantity-based stock
+      if (product.stock_quantity > 0 && item.quantity > product.stock_quantity) {
+        return NextResponse.json(
+          { error: `Only ${product.stock_quantity} units of "${product.name}" available` },
+          { status: 400 }
+        )
+      }
     }
 
     // ── 3. Server-side price verification ─────────────────────────
-    // Re-calculate total from DB prices to prevent price manipulation
     let serverSubtotal = 0
     for (const item of items) {
       const product = products?.find((p: any) => p.id === item.product_id)
@@ -84,8 +90,46 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const serverShipping = serverSubtotal > 999 ? 0 : 99
-    const serverTotal = serverSubtotal + serverShipping
+    // ── 4. Validate and apply discount ────────────────────────────
+    let discountAmount = 0
+    let validatedDiscountCode: string | null = null
+
+    if (discountCode) {
+      const { data: discount } = await supabase
+        .from("discounts")
+        .select("*")
+        .ilike("code", discountCode)
+        .eq("is_active", true)
+        .single()
+
+      if (discount) {
+        const now = new Date()
+        const isValid =
+          (!discount.expires_at || new Date(discount.expires_at) > now) &&
+          (!discount.starts_at || new Date(discount.starts_at) <= now) &&
+          (!discount.max_uses || discount.used_count < discount.max_uses) &&
+          (!discount.min_order_amount || serverSubtotal >= Number(discount.min_order_amount))
+
+        if (isValid) {
+          if (discount.type === "percentage") {
+            discountAmount = Math.min(serverSubtotal, serverSubtotal * Number(discount.value) / 100)
+          } else {
+            discountAmount = Math.min(serverSubtotal, Number(discount.value))
+          }
+          validatedDiscountCode = discount.code
+
+          // Increment used_count
+          await supabase
+            .from("discounts")
+            .update({ used_count: discount.used_count + 1 })
+            .eq("id", discount.id)
+        }
+      }
+    }
+
+    const discountedSubtotal = serverSubtotal - discountAmount
+    const serverShipping = discountedSubtotal > 999 ? 0 : 99
+    const serverTotal = discountedSubtotal + serverShipping
 
     // Allow small floating-point difference (₹1 tolerance)
     if (Math.abs(serverTotal - total) > 1) {
@@ -95,8 +139,23 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // ── 4. Create order in database (status: pending) ─────────────
-    const orderPayload = {
+    // ── 5. Decrement inventory ────────────────────────────────────
+    for (const item of items) {
+      const product = products?.find((p: any) => p.id === item.product_id)
+      if (product && product.stock_quantity > 0) {
+        const newQty = Math.max(0, product.stock_quantity - item.quantity)
+        await supabase
+          .from("products")
+          .update({
+            stock_quantity: newQty,
+            stock_status: newQty > 0,
+          })
+          .eq("id", item.product_id)
+      }
+    }
+
+    // ── 6. Create order in database (status: pending) ─────────────
+    const orderPayload: Record<string, any> = {
       customer_name: customer.name,
       customer_email: customer.email,
       customer_phone: customer.phone,
@@ -113,12 +172,19 @@ export async function POST(req: NextRequest) {
         price: item.price,
         image_url: item.image_url,
         variant: item.variant,
+        variant_id: item.variant_id || null,
         quantity: item.quantity,
       })),
       subtotal: serverSubtotal,
       shipping: serverShipping,
       total: serverTotal,
       status: "pending",
+      discount_code: validatedDiscountCode,
+      discount_amount: discountAmount,
+    }
+
+    if (customerId) {
+      orderPayload.customer_id = customerId
     }
 
     const { data: dbOrder, error: dbError } = await supabase
@@ -135,18 +201,16 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // ── 5. Create Razorpay order ──────────────────────────────────
-    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET || 
-        RAZORPAY_KEY_ID === "rzp_test_yourkey" || 
+    // ── 7. Create Razorpay order ──────────────────────────────────
+    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET ||
+        RAZORPAY_KEY_ID === "rzp_test_yourkey" ||
         RAZORPAY_KEY_SECRET === "your_razorpay_secret") {
-      // Razorpay not configured yet — return order without payment
-      // Mark as "pending" and let admin manage manually
       return NextResponse.json({
         dbOrderId: dbOrder.id,
         orderNumber: dbOrder.order_number,
-        amount: serverTotal * 100, // paise
+        amount: serverTotal * 100,
         razorpayOrderId: null,
-        paymentMode: "manual", // Flag for frontend to handle
+        paymentMode: "manual",
       })
     }
 
@@ -156,7 +220,7 @@ export async function POST(req: NextRequest) {
     })
 
     const razorpayOrder = await razorpay.orders.create({
-      amount: Math.round(serverTotal * 100), // Convert to paise
+      amount: Math.round(serverTotal * 100),
       currency: "INR",
       receipt: dbOrder.order_number,
       notes: {
@@ -165,7 +229,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // ── 6. Update DB order with Razorpay order ID ─────────────────
+    // ── 8. Update DB order with Razorpay order ID ─────────────────
     await supabase
       .from("orders")
       .update({ razorpay_order_id: razorpayOrder.id })

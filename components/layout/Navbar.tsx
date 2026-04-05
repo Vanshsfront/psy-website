@@ -2,8 +2,9 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ShoppingBag, Menu, X, Settings } from "lucide-react"
+import { ShoppingBag, Menu, X, Settings, User } from "lucide-react"
 import { useCartStore } from "@/store/cartStore"
+import { useCustomerStore } from "@/store/customerStore"
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -28,7 +29,9 @@ export default function Navbar() {
     setMobileOpen(false)
   }, [pathname])
 
+  const isLoggedIn = useCustomerStore(state => state.isLoggedIn)
   const cartCount = mounted ? cartItems.reduce((acc, item) => acc + item.quantity, 0) : 0
+  const customerLoggedIn = mounted ? isLoggedIn() : false
 
   const navLinks = [
     { name: "Studio", path: "/studio" },
@@ -92,6 +95,13 @@ export default function Navbar() {
 
           {/* RIGHT ACTIONS */}
           <div className="flex items-center space-x-6">
+            <Link
+              href={customerLoggedIn ? "/shop/account" : "/shop/account/login"}
+              className="relative group"
+              title={customerLoggedIn ? "Account" : "Login"}
+            >
+              <User className={`w-4.5 h-4.5 transition-all duration-300 group-hover:text-bone ${customerLoggedIn ? "text-psy-green" : "text-taupe/60"}`} />
+            </Link>
             <Link href="/admin" className="relative group" title="Admin">
               <Settings className="w-4 h-4 text-taupe/60 transition-all duration-300 group-hover:text-bone group-hover:rotate-90" />
             </Link>

@@ -1,13 +1,17 @@
 "use client"
 
 import { useCartStore } from "@/store/cartStore"
+import { useCustomerStore } from "@/store/customerStore"
 import Link from "next/link"
-import { Trash2, Plus, Minus, ArrowRight } from "lucide-react"
+import { Trash2, Plus, Minus, ArrowRight, X } from "lucide-react"
 import { useEffect, useState } from "react"
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, getCartTotal } = useCartStore()
+  const { items, removeItem, updateQuantity, getCartTotal, discountCode, discountAmount, setDiscount, clearDiscount } = useCartStore()
   const [mounted, setMounted] = useState(false)
+  const [couponInput, setCouponInput] = useState("")
+  const [couponLoading, setCouponLoading] = useState(false)
+  const [couponError, setCouponError] = useState<string | null>(null)
 
   useEffect(() => setMounted(true), [])
 
@@ -15,7 +19,36 @@ export default function CartPage() {
 
   const subtotal = getCartTotal()
   const shipping = subtotal > 999 ? 0 : 99
-  const total = subtotal > 0 ? subtotal + shipping : 0
+  const total = subtotal > 0 ? subtotal - discountAmount + shipping : 0
+
+  const applyCoupon = async () => {
+    if (!couponInput.trim()) return
+    setCouponLoading(true)
+    setCouponError(null)
+    try {
+      const res = await fetch("/api/shop/discounts/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: couponInput.trim(), subtotal }),
+      })
+      const data = await res.json()
+      if (res.ok && data.valid) {
+        setDiscount(data.code, data.discount_amount)
+      } else {
+        setCouponError(data.error || "Invalid coupon code")
+      }
+    } catch {
+      setCouponError("Something went wrong. Please try again.")
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  const removeCoupon = () => {
+    clearDiscount()
+    setCouponInput("")
+    setCouponError(null)
+  }
 
   return (
     <main className="max-w-7xl mx-auto px-6 py-24 min-h-screen pt-28">
@@ -146,6 +179,50 @@ export default function CartPage() {
                     {shipping === 0 ? "FREE" : `₹${shipping.toFixed(2)}`}
                   </span>
                 </div>
+
+                {/* Coupon Code */}
+                {!discountCode ? (
+                  <div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={couponInput}
+                        onChange={(e) => {
+                          setCouponInput(e.target.value)
+                          setCouponError(null)
+                        }}
+                        placeholder="Discount code"
+                        className="flex-1 bg-transparent border border-taupe/30 text-bone placeholder:text-taupe text-caption px-3 py-2 rounded-[2px] outline-none focus:border-taupe/60 transition-colors duration-[400ms]"
+                        onKeyDown={(e) => e.key === "Enter" && applyCoupon()}
+                      />
+                      <button
+                        onClick={applyCoupon}
+                        disabled={couponLoading || !couponInput.trim()}
+                        className="border border-psy-green text-psy-green uppercase tracking-widest text-micro px-4 py-2 rounded-[2px] hover:bg-psy-green hover:text-ink transition-all duration-[400ms] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {couponLoading ? "..." : "Apply"}
+                      </button>
+                    </div>
+                    {couponError && (
+                      <p className="text-terracotta text-micro mt-2">{couponError}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="inline-flex items-center gap-1.5 bg-psy-green/10 text-psy-green text-micro px-2 py-1 rounded-[2px]">
+                        {discountCode}
+                        <button onClick={removeCoupon} className="hover:opacity-70 transition-opacity cursor-pointer">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    </div>
+                    <div className="flex justify-between font-sans text-caption text-psy-green">
+                      <span>Discount ({discountCode})</span>
+                      <span>-₹{discountAmount.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="h-[1px] bg-taupe/20 mb-8" />

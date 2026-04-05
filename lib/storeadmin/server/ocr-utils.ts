@@ -82,7 +82,7 @@ export async function extractOrdersFromImage(imageBytes: Buffer, mimeType = "ima
   try {
     const client = getOcrClient();
     const model = client.getGenerativeModel({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       generationConfig: { temperature: 0.1, maxOutputTokens: 8000 },
     });
 

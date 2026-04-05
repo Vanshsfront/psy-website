@@ -4,17 +4,23 @@ import { CartItem } from '@/types'
 
 interface CartState {
   items: CartItem[]
+  discountCode: string | null
+  discountAmount: number
   addItem: (item: CartItem) => void
   removeItem: (productId: string, variant: Record<string, any> | null) => void
   updateQuantity: (productId: string, variant: Record<string, any> | null, quantity: number) => void
   clearCart: () => void
   getCartTotal: () => number
+  setDiscount: (code: string, amount: number) => void
+  clearDiscount: () => void
 }
 
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
+      discountCode: null,
+      discountAmount: 0,
       addItem: (item) => {
         set((state) => {
           const existingItemIndex = state.items.findIndex(
@@ -46,10 +52,12 @@ export const useCartStore = create<CartState>()(
           })
         }))
       },
-      clearCart: () => set({ items: [] }),
+      clearCart: () => set({ items: [], discountCode: null, discountAmount: 0 }),
       getCartTotal: () => {
         return get().items.reduce((total, item) => total + (item.price * item.quantity), 0)
-      }
+      },
+      setDiscount: (code, amount) => set({ discountCode: code, discountAmount: amount }),
+      clearDiscount: () => set({ discountCode: null, discountAmount: 0 }),
     }),
     {
       name: 'psy-cart-storage',

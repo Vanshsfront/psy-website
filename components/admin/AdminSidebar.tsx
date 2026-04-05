@@ -14,6 +14,11 @@ import {
   Megaphone,
   UserPlus,
   Star,
+  RotateCcw,
+  Contact,
+  Warehouse,
+  Tag,
+  FolderOpen,
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -31,6 +36,11 @@ const navItems = [
   { label: "Community", href: "/admin/community", icon: Megaphone },
   { label: "Guest Spots", href: "/admin/guest-spots", icon: UserPlus },
   { label: "Testimonials", href: "/admin/testimonials", icon: Star },
+  { label: "Inventory", href: "/admin/inventory", icon: Warehouse },
+  { label: "Collections", href: "/admin/collections", icon: FolderOpen },
+  { label: "Discounts", href: "/admin/discounts", icon: Tag },
+  { label: "Customers", href: "/admin/customers", icon: Contact },
+  { label: "Returns", href: "/admin/returns", icon: RotateCcw },
 ];
 
 export default function AdminSidebar({

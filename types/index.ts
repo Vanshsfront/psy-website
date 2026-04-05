@@ -51,6 +51,7 @@ export type Product = {
   images: string[];
   variants: VariantGroup[];
   stock_status: boolean;
+  stock_quantity: number;
   is_featured: boolean;
   is_deleted: boolean;
   created_at: string;
@@ -64,7 +65,79 @@ export type CartItem = {
   price: number;
   image_url: string;
   variant: Record<string, unknown> | null;
+  variant_id?: string | null;
   quantity: number;
+};
+
+export type ProductVariant = {
+  id: string;
+  product_id: string;
+  sku: string | null;
+  label: string;
+  options: Record<string, string>;
+  price_override: number | null;
+  stock_quantity: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Collection = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image_url: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type Discount = {
+  id: string;
+  code: string;
+  type: "percentage" | "fixed";
+  value: number;
+  min_order_amount: number | null;
+  max_uses: number | null;
+  used_count: number;
+  starts_at: string | null;
+  expires_at: string | null;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type ShopCustomer = {
+  id: string;
+  email: string;
+  name: string;
+  phone: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CustomerAddress = {
+  id: string;
+  customer_id: string;
+  label: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  is_default: boolean;
+  created_at: string;
+};
+
+export type ReturnRequest = {
+  id: string;
+  order_id: string;
+  customer_id: string | null;
+  reason: string;
+  status: "requested" | "approved" | "rejected" | "completed";
+  items: Array<{ product_id: string; name: string; quantity: number }>;
+  refund_amount: number | null;
+  admin_notes: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type CommunityPost = {

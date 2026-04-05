@@ -127,6 +127,13 @@ export default function ProductCard({ product }: { product: Product }) {
             </span>
           )}
 
+          {/* Low stock badge */}
+          {product.stock_status && product.stock_quantity > 0 && product.stock_quantity <= 5 && (
+            <span className="absolute top-4 left-4 font-sans text-micro uppercase tracking-widest text-terracotta bg-ink/60 px-3 py-1 backdrop-blur-sm">
+              Only {product.stock_quantity} left
+            </span>
+          )}
+
           {/* Quick add overlay — +/− stepper */}
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-ink/90 via-ink/50 to-transparent px-4 py-4 opacity-60 group-hover:opacity-100 transition-all duration-[400ms] translate-y-0">
             {!product.stock_status ? (

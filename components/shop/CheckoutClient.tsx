@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { useCartStore } from "@/store/cartStore"
+import { useCustomerStore } from "@/store/customerStore"
 import { useForm } from "react-hook-form"
+import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Input } from "@/components/ui/input"
@@ -27,7 +29,8 @@ const shippingSchema = z.object({
 type ShippingData = z.infer<typeof shippingSchema>
 
 export default function CheckoutClient() {
-  const { items, getCartTotal, clearCart } = useCartStore()
+  const { items, getCartTotal, clearCart, discountCode, discountAmount } = useCartStore()
+  const { customer, token } = useCustomerStore()
   const [mounted, setMounted] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const router = useRouter()
@@ -46,10 +49,19 @@ export default function CheckoutClient() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<ShippingData>({
     resolver: zodResolver(shippingSchema),
   })
+
+  useEffect(() => {
+    if (customer) {
+      setValue("name", customer.name)
+      setValue("email", customer.email)
+      if (customer.phone) setValue("phone", customer.phone)
+    }
+  }, [customer, setValue])
 
   if (!mounted) return null
 
@@ -70,8 +82,9 @@ export default function CheckoutClient() {
   }
 
   const subtotal = getCartTotal()
-  const shippingCharge = subtotal > 999 ? 0 : 99
-  const total = subtotal + shippingCharge
+  const discountedSubtotal = subtotal - discountAmount
+  const shippingCharge = discountedSubtotal > 999 ? 0 : 99
+  const total = discountedSubtotal + shippingCharge
 
   const processPayment = async (data: ShippingData) => {
     setIsProcessing(true)
@@ -85,6 +98,8 @@ export default function CheckoutClient() {
           subtotal,
           shippingCharge,
           total,
+          discountCode,
+          customerId: customer?.id || null,
         }),
       })
       const result = await response.json()
@@ -143,6 +158,24 @@ export default function CheckoutClient() {
     <div className="flex flex-col lg:flex-row gap-16 border-t border-taupe/20 pt-12">
       {/* Checkout Form */}
       <div className="lg:w-2/3">
+        {customer ? (
+          <div className="flex items-center gap-2 text-psy-green text-caption mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            <span>Logged in as {customer.name}</span>
+          </div>
+        ) : (
+          <div className="mb-6">
+            <Link
+              href="/shop/account/login"
+              className="font-sans text-cta text-taupe hover:text-bone transition-colors duration-300"
+            >
+              Have an account? Log in for faster checkout
+            </Link>
+          </div>
+        )}
+
         <span className="font-sans uppercase tracking-[0.3em] text-taupe text-micro block mb-8">
           1. Shipping Details
         </span>
@@ -281,6 +314,12 @@ export default function CheckoutClient() {
               <span>Subtotal</span>
               <span>₹{subtotal.toFixed(2)}</span>
             </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between font-sans text-caption">
+                <span className="text-taupe">Discount ({discountCode})</span>
+                <span className="text-psy-green">-₹{discountAmount.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between font-sans text-caption text-taupe">
               <span>Shipping</span>
               <span>

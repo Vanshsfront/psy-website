@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useMemo } from "react"
+import { Search } from "lucide-react"
 import TextReveal from "@/components/animations/TextReveal"
 import FadeInOnScroll from "@/components/animations/FadeInOnScroll"
 import StaggeredGrid from "@/components/animations/StaggeredGrid"
@@ -33,11 +34,19 @@ export default function ShopClient({
 
   // Client-side category filtering to avoid full page reload
   const [currentCategory, setCurrentCategory] = useState(activeCategory)
+  const [searchQuery, setSearchQuery] = useState("")
 
   const filteredProducts = useMemo(() => {
-    if (currentCategory === "All") return products
-    return products.filter(p => p.category === currentCategory)
-  }, [currentCategory, products])
+    let result = currentCategory === "All" ? products : products.filter(p => p.category === currentCategory)
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase()
+      result = result.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        (p.description_short && p.description_short.toLowerCase().includes(q))
+      )
+    }
+    return result
+  }, [currentCategory, products, searchQuery])
 
   const handleCategoryChange = (cat: string) => {
     setCurrentCategory(cat)
@@ -129,6 +138,20 @@ export default function ShopClient({
       {/* ━━━ CATEGORY NAVIGATION ━━━ */}
       <section className="py-16 px-6" id="collection">
         <div className="max-w-7xl mx-auto">
+          {/* Search */}
+          <div className="max-w-md mx-auto mb-12">
+            <div className="relative">
+              <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-taupe pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search products..."
+                className="w-full bg-transparent border-b border-taupe/30 focus:border-bone text-bone placeholder:text-taupe font-sans text-body pl-7 pb-2 pt-1 outline-none transition-colors duration-[400ms]"
+              />
+            </div>
+          </div>
+
           <div className="flex flex-wrap justify-center gap-8 mb-16">
             {categories.map((cat) => (
               <button

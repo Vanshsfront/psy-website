@@ -43,6 +43,23 @@ export async function POST(req: NextRequest) {
 
       const supabase = createWebhookClient()
 
+      // Idempotency check: only update if order is still pending
+      const { data: existing } = await supabase
+        .from('orders')
+        .select('id, status')
+        .eq('razorpay_order_id', razorpayOrderId)
+        .single()
+
+      if (!existing) {
+        console.error(`Webhook: No order found for Razorpay order ${razorpayOrderId}`)
+        return NextResponse.json({ error: "Order not found" }, { status: 404 })
+      }
+
+      if (existing.status !== 'pending') {
+        console.log(`Webhook: Order ${existing.id} already ${existing.status}, skipping duplicate`)
+        return NextResponse.json({ status: 'already_processed', orderId: existing.id })
+      }
+
       // Update order: mark as paid, store payment ID
       const { data, error } = await supabase
         .from('orders')
@@ -51,7 +68,8 @@ export async function POST(req: NextRequest) {
           razorpay_payment_id: razorpayPaymentId,
         })
         .eq('razorpay_order_id', razorpayOrderId)
-        .select('id, order_number, customer_email, customer_name')
+        .eq('status', 'pending')
+        .select('id, order_number, customer_email, customer_name, total')
         .single()
 
       if (error) {
@@ -59,10 +77,22 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "DB Update Failed" }, { status: 500 })
       }
 
-      console.log(`✅ Order ${data?.order_number} marked as paid (${razorpayPaymentId})`)
+      console.log(`Order ${data?.order_number} marked as paid (${razorpayPaymentId})`)
 
-      // TODO: Send confirmation email via Resend API
-      // await sendOrderConfirmationEmail(data)
+      // Send confirmation email (non-blocking)
+      if (data?.customer_email) {
+        try {
+          const { sendOrderConfirmationEmail } = await import("@/lib/email")
+          await sendOrderConfirmationEmail({
+            to: data.customer_email,
+            customerName: data.customer_name,
+            orderNumber: data.order_number,
+            total: data.total,
+          })
+        } catch (emailErr) {
+          console.error("Failed to send confirmation email:", emailErr)
+        }
+      }
 
       return NextResponse.json({ status: 'success', orderId: data?.id })
     }
