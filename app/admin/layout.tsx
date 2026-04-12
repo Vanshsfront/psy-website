@@ -23,7 +23,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       />
 
       {/* Main content — offset by sidebar width on desktop */}
-      <main className="flex-1 md:ml-60 overflow-x-hidden relative">
+      <main className="flex-1 md:ml-60 overflow-x-clip relative">
         <div className="p-6 md:p-10 max-w-7xl mx-auto">
           {children}
         </div>

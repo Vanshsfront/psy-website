@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -272,18 +272,45 @@ export default function ProductSlideOver({
     [editor, tags, images, variants, isEditing, product, onSaved, onClose, toast]
   );
 
-  // Escape key + body scroll lock
+  // Escape key + full scroll lock (body fixed + html locked + main locked)
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
+    if (!isOpen) return;
+
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    if (isOpen) {
-      window.addEventListener("keydown", handler);
-      document.body.style.overflow = "hidden";
-    }
+
+    const scrollY = window.scrollY;
+    const html = document.documentElement;
+    const mainEl = document.querySelector("main") as HTMLElement | null;
+
+    // Lock body
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.overflow = "hidden";
+
+    // Lock html (prevents macOS viewport bounce / native trackpad scroll)
+    html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+
+    // Lock <main> which may be an implicit scroll container
+    if (mainEl) mainEl.style.overflow = "hidden";
+
+    window.addEventListener("keydown", onKey);
+
     return () => {
-      window.removeEventListener("keydown", handler);
+      window.removeEventListener("keydown", onKey);
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
       document.body.style.overflow = "";
+      html.style.overflow = "";
+      html.style.overscrollBehavior = "";
+      if (mainEl) mainEl.style.overflow = "";
+      window.scrollTo(0, scrollY);
     };
   }, [isOpen, onClose]);
 

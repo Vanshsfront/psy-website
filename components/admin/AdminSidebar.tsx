@@ -64,7 +64,7 @@ export default function AdminSidebar({
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto overscroll-contain">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);

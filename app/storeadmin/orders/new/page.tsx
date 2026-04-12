@@ -78,7 +78,7 @@ function NewOrderContent() {
         customer_name: "", phone: "", instagram: "", artist_id: "",
         order_date: new Date().toISOString().split("T")[0],
         appointment_type: "", service_description: "", payment_mode: "cash", deposit: "",
-        total: "", comments: "", source: "",
+        total: "", comments: "", source: "", address: "",
     });
     const [step, setStep] = useState<"form" | "success">("form");
 
@@ -161,6 +161,7 @@ function NewOrderContent() {
                 phone: manualForm.phone || null,
                 instagram: manualForm.instagram ? stripAtSign(manualForm.instagram) : null,
                 source: manualForm.source || null,
+                address: manualForm.address || null,
             });
             const custId = custRes.customer?.id;
             if (!custId) throw new Error("Failed to create customer");
@@ -443,6 +444,10 @@ function NewOrderContent() {
                                             <input type="number" value={manualForm.total} onChange={(e) => setManualForm({ ...manualForm, total: e.target.value })} className="w-full px-4 py-3 neo-input text-sm" placeholder="0" />
                                         </div>
                                         <div className="col-span-2">
+                                            <label className="block text-sm text-[var(--muted)] mb-1">Address <span className="text-xs opacity-50">(optional)</span></label>
+                                            <input value={manualForm.address} onChange={(e) => setManualForm({ ...manualForm, address: e.target.value })} className="w-full px-4 py-3 neo-input text-sm" placeholder="Customer address" />
+                                        </div>
+                                        <div className="col-span-2">
                                             <label className="block text-sm text-[var(--muted)] mb-1">Comments</label>
                                             <textarea value={manualForm.comments} onChange={(e) => setManualForm({ ...manualForm, comments: e.target.value })} className="w-full px-4 py-3 neo-input text-sm resize-none" rows={2} />
                                         </div>
@@ -459,7 +464,7 @@ function NewOrderContent() {
                                     <p className="text-[var(--muted)] mb-6">The order has been saved successfully.</p>
                                     <div className="flex gap-3 justify-center">
                                         <button onClick={() => router.push("/storeadmin")} className="px-6 py-3 neo-btn text-sm">Go to Dashboard</button>
-                                        <button onClick={() => { setStep("form"); setManualForm({ customer_name: "", phone: "", instagram: "", artist_id: "", order_date: new Date().toISOString().split("T")[0], appointment_type: "", service_description: "", payment_mode: "cash", deposit: "", total: "", comments: "", source: "" }); }} className="px-6 py-3 neo-btn neo-btn-primary text-sm border-none">New Order</button>
+                                        <button onClick={() => { setStep("form"); setManualForm({ customer_name: "", phone: "", instagram: "", artist_id: "", order_date: new Date().toISOString().split("T")[0], appointment_type: "", service_description: "", payment_mode: "cash", deposit: "", total: "", comments: "", source: "", address: "" }); }} className="px-6 py-3 neo-btn neo-btn-primary text-sm border-none">New Order</button>
                                     </div>
                                 </div>
                             )}

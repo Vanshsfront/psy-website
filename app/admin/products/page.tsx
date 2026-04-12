@@ -242,7 +242,7 @@ export default function AdminProductsPage() {
       <AnimatePresence>
         {deleteTarget && (
           <div
-            className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-hidden"
             onClick={() => setDeleteTarget(null)}
           >
             <div

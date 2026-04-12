@@ -59,9 +59,15 @@ export default async function AdminBookingDetail({ params }: { params: { id: str
             </h2>
 
             <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+              {booking.inquiry_type && (
+                <div className="col-span-2">
+                  <p className="text-xs text-mutedText uppercase tracking-wider mb-1">Type of Inquiry</p>
+                  <p className="font-mono text-primaryText font-bold">{booking.inquiry_type}</p>
+                </div>
+              )}
               <div>
                 <p className="text-xs text-mutedText uppercase tracking-wider mb-1">Style</p>
-                <p className="font-mono text-primaryText">{booking.style}</p>
+                <p className="font-mono text-primaryText">{booking.style || '—'}</p>
               </div>
               <div>
                 <p className="text-xs text-mutedText uppercase tracking-wider mb-1">Placement</p>
@@ -86,12 +92,17 @@ export default async function AdminBookingDetail({ params }: { params: { id: str
               <p className="text-sm leading-relaxed text-primaryText">{booking.description}</p>
             </div>
 
-            {booking.reference_images && booking.reference_images.length > 0 && (
+            {(booking.reference_image_url || (booking.reference_images && booking.reference_images.length > 0)) && (
               <div className="mt-6 pt-6 border-t border-borderDark">
-                <p className="text-xs text-mutedText uppercase tracking-wider mb-3">Reference Images</p>
+                <p className="text-xs text-mutedText uppercase tracking-wider mb-3">Inspiration / Reference Images</p>
                 <div className="flex flex-wrap gap-4">
-                  {booking.reference_images.map((img: string, i: number) => (
-                    <a key={i} href={img} target="_blank" rel="noreferrer" className="w-24 h-24 rounded border border-borderDark overflow-hidden hover:border-neon-cyan transition-colors block">
+                  {booking.reference_image_url && (
+                    <a href={booking.reference_image_url} target="_blank" rel="noreferrer" className="w-32 h-32 rounded border border-borderDark overflow-hidden hover:border-neon-cyan transition-colors block">
+                      <img src={booking.reference_image_url} alt="Inspiration" className="w-full h-full object-cover" />
+                    </a>
+                  )}
+                  {booking.reference_images?.map((img: string, i: number) => (
+                    <a key={i} href={img} target="_blank" rel="noreferrer" className="w-32 h-32 rounded border border-borderDark overflow-hidden hover:border-neon-cyan transition-colors block">
                       <img src={img} alt="Ref" className="w-full h-full object-cover" />
                     </a>
                   ))}

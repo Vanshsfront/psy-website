@@ -2,12 +2,12 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Instagram, Facebook, MapPin } from "lucide-react"
+import { Instagram, Facebook, MapPin, Clock } from "lucide-react"
 
 const SOCIAL_LINKS = {
   instagram: "https://www.instagram.com/psytattoosindia/reels/?hl=en",
   facebook: "https://www.facebook.com/214077871800038",
-  maps: "https://maps.app.goo.gl/xbL7DeaD5FSL9tUg9",
+  maps: "https://maps.app.goo.gl/LuT5mfS5BdNn9pjy8",
 }
 
 export default function Footer() {
@@ -90,6 +90,20 @@ export default function Footer() {
                 <MapPin className="w-4 h-4 transition-transform duration-300 group-hover:scale-110" />
                 <span className="font-sans text-caption">Mumbai, India</span>
               </a>
+              <div className="flex items-center gap-3 text-taupe">
+                <Clock className="w-4 h-4" />
+                <span className="font-sans text-caption">Open all days &middot; 11am — 9pm</span>
+              </div>
+            </div>
+
+            {/* Type of Inquiry */}
+            <div className="mt-6">
+              <Link
+                href="/studio#book"
+                className="inline-block border border-psy-green bg-transparent text-psy-green uppercase tracking-widest text-caption py-2.5 px-6 hover:bg-psy-green hover:text-ink transition-all duration-[400ms]"
+              >
+                Book an Inquiry
+              </Link>
             </div>
           </div>
         </div>

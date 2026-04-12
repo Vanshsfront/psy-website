@@ -134,7 +134,7 @@ export default function Navbar() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: PSY_EASE }}
-            className="fixed inset-0 z-40 bg-ink flex flex-col items-center justify-center"
+            className="fixed inset-0 z-40 bg-ink flex flex-col items-center justify-center overflow-hidden"
           >
             <nav className="flex flex-col items-center space-y-8">
               {navLinks.map((link, i) => (

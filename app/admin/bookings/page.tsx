@@ -141,6 +141,7 @@ export default function AdminBookingsPage() {
                 <tr className="bg-surfaceLighter border-b border-borderDark text-xs uppercase tracking-wider text-mutedText font-mono">
                   <th className="p-4 font-medium">Date Rcvd</th>
                   <th className="p-4 font-medium">Client</th>
+                  <th className="p-4 font-medium">Inquiry</th>
                   <th className="p-4 font-medium">Style</th>
                   <th className="p-4 font-medium">Artist</th>
                   <th className="p-4 font-medium">Date Pref</th>
@@ -163,7 +164,8 @@ export default function AdminBookingsPage() {
                       </p>
                       <p className="text-xs text-mutedText">{booking.email}</p>
                     </td>
-                    <td className="p-4 font-mono text-xs">{booking.style}</td>
+                    <td className="p-4 font-mono text-xs">{booking.inquiry_type || '—'}</td>
+                    <td className="p-4 font-mono text-xs">{booking.style || '—'}</td>
                     <td className="p-4 text-xs text-mutedText">
                       {booking.artists?.name || "—"}
                     </td>

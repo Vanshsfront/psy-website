@@ -11,11 +11,12 @@ import { createClient } from "@/lib/supabase"
 const bookingSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
-  phone: z.string().min(10, "Phone must be at least 10 digits"),
+  inquiry_type: z.string().min(1, "Please select a type of inquiry"),
+  phone: z.string().optional(),
   artist_id: z.string().optional(),
-  style: z.string().min(1, "Please select a style"),
-  description: z.string().min(10, "Tell us a bit more about your idea"),
-  preferred_date: z.string().min(1, "Please select a date"),
+  style: z.string().optional(),
+  description: z.string().optional(),
+  preferred_date: z.string().optional(),
   reference_image: z.any().optional(),
 })
 
@@ -66,11 +67,12 @@ export default function BookingForm({
       const { error } = await supabase.from("bookings").insert({
         name: data.name,
         email: data.email,
-        phone: data.phone,
+        inquiry_type: data.inquiry_type,
+        phone: data.phone || null,
         artist_id: data.artist_id || null,
-        style: data.style,
-        description: data.description,
-        preferred_date: data.preferred_date,
+        style: data.style || null,
+        description: data.description || null,
+        preferred_date: data.preferred_date || null,
         reference_image_url: referenceImageUrl,
       })
 
@@ -110,11 +112,11 @@ export default function BookingForm({
       onSubmit={handleSubmit(onSubmit)}
       className="space-y-8 text-left"
     >
-      {/* Row: Name / Email / Phone */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Row: Name / Email */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block font-sans text-micro uppercase tracking-widest text-taupe mb-3">
-            Name
+            Name *
           </label>
           <Input {...register("name")} placeholder="Your name" />
           {errors.name && (
@@ -125,7 +127,7 @@ export default function BookingForm({
         </div>
         <div>
           <label className="block font-sans text-micro uppercase tracking-widest text-taupe mb-3">
-            Email
+            Email *
           </label>
           <Input
             {...register("email")}
@@ -138,16 +140,37 @@ export default function BookingForm({
             </p>
           )}
         </div>
+      </div>
+
+      {/* Row: Type of Inquiry / Phone */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block font-sans text-micro uppercase tracking-widest text-taupe mb-3">
-            Phone
+            Type of Inquiry *
           </label>
-          <Input {...register("phone")} placeholder="+91 XXXXX XXXXX" />
-          {errors.phone && (
+          <select
+            {...register("inquiry_type")}
+            className="flex h-12 w-full border-0 border-b border-taupe/40 bg-transparent px-0 py-3 text-body text-bone font-sans focus:border-psy-green focus:outline-none transition-colors duration-[400ms] cursor-pointer"
+          >
+            <option value="" className="bg-ink text-bone">
+              Select type
+            </option>
+            <option value="Tattoo" className="bg-ink text-bone">Tattoo</option>
+            <option value="Piercing" className="bg-ink text-bone">Piercing</option>
+            <option value="Custom Art" className="bg-ink text-bone">Custom Art</option>
+            <option value="Other" className="bg-ink text-bone">Other</option>
+          </select>
+          {errors.inquiry_type && (
             <p className="text-terracotta text-micro mt-2">
-              {errors.phone.message}
+              {errors.inquiry_type.message}
             </p>
           )}
+        </div>
+        <div>
+          <label className="block font-sans text-micro uppercase tracking-widest text-taupe mb-3">
+            Phone (Optional)
+          </label>
+          <Input {...register("phone")} placeholder="+91 XXXXX XXXXX" />
         </div>
       </div>
 
@@ -155,7 +178,7 @@ export default function BookingForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block font-sans text-micro uppercase tracking-widest text-taupe mb-3">
-            Preferred Artist
+            Preferred Artist (Optional)
           </label>
           <select
             {...register("artist_id")}
@@ -173,7 +196,7 @@ export default function BookingForm({
         </div>
         <div>
           <label className="block font-sans text-micro uppercase tracking-widest text-taupe mb-3">
-            Style
+            Style (Optional)
           </label>
           <select
             {...register("style")}
@@ -201,47 +224,32 @@ export default function BookingForm({
               </>
             )}
           </select>
-          {errors.style && (
-            <p className="text-terracotta text-micro mt-2">
-              {errors.style.message}
-            </p>
-          )}
         </div>
       </div>
 
       {/* Textarea: Tell us about your idea */}
       <div>
         <label className="block font-sans text-micro uppercase tracking-widest text-taupe mb-3">
-          Tell us about your idea
+          Tell us about your idea (Optional)
         </label>
         <textarea
           {...register("description")}
           className="flex min-h-[160px] w-full border-0 border-b border-taupe/40 bg-transparent px-0 py-3 text-body text-bone font-sans placeholder:text-taupe/60 focus:border-psy-green focus:outline-none transition-colors duration-[400ms] resize-none"
           placeholder="Describe your tattoo idea, placement, and size..."
         />
-        {errors.description && (
-          <p className="text-terracotta text-micro mt-2">
-            {errors.description.message}
-          </p>
-        )}
       </div>
 
       {/* Row: Date / Reference Image */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block font-sans text-micro uppercase tracking-widest text-taupe mb-3">
-            Preferred Date
+            Preferred Date (Optional)
           </label>
           <Input {...register("preferred_date")} type="date" />
-          {errors.preferred_date && (
-            <p className="text-terracotta text-micro mt-2">
-              {errors.preferred_date.message}
-            </p>
-          )}
         </div>
         <div>
           <label className="block font-sans text-micro uppercase tracking-widest text-taupe mb-3">
-            Reference Image (Optional)
+            Inspiration Image (Optional)
           </label>
           <Input
             type="file"

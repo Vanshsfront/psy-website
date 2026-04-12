@@ -9,8 +9,9 @@ import LenisProvider from "./LenisProvider"
 export default function SiteShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isStoreAdmin = pathname.startsWith("/storeadmin")
+  const isAdmin = pathname.startsWith("/admin")
 
-  if (isStoreAdmin) {
+  if (isStoreAdmin || isAdmin) {
     return <>{children}</>
   }
 

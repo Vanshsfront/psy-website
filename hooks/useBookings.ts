@@ -6,6 +6,7 @@ interface Booking {
   email: string;
   phone: string | null;
   artist_id: string | null;
+  inquiry_type: string | null;
   style: string | null;
   description: string | null;
   preferred_date: string | null;

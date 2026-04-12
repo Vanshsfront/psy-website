@@ -1,6 +1,5 @@
 "use client"
 
-import { motion } from "framer-motion"
 import Link from "next/link"
 import TextReveal from "@/components/animations/TextReveal"
 import FadeInOnScroll from "@/components/animations/FadeInOnScroll"
@@ -13,7 +12,7 @@ const PSY_EASE = [0.16, 1, 0.3, 1] as [number, number, number, number]
 const SOCIAL_LINKS = {
   instagram: "https://www.instagram.com/psytattoosindia/reels/?hl=en",
   facebook: "https://www.facebook.com/214077871800038",
-  maps: "https://maps.app.goo.gl/xbL7DeaD5FSL9tUg9",
+  maps: "https://maps.app.goo.gl/LuT5mfS5BdNn9pjy8",
 }
 
 export default function AboutPage() {
@@ -39,100 +38,10 @@ export default function AboutPage() {
         <LineReveal width="80px" delay={0.5} className="mt-8 mb-8" />
 
         <FadeInOnScroll direction="none" delay={0.7}>
-          <p className="font-sans text-body text-taupe text-center max-w-lg leading-relaxed">
+          <p className="font-sans text-body-lg text-bone/70 text-center max-w-lg leading-relaxed">
             Psy Tattoos was born from a belief that existed long before we gave it a name, that tattooing is one of the oldest forms of emotional expression.
           </p>
         </FadeInOnScroll>
-      </section>
-
-      {/* ━━━ FOUNDER SECTION ━━━ */}
-      <section className="py-24 px-6">
-        <div className="max-w-6xl mx-auto">
-          <FadeInOnScroll direction="none">
-            <div className="flex items-center mb-16">
-              <span className="font-sans uppercase tracking-[0.2em] text-taupe text-micro shrink-0">
-                The Founder
-              </span>
-              <div className="flex-1 mx-6 h-[1px] bg-taupe/20" />
-            </div>
-          </FadeInOnScroll>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-            {/* Photo */}
-            <FadeInOnScroll direction="left" delay={0.1}>
-              <div className="relative aspect-[3/4] overflow-hidden rounded-2xl group bg-[#1a1a1a]">
-                {/* Placeholder — replace with actual photo by putting it at /public/images/founder-yogesh.jpg */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#1c1c1c] to-[#111] text-taupe/30">
-                  <svg className="w-20 h-20 mb-4 opacity-20" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
-                  </svg>
-                  <span className="font-sans text-micro uppercase tracking-widest">Founder Photo</span>
-                </div>
-                {/* Vignette */}
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_50%,rgba(10,10,10,0.6)_100%)] pointer-events-none" />
-                {/* Bottom gradient */}
-                <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent to-transparent" />
-                <div className="absolute bottom-6 left-6">
-                  <span className="font-display text-2xl text-bone">Yogesh</span>
-                  <span className="block font-sans text-caption text-taupe mt-1">Founder & Lead Artist</span>
-                </div>
-              </div>
-            </FadeInOnScroll>
-
-            {/* Bio */}
-            <FadeInOnScroll direction="right" delay={0.2}>
-              <div>
-                <h2 className="font-display text-display-lg text-bone leading-tight mb-6">
-                  The vision behind PSY.
-                </h2>
-                <div className="space-y-4 font-sans text-body text-taupe leading-relaxed">
-                  <p>
-                    Yogesh founded PSY Tattoos with a singular belief — that tattoos are not mere decoration,
-                    but an intimate dialogue between intent and skin. What began as a personal passion for art
-                    evolved into one of Mumbai&apos;s most sought-after tattoo studios.
-                  </p>
-                  <p>
-                    With years of dedicated practice, Yogesh has mastered multiple styles — from intricate
-                    fine-line work and geometric precision to bold traditional pieces and expressive freehand
-                    designs. Every session at PSY begins with a conversation, not a template.
-                  </p>
-                  <p>
-                    His philosophy is simple: listen deeply, design intentionally, and execute with precision.
-                    No flash walls, no rush. Each line is placed with purpose, each piece a collaboration
-                    between artist and wearer.
-                  </p>
-                  <p>
-                    Beyond the needle, Yogesh has expanded PSY into a lifestyle brand — curating handcrafted
-                    jewelry and accessories through PSY Shop, each piece carrying the same ethos of mindful
-                    craftsmanship.
-                  </p>
-                </div>
-
-                {/* Social links */}
-                <div className="flex items-center gap-6 mt-8">
-                  <a
-                    href={SOCIAL_LINKS.instagram}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-taupe hover:text-psy-green transition-colors duration-300 group"
-                  >
-                    <Instagram className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
-                    <span className="font-sans text-caption uppercase tracking-widest">Instagram</span>
-                  </a>
-                  <a
-                    href={SOCIAL_LINKS.facebook}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-taupe hover:text-psy-green transition-colors duration-300 group"
-                  >
-                    <Facebook className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
-                    <span className="font-sans text-caption uppercase tracking-widest">Facebook</span>
-                  </a>
-                </div>
-              </div>
-            </FadeInOnScroll>
-          </div>
-        </div>
       </section>
 
       {/* ━━━ OUR STORY / WHAT WE BELIEVE ━━━ */}
@@ -144,10 +53,10 @@ export default function AboutPage() {
             </h2>
           </FadeInOnScroll>
           <FadeInOnScroll direction="up" delay={0.2}>
-            <p className="font-sans text-body text-taupe leading-relaxed mt-6 max-w-2xl">
+            <p className="font-sans text-body-lg text-bone/80 leading-relaxed mt-6 max-w-2xl">
               Ink has never just been ink.
             </p>
-            <p className="font-sans text-body text-taupe leading-relaxed mt-2 max-w-2xl">
+            <p className="font-sans text-body-lg text-bone/80 leading-relaxed mt-2 max-w-2xl">
               It has always been about reclaiming something. Identity. Survival. Belonging.
             </p>
           </FadeInOnScroll>
@@ -157,11 +66,11 @@ export default function AboutPage() {
               <span className="font-sans uppercase tracking-[0.2em] text-taupe text-micro block mb-8">
                 What We Believe
               </span>
-              <p className="font-sans text-body text-taupe leading-relaxed">
+              <p className="font-sans text-body-lg text-bone/70 leading-relaxed">
                 Our logo is not just a symbol, it is rooted in the language of psychology.
                 Because everything we do begins there.
               </p>
-              <p className="font-sans text-body text-taupe leading-relaxed mt-4">
+              <p className="font-sans text-body-lg text-bone/70 leading-relaxed mt-4">
                 This studio is not just a place where you get tattooed.
                 It is a space where you are witnessed.
               </p>
@@ -182,10 +91,10 @@ export default function AboutPage() {
             </div>
           </FadeInOnScroll>
           <FadeInOnScroll direction="up" delay={0.1}>
-            <p className="font-sans text-body text-taupe leading-relaxed max-w-2xl">
+            <p className="font-sans text-body-lg text-bone/70 leading-relaxed max-w-2xl">
               Psy Tattoos exists at the intersection of mind, art, people, and progress.
             </p>
-            <p className="font-display italic text-bone text-xl mt-4">
+            <p className="font-display italic text-bone text-2xl mt-4">
               Not a trend. A movement.
             </p>
           </FadeInOnScroll>
@@ -238,7 +147,7 @@ export default function AboutPage() {
                   <h3 className="font-display text-display-md text-bone mb-3">
                     {pillar.title}
                   </h3>
-                  <p className="font-sans text-body text-taupe leading-relaxed">
+                  <p className="font-sans text-body-lg text-bone/60 leading-relaxed">
                     {pillar.body}
                   </p>
                 </div>
@@ -265,7 +174,7 @@ export default function AboutPage() {
             <FadeInOnScroll direction="left" delay={0.1}>
               <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-taupe/10">
                 <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3770.123456789!2d72.8!3d19.1!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTnCsDA2JzAwLjAiTiA3MsKwNDgnMDAuMCJF!5e0!3m2!1sen!2sin!4v1234567890"
+                  src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d7536.674229759085!2d72.9377885!3d19.1804727!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be7b98b19b07b0f%3A0xd9dbf8128361885b!2sPsy%20Tattoos!5e0!3m2!1sen!2sin!4v1775468124002!5m2!1sen!2sin"
                   width="100%"
                   height="100%"
                   style={{ border: 0, filter: "invert(90%) hue-rotate(180deg) saturate(0.3) brightness(0.8)" }}
@@ -316,10 +225,7 @@ export default function AboutPage() {
                     <div>
                       <span className="font-sans text-body text-bone block">Studio Hours</span>
                       <span className="font-sans text-caption text-taupe block mt-1">
-                        Mon – Sat: 11:00 AM – 8:00 PM
-                      </span>
-                      <span className="font-sans text-caption text-taupe block">
-                        Sunday: By Appointment
+                        Open all days: 11:00 AM – 9:00 PM
                       </span>
                     </div>
                   </div>

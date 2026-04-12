@@ -24,6 +24,8 @@
     "@tiptap/starter-kit": "^3.20.4",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
+    "embla-carousel-autoplay": "^8.6.0",
+    "embla-carousel-react": "^8.6.0",
     "exceljs": "^4.4.0",
     "framer-motion": "^12.38.0",
     "jose": "^6.2.2",

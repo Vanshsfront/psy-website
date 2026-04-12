@@ -61,7 +61,7 @@ export default function Home() {
         <div className="relative z-10 flex flex-col items-center text-center px-8">
           <FadeInOnScroll direction="none" delay={0.3}>
             <span className="font-sans uppercase tracking-[0.3em] text-taupe text-micro mb-8 block">
-              Est. 2024 — Mumbai
+              PSY Tattoos — Mumbai
             </span>
           </FadeInOnScroll>
 

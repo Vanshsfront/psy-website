@@ -1,15 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { motion } from "framer-motion"
+import useEmblaCarousel from "embla-carousel-react"
 import TextReveal from "@/components/animations/TextReveal"
 import FadeInOnScroll from "@/components/animations/FadeInOnScroll"
 import StaggeredGrid from "@/components/animations/StaggeredGrid"
 import MagneticHover from "@/components/animations/MagneticHover"
 import LineReveal from "@/components/animations/LineReveal"
-import Accordion from "@/components/studio/Accordion"
 import BookingForm from "@/components/studio/BookingForm"
 import HeroBackground from "@/components/animations/HeroBackground"
 import CommunityTab from "@/components/studio/CommunityTab"
@@ -21,7 +21,7 @@ import type { Artist, CustomStyle, PortfolioItem, CommunityPost, GuestSpot, Cust
 type StudioTab = "studio" | "community" | "guest-spot" | "customers"
 
 const TABS: { id: StudioTab; label: string }[] = [
-  { id: "studio", label: "Studio" },
+  { id: "studio", label: "Portfolio" },
   { id: "community", label: "Community" },
   { id: "guest-spot", label: "Guest Spot" },
   { id: "customers", label: "Customers" },
@@ -45,6 +45,10 @@ export default function StudioClient({
   testimonials,
 }: StudioClientProps) {
   const [activeTab, setActiveTab] = useState<StudioTab>("studio")
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: "start", slidesToScroll: 1 })
+
+  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi])
+  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi])
 
   return (
     <main className="w-full">
@@ -54,7 +58,7 @@ export default function StudioClient({
 
         <FadeInOnScroll direction="none" delay={0.2} className="relative z-10 w-full flex justify-center">
           <span className="font-sans uppercase tracking-[0.3em] text-taupe text-micro mb-10 block text-center">
-            PSY Tattoos — Est. 2024 — Mumbai
+            PSY Tattoos — Mumbai
           </span>
         </FadeInOnScroll>
 
@@ -150,43 +154,7 @@ export default function StudioClient({
       {/* ━━━ TAB CONTENT ━━━ */}
       {activeTab === "studio" && (
         <>
-          {/* ━━━ 2. PHILOSOPHY STRIP ━━━ */}
-          <section className="py-32 px-6">
-            <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-20 items-center">
-              <FadeInOnScroll direction="left" delay={0.1}>
-                <div>
-                  <span className="font-display font-light text-[10rem] leading-none text-bone/[0.08] select-none block">
-                    07
-                  </span>
-                  <span className="font-sans text-caption text-taupe mt-2 block">
-                    years of practice
-                  </span>
-                </div>
-              </FadeInOnScroll>
-
-              <FadeInOnScroll direction="right" delay={0.2}>
-                <div>
-                  <h2 className="font-display text-display-lg text-bone leading-tight">
-                    Ink has never just been ink.
-                  </h2>
-                  <p className="font-sans text-body text-taupe leading-relaxed mt-4">
-                    It has always been about reclaiming something. Identity. Survival. Belonging.
-                  </p>
-                  <p className="font-sans text-body text-taupe leading-relaxed mt-3">
-                    Every mark we make is deliberate. Tattooing is rarely just aesthetic — it is personal, healing, meaningful. We honour that.
-                  </p>
-                  <Link
-                    href="/studio/gallery"
-                    className="text-cta font-sans uppercase tracking-widest text-caption text-bone mt-6 inline-block"
-                  >
-                    Our Story →
-                  </Link>
-                </div>
-              </FadeInOnScroll>
-            </div>
-          </section>
-
-          {/* ━━━ 3. SELECTED WORK ━━━ */}
+          {/* ━━━ 3. PORTFOLIO SLIDER ━━━ */}
           <section className="py-24 px-6" id="gallery">
             <div className="max-w-7xl mx-auto">
               {/* Section label row */}
@@ -195,42 +163,66 @@ export default function StudioClient({
                   Selected Work
                 </span>
                 <div className="flex-1 mx-6 h-[1px] bg-taupe/20" />
-                <Link
-                  href="/studio/gallery"
-                  className="text-cta font-sans uppercase tracking-widest text-micro text-bone shrink-0"
-                >
-                  View All →
-                </Link>
+                <div className="flex items-center gap-4 shrink-0">
+                  <button
+                    onClick={scrollPrev}
+                    className="w-10 h-10 flex items-center justify-center border border-taupe/30 text-taupe hover:text-bone hover:border-bone transition-colors duration-300"
+                    aria-label="Previous slide"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={scrollNext}
+                    className="w-10 h-10 flex items-center justify-center border border-taupe/30 text-taupe hover:text-bone hover:border-bone transition-colors duration-300"
+                    aria-label="Next slide"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                  <Link
+                    href="/studio/gallery"
+                    className="text-cta font-sans uppercase tracking-widest text-micro text-bone"
+                  >
+                    View All →
+                  </Link>
+                </div>
               </div>
 
-              {/* Asymmetric grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {[0, 1, 2, 3].map((idx) => (
-                  <FadeInOnScroll key={idx} direction="up" delay={idx * 0.05}>
-                    <div className="relative overflow-hidden aspect-[9/16] bg-[#1a1a1a] group">
-                      {portfolio[idx] ? (
-                        <>
-                          <Image
-                            src={portfolio[idx].image_url}
-                            alt={portfolio[idx].description || "Tattoo work"}
-                            fill
-                            className="object-cover transition-transform duration-[600ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03]"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-ink/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            <div className="absolute bottom-4 left-4">
-                              <span className="font-sans text-caption text-bone block">
-                                {portfolio[idx].artists?.name || "Studio Artist"}
-                              </span>
-                              <span className="font-sans text-micro text-taupe">
-                                {portfolio[idx].style_tag}
-                              </span>
-                            </div>
-                          </div>
-                        </>
-                      ) : null}
+              {/* Embla slider */}
+              <div className="overflow-hidden" ref={emblaRef}>
+                <div className="flex gap-3">
+                  {portfolio.map((item, idx) => (
+                    <div
+                      key={item.id || idx}
+                      className="relative overflow-hidden aspect-[9/16] bg-[#1a1a1a] group flex-[0_0_45%] md:flex-[0_0_25%] min-w-0"
+                    >
+                      <Image
+                        src={item.image_url}
+                        alt={item.description || "Tattoo work"}
+                        fill
+                        className="object-cover transition-transform duration-[600ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03]"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-ink/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <div className="absolute bottom-4 left-4">
+                          <span className="font-sans text-caption text-bone block">
+                            {item.artists?.name || "Studio Artist"}
+                          </span>
+                          <span className="font-sans text-micro text-taupe">
+                            {item.style_tag}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </FadeInOnScroll>
-                ))}
+                  ))}
+                  {portfolio.length === 0 && (
+                    <div className="flex-[0_0_100%] aspect-[9/16] bg-[#1a1a1a] flex items-center justify-center">
+                      <p className="font-display italic text-taupe text-body-lg">Portfolio coming soon.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </section>
@@ -297,20 +289,53 @@ export default function StudioClient({
             </div>
           </section>
 
-          {/* ━━━ 5. STYLES & PRICING ━━━ */}
+          {/* ━━━ 5. OUR SERVICES ━━━ */}
           <section className="py-24 px-6 bg-[#0d0d0d]">
             <div className="max-w-7xl mx-auto">
               <FadeInOnScroll direction="none">
                 <div className="flex items-center mb-12">
                   <span className="font-sans uppercase tracking-[0.2em] text-taupe text-micro shrink-0">
-                    What We Do
+                    Our Services
                   </span>
                   <div className="flex-1 mx-6 h-[1px] bg-taupe/20" />
                 </div>
               </FadeInOnScroll>
 
-              <div className="max-w-3xl mx-auto">
-                <Accordion styles={styles} />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {[
+                  {
+                    title: "Tattoos",
+                    description: "Custom tattoo artistry across all styles — fine-line, blackwork, traditional, geometric, and more. Every piece is designed with intention.",
+                    cta: "Book a Tattoo",
+                  },
+                  {
+                    title: "Piercings",
+                    description: "Professional body piercings with premium jewelry. Safe, sterile, and styled to your aesthetic.",
+                    cta: "Book a Piercing",
+                  },
+                  {
+                    title: "Custom Art",
+                    description: "Bespoke artwork and illustrations — on skin or on paper. Commissions, collaborations, and creative projects.",
+                    cta: "Inquire",
+                  },
+                ].map((service, i) => (
+                  <FadeInOnScroll key={service.title} direction="up" delay={i * 0.1}>
+                    <div className="border-t border-taupe/20 pt-8">
+                      <h3 className="font-display text-display-md text-bone mb-3">
+                        {service.title}
+                      </h3>
+                      <p className="font-sans text-body text-taupe leading-relaxed mb-6">
+                        {service.description}
+                      </p>
+                      <button
+                        onClick={() => scrollToSection("book")}
+                        className="text-cta font-sans uppercase tracking-widest text-micro text-psy-green"
+                      >
+                        {service.cta} →
+                      </button>
+                    </div>
+                  </FadeInOnScroll>
+                ))}
               </div>
             </div>
           </section>
