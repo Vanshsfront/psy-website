@@ -19,6 +19,8 @@ import {
   Warehouse,
   Tag,
   FolderOpen,
+  Settings,
+  Layers,
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -38,9 +40,11 @@ const navItems = [
   { label: "Testimonials", href: "/admin/testimonials", icon: Star },
   { label: "Inventory", href: "/admin/inventory", icon: Warehouse },
   { label: "Collections", href: "/admin/collections", icon: FolderOpen },
+  { label: "Categories", href: "/admin/categories", icon: Layers },
   { label: "Discounts", href: "/admin/discounts", icon: Tag },
   { label: "Customers", href: "/admin/customers", icon: Contact },
   { label: "Returns", href: "/admin/returns", icon: RotateCcw },
+  { label: "Site Settings", href: "/admin/site-settings", icon: Settings },
 ];
 
 export default function AdminSidebar({

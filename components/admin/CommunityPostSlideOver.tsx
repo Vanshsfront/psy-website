@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Trash2, Upload } from "lucide-react";
 import Image from "next/image";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Placeholder from "@tiptap/extension-placeholder";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useImageUpload } from "@/hooks/useImageUpload";
@@ -39,6 +42,24 @@ export default function CommunityPostSlideOver({
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Rich text editor for content
+  const editor = useEditor({
+    immediatelyRender: false,
+    extensions: [
+      StarterKit,
+      Placeholder.configure({
+        placeholder: "Write full post content here...",
+      }),
+    ],
+    content: "",
+    editorProps: {
+      attributes: {
+        class:
+          "prose prose-invert prose-sm focus:outline-none min-h-[120px] p-3",
+      },
+    },
+  });
+
   // Populate form when editing
   useEffect(() => {
     if (post && isOpen) {
@@ -49,6 +70,7 @@ export default function CommunityPostSlideOver({
       setImageUrl(post.image_url);
       setImagePath(null);
       setIsPublished(post.is_published);
+      editor?.commands.setContent(post.content || "");
     } else if (!post && isOpen) {
       setTitle("");
       setType("event");
@@ -57,8 +79,9 @@ export default function CommunityPostSlideOver({
       setImageUrl(null);
       setImagePath(null);
       setIsPublished(false);
+      editor?.commands.setContent("");
     }
-  }, [post, isOpen]);
+  }, [post, isOpen, editor]);
 
   // Image upload handler
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,6 +130,7 @@ export default function CommunityPostSlideOver({
         title: title.trim(),
         type,
         description: description.trim() || null,
+        content: editor?.getHTML() || null,
         event_date: type === "event" && eventDate ? eventDate : null,
         image_url: imageUrl,
         is_published: isPublished,
@@ -158,6 +182,7 @@ export default function CommunityPostSlideOver({
     onSaved,
     onClose,
     toast,
+    editor,
   ]);
 
   // Escape key + full scroll lock
@@ -275,6 +300,19 @@ export default function CommunityPostSlideOver({
                   placeholder="Write a description..."
                   className="flex w-full rounded border border-[#2a2a2a] bg-ink px-3 py-2 text-sm text-bone placeholder:text-taupe/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-psy-green resize-none"
                 />
+              </div>
+
+              {/* Full Content (rich text) */}
+              <div>
+                <label className="block text-sm font-medium mb-1.5 text-taupe">
+                  Full Content
+                </label>
+                <div className="rounded border border-[#2a2a2a] bg-ink overflow-hidden">
+                  <EditorContent editor={editor} />
+                </div>
+                <p className="text-xs text-taupe/60 mt-1">
+                  Rich text content shown when post is expanded
+                </p>
               </div>
 
               {/* Event Date (only for events) */}

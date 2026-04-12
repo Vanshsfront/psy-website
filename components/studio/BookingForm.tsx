@@ -4,8 +4,10 @@ import { useState } from "react"
 import { useForm as useRHForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
+import { DayPicker } from "react-day-picker"
+import { format } from "date-fns"
 import { Input } from "@/components/ui/input"
-import { Artist, CustomStyle } from "@/types"
+import { Artist } from "@/types"
 import { createClient } from "@/lib/supabase"
 
 const bookingSchema = z.object({
@@ -14,7 +16,6 @@ const bookingSchema = z.object({
   inquiry_type: z.string().min(1, "Please select a type of inquiry"),
   phone: z.string().optional(),
   artist_id: z.string().optional(),
-  style: z.string().optional(),
   description: z.string().optional(),
   preferred_date: z.string().optional(),
   reference_image: z.any().optional(),
@@ -24,13 +25,13 @@ type FormData = z.infer<typeof bookingSchema>
 
 export default function BookingForm({
   artists,
-  styles,
 }: {
   artists: Artist[]
-  styles: CustomStyle[]
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
+  const [calendarOpen, setCalendarOpen] = useState(false)
   const supabase = createClient()
 
   const {
@@ -70,7 +71,6 @@ export default function BookingForm({
         inquiry_type: data.inquiry_type,
         phone: data.phone || null,
         artist_id: data.artist_id || null,
-        style: data.style || null,
         description: data.description || null,
         preferred_date: data.preferred_date || null,
         reference_image_url: referenceImageUrl,
@@ -174,57 +174,24 @@ export default function BookingForm({
         </div>
       </div>
 
-      {/* Row: Artist / Style */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block font-sans text-micro uppercase tracking-widest text-taupe mb-3">
-            Preferred Artist (Optional)
-          </label>
-          <select
-            {...register("artist_id")}
-            className="flex h-12 w-full border-0 border-b border-taupe/40 bg-transparent px-0 py-3 text-body text-bone font-sans focus:border-psy-green focus:outline-none transition-colors duration-[400ms] cursor-pointer"
-          >
-            <option value="" className="bg-ink text-bone">
-              Any Artist
+      {/* Preferred Artist */}
+      <div>
+        <label className="block font-sans text-micro uppercase tracking-widest text-taupe mb-3">
+          Preferred Artist (Optional)
+        </label>
+        <select
+          {...register("artist_id")}
+          className="flex h-12 w-full border-0 border-b border-taupe/40 bg-transparent px-0 py-3 text-body text-bone font-sans focus:border-psy-green focus:outline-none transition-colors duration-[400ms] cursor-pointer"
+        >
+          <option value="" className="bg-ink text-bone">
+            Any Artist
+          </option>
+          {artists.map((a) => (
+            <option key={a.id} value={a.id} className="bg-ink text-bone">
+              {a.name}
             </option>
-            {artists.map((a) => (
-              <option key={a.id} value={a.id} className="bg-ink text-bone">
-                {a.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block font-sans text-micro uppercase tracking-widest text-taupe mb-3">
-            Style (Optional)
-          </label>
-          <select
-            {...register("style")}
-            className="flex h-12 w-full border-0 border-b border-taupe/40 bg-transparent px-0 py-3 text-body text-bone font-sans focus:border-psy-green focus:outline-none transition-colors duration-[400ms] cursor-pointer"
-          >
-            <option value="" className="bg-ink text-bone">
-              Select a style
-            </option>
-            {styles.map((s) => (
-              <option key={s.id} value={s.name} className="bg-ink text-bone">
-                {s.name}
-              </option>
-            ))}
-            {styles.length === 0 && (
-              <>
-                <option value="Traditional" className="bg-ink text-bone">
-                  Traditional
-                </option>
-                <option value="Blackwork" className="bg-ink text-bone">
-                  Blackwork
-                </option>
-                <option value="Fine-line" className="bg-ink text-bone">
-                  Fine-line
-                </option>
-              </>
-            )}
-          </select>
-        </div>
+          ))}
+        </select>
       </div>
 
       {/* Textarea: Tell us about your idea */}
@@ -245,7 +212,46 @@ export default function BookingForm({
           <label className="block font-sans text-micro uppercase tracking-widest text-taupe mb-3">
             Preferred Date (Optional)
           </label>
-          <Input {...register("preferred_date")} type="date" />
+          <button
+            type="button"
+            onClick={() => setCalendarOpen(!calendarOpen)}
+            className="flex h-12 w-full border-0 border-b border-taupe/40 bg-transparent px-0 py-3 text-body font-sans focus:border-psy-green focus:outline-none transition-colors duration-[400ms] cursor-pointer text-left"
+          >
+            <span className={selectedDate ? "text-bone" : "text-taupe/60"}>
+              {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+            </span>
+          </button>
+          {calendarOpen && (
+            <div className="mt-2 border border-taupe/20 bg-[#111111] p-3 rounded">
+              <DayPicker
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => {
+                  setSelectedDate(date)
+                  if (date) {
+                    register("preferred_date").onChange({
+                      target: { name: "preferred_date", value: format(date, "yyyy-MM-dd") },
+                    })
+                  }
+                  setCalendarOpen(false)
+                }}
+                disabled={{ before: new Date() }}
+                classNames={{
+                  root: "font-sans text-bone",
+                  month_caption: "font-display text-bone text-lg mb-2",
+                  nav: "flex gap-2",
+                  button_previous: "text-taupe hover:text-bone p-1 transition-colors",
+                  button_next: "text-taupe hover:text-bone p-1 transition-colors",
+                  weekday: "text-taupe text-micro uppercase tracking-widest w-10 text-center",
+                  day: "w-10 h-10 text-center text-caption rounded transition-colors",
+                  day_button: "w-full h-full rounded hover:bg-psy-green/20 transition-colors cursor-pointer",
+                  selected: "!bg-psy-green !text-ink font-medium",
+                  today: "text-psy-green font-medium",
+                  disabled: "text-taupe/30 cursor-not-allowed",
+                }}
+              />
+            </div>
+          )}
         </div>
         <div>
           <label className="block font-sans text-micro uppercase tracking-widest text-taupe mb-3">

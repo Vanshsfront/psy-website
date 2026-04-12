@@ -43,9 +43,17 @@ export default async function ArtistsPage() {
               <h3 className="font-display text-display-lg text-bone mb-1 group-hover:text-taupe transition-colors duration-[400ms]">
                 {artist.name}
               </h3>
-              <p className="font-sans text-caption text-taupe mb-2">
-                {artist.speciality}
-              </p>
+              {artist.speciality && (
+                <span className={`inline-block mb-2 px-2 py-0.5 text-micro uppercase tracking-widest font-sans border ${
+                  artist.speciality === "Tattoos"
+                    ? "border-psy-green/40 text-psy-green"
+                    : artist.speciality === "Piercings"
+                    ? "border-gold/40 text-gold"
+                    : "border-terracotta/40 text-terracotta"
+                }`}>
+                  {artist.speciality}
+                </span>
+              )}
               <p className="font-sans text-caption text-taupe/60 line-clamp-2 mb-4">
                 {artist.bio}
               </p>

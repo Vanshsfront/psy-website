@@ -16,9 +16,17 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServiceClient();
 
+    const { name, email, phone, message, guest_spot_id } = body;
+
     const { data, error } = await supabase
       .from("guest_spot_leads")
-      .insert(body)
+      .insert({
+        name,
+        email,
+        phone: phone || null,
+        message: message || null,
+        guest_spot_id: guest_spot_id || null,
+      })
       .select()
       .single();
 

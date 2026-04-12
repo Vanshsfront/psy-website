@@ -49,9 +49,17 @@ export default async function ArtistDetail({
           <h1 className="font-display font-light text-display-2xl text-bone mb-2">
             {artist.name}
           </h1>
-          <p className="font-display italic text-body-lg text-taupe">
-            {artist.speciality}
-          </p>
+          {artist.speciality && (
+            <span className={`inline-block mt-2 px-3 py-1 text-micro uppercase tracking-widest font-sans border ${
+              artist.speciality === "Tattoos"
+                ? "border-psy-green/40 text-psy-green"
+                : artist.speciality === "Piercings"
+                ? "border-gold/40 text-gold"
+                : "border-terracotta/40 text-terracotta"
+            }`}>
+              {artist.speciality}
+            </span>
+          )}
         </div>
       </section>
 
@@ -68,7 +76,7 @@ export default async function ArtistDetail({
                 .map((p: string, i: number) => <p key={i}>{p}</p>)
             ) : (
               <p>
-                Passionate tattoo artist specializing in {artist.speciality}.
+                Passionate artist at PSY.
               </p>
             )}
           </div>

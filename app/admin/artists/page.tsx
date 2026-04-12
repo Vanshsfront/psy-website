@@ -85,7 +85,7 @@ export default function AdminArtistsPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or speciality..."
+            placeholder="Search by name or category..."
             className="w-full border-0 border-b border-[#2a2a2a] bg-transparent pl-6 py-2 text-sm text-bone placeholder:text-taupe/60 focus:border-psy-green focus:outline-none transition-colors"
           />
         </div>

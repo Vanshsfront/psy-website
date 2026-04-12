@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useRouter } from "next/navigation"
+import { useProductCategories } from "@/hooks/useProductCategories"
 
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -38,6 +39,7 @@ export default function ProductForm({ initialData }: { initialData?: any }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+  const { categories: dbCategories } = useProductCategories()
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<ProductFormData>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -190,12 +192,9 @@ export default function ProductForm({ initialData }: { initialData?: any }) {
             {...register("category")}
             className="flex h-10 w-full rounded border border-borderDark bg-background px-3 py-2 text-sm text-primaryText focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neon-cyan"
           >
-            <option>Rings</option>
-            <option>Necklaces</option>
-            <option>Earrings</option>
-            <option>Bracelets</option>
-            <option>Cuffs</option>
-            <option>Limited Edition</option>
+            {dbCategories.map((c) => (
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
           </select>
           {errors.category && <p className="text-danger text-xs mt-1">{errors.category.message}</p>}
         </div>

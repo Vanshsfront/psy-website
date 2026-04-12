@@ -4,21 +4,12 @@ import { useState, useMemo } from "react";
 import { Plus, Search } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { useProducts } from "@/hooks/useProducts";
+import { useProductCategories } from "@/hooks/useProductCategories";
 import { useToast } from "@/hooks/useToast";
 import ProductCard from "@/components/admin/ProductCard";
 import ProductSlideOver from "@/components/admin/ProductSlideOver";
 import { Button } from "@/components/ui/button";
 import type { Product } from "@/types";
-
-const CATEGORIES = [
-  "All",
-  "Rings",
-  "Necklaces",
-  "Earrings",
-  "Bracelets",
-  "Cuffs",
-  "Limited Edition",
-];
 
 const STATUS_OPTIONS = [
   { label: "All", value: "" },
@@ -41,6 +32,8 @@ export default function AdminProductsPage() {
 
   // Fetch ALL products (no server-side filtering)
   const { products: allProducts, isLoading, mutate } = useProducts({});
+  const { categories: dbCategories } = useProductCategories();
+  const CATEGORIES = ["All", ...dbCategories.map((c) => c.name)];
 
   // Client-side filtering
   const filteredProducts = useMemo(() => {

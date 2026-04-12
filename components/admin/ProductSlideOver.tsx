@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import ImageManager from "@/components/admin/ImageManager";
 import { slugify } from "@/lib/slugify";
 import { useToast } from "@/hooks/useToast";
+import { useProductCategories } from "@/hooks/useProductCategories";
 import type { Product } from "@/types";
 
 /* ─── Schema ─── */
@@ -33,7 +34,7 @@ type ProductFormData = z.infer<typeof productSchema>;
 
 interface VariantGroup {
   group: string;
-  values: { label: string; priceOverride: number | null }[];
+  values: { label: string; priceOverride: number | null; imageUrl?: string | null }[];
 }
 
 interface ProductSlideOverProps {
@@ -43,15 +44,6 @@ interface ProductSlideOverProps {
   onSaved: () => void;
 }
 
-const CATEGORIES = [
-  "Rings",
-  "Necklaces",
-  "Earrings",
-  "Bracelets",
-  "Cuffs",
-  "Limited Edition",
-];
-
 export default function ProductSlideOver({
   isOpen,
   onClose,
@@ -60,6 +52,8 @@ export default function ProductSlideOver({
 }: ProductSlideOverProps) {
   const isEditing = !!product;
   const { toast } = useToast();
+  const { categories: dbCategories } = useProductCategories();
+  const CATEGORIES = dbCategories.map((c) => c.name);
 
   // Form
   const {
@@ -135,9 +129,29 @@ export default function ProductSlideOver({
       editor?.commands.setContent(product.description_full || "");
       setTags(product.tags || []);
       setImages(product.images || []);
-      setVariants(
-        (product.variants as unknown as VariantGroup[]) || []
-      );
+      // Normalize variants: handle legacy [{size: "S"}] format
+      const rawVariants = product.variants as unknown;
+      let normalizedVariants: VariantGroup[] = [];
+      if (Array.isArray(rawVariants) && rawVariants.length > 0) {
+        if (
+          typeof rawVariants[0] === "object" &&
+          rawVariants[0] !== null &&
+          "group" in rawVariants[0]
+        ) {
+          normalizedVariants = rawVariants as VariantGroup[];
+        } else {
+          // Legacy format: [{size: "S"}, {size: "M"}] or similar
+          const labels = rawVariants.map((v: Record<string, unknown>) => {
+            const val = v.size || v.label || Object.values(v)[0];
+            return {
+              label: String(val || ""),
+              priceOverride: null,
+            };
+          });
+          normalizedVariants = [{ group: "Size", values: labels }];
+        }
+      }
+      setVariants(normalizedVariants);
       setIsPublished(product.stock_status);
     } else if (!product && isOpen) {
       reset({
@@ -180,7 +194,7 @@ export default function ProductSlideOver({
   const addVariantGroup = () => {
     setVariants([
       ...variants,
-      { group: "", values: [{ label: "", priceOverride: null }] },
+      { group: "", values: [{ label: "", priceOverride: null, imageUrl: null }] },
     ]);
     setVariantsOpen(true);
   };
@@ -191,21 +205,66 @@ export default function ProductSlideOver({
     setVariants(updated);
   };
 
-  const updateVariantValues = (index: number, valuesStr: string) => {
+  const addVariantValue = (groupIndex: number) => {
     const updated = [...variants];
-    updated[index] = {
-      ...updated[index],
-      values: valuesStr
-        .split(",")
-        .map((v) => v.trim())
-        .filter(Boolean)
-        .map((label) => ({ label, priceOverride: null })),
+    updated[groupIndex] = {
+      ...updated[groupIndex],
+      values: [...updated[groupIndex].values, { label: "", priceOverride: null, imageUrl: null }],
+    };
+    setVariants(updated);
+  };
+
+  const updateVariantValue = (
+    groupIndex: number,
+    valueIndex: number,
+    field: "label" | "priceOverride" | "imageUrl",
+    value: string | number | null
+  ) => {
+    const updated = [...variants];
+    updated[groupIndex] = {
+      ...updated[groupIndex],
+      values: updated[groupIndex].values.map((v, vi) =>
+        vi === valueIndex ? { ...v, [field]: value } : v
+      ),
+    };
+    setVariants(updated);
+  };
+
+  const removeVariantValue = (groupIndex: number, valueIndex: number) => {
+    const updated = [...variants];
+    updated[groupIndex] = {
+      ...updated[groupIndex],
+      values: updated[groupIndex].values.filter((_, vi) => vi !== valueIndex),
     };
     setVariants(updated);
   };
 
   const removeVariantGroup = (index: number) => {
     setVariants(variants.filter((_, i) => i !== index));
+  };
+
+  const handleVariantImageUpload = async (
+    groupIndex: number,
+    valueIndex: number,
+    file: File
+  ) => {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `variants/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+    try {
+      const res = await fetch(`/api/admin/upload`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bucket: "product-images", path: fileName }),
+      });
+      if (!res.ok) {
+        // Fallback: create a local object URL for preview, actual upload happens with product save
+        const objectUrl = URL.createObjectURL(file);
+        updateVariantValue(groupIndex, valueIndex, "imageUrl", objectUrl);
+        return;
+      }
+    } catch {
+      // Silently handle — variant images are optional
+    }
   };
 
   // Character counter for short description
@@ -617,35 +676,127 @@ export default function ProductSlideOver({
 
                 {variantsOpen && (
                   <div className="mt-4 space-y-4">
-                    {variants.map((vg, i) => (
+                    {variants.map((vg, gi) => (
                       <div
-                        key={i}
+                        key={gi}
                         className="bg-surfaceLighter p-4 rounded border border-borderDark space-y-3"
                       >
                         <div className="flex items-center gap-2">
                           <Input
                             value={vg.group}
                             onChange={(e) =>
-                              updateVariantGroup(i, e.target.value)
+                              updateVariantGroup(gi, e.target.value)
                             }
                             placeholder='Group name (e.g. "Size")'
                             className="flex-1"
                           />
                           <button
                             type="button"
-                            onClick={() => removeVariantGroup(i)}
+                            onClick={() => removeVariantGroup(gi)}
                             className="p-2 hover:bg-danger/20 rounded transition-colors"
                           >
                             <Trash2 className="w-4 h-4 text-danger" />
                           </button>
                         </div>
-                        <Input
-                          value={vg.values.map((v) => v.label).join(", ")}
-                          onChange={(e) =>
-                            updateVariantValues(i, e.target.value)
-                          }
-                          placeholder="Values: XS, S, M, L, XL"
-                        />
+
+                        {/* Individual variant values */}
+                        <div className="space-y-2">
+                          {vg.values.map((val, vi) => (
+                            <div
+                              key={vi}
+                              className="flex items-center gap-2 bg-background/50 p-2 rounded"
+                            >
+                              <Input
+                                value={val.label}
+                                onChange={(e) =>
+                                  updateVariantValue(gi, vi, "label", e.target.value)
+                                }
+                                placeholder="Label (e.g. S, M, L)"
+                                className="flex-1"
+                              />
+                              <Input
+                                type="number"
+                                value={val.priceOverride ?? ""}
+                                onChange={(e) =>
+                                  updateVariantValue(
+                                    gi,
+                                    vi,
+                                    "priceOverride",
+                                    e.target.value ? Number(e.target.value) : null
+                                  )
+                                }
+                                placeholder="Price override"
+                                className="w-28"
+                              />
+                              {/* Variant image */}
+                              <label className="shrink-0 cursor-pointer">
+                                {val.imageUrl ? (
+                                  <div className="relative w-10 h-10 rounded overflow-hidden border border-borderDark">
+                                    <img
+                                      src={val.imageUrl}
+                                      alt={val.label}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-10 h-10 rounded border border-dashed border-borderDark flex items-center justify-center text-taupe hover:border-neon-green hover:text-neon-green transition-colors">
+                                    <Plus className="w-3.5 h-3.5" />
+                                  </div>
+                                )}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    const objectUrl = URL.createObjectURL(file);
+                                    updateVariantValue(gi, vi, "imageUrl", objectUrl);
+                                    // Upload to storage
+                                    const formData = new FormData();
+                                    formData.append("file", file);
+                                    try {
+                                      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+                                      const fileExt = file.name.split(".").pop();
+                                      const fileName = `products/${productId}/variants/${Date.now()}.${fileExt}`;
+                                      const res = await fetch(
+                                        `${supabaseUrl}/storage/v1/object/product-images/${fileName}`,
+                                        {
+                                          method: "POST",
+                                          headers: {
+                                            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+                                          },
+                                          body: file,
+                                        }
+                                      );
+                                      if (res.ok) {
+                                        const publicUrl = `${supabaseUrl}/storage/v1/object/public/product-images/${fileName}`;
+                                        updateVariantValue(gi, vi, "imageUrl", publicUrl);
+                                      }
+                                    } catch {
+                                      // Keep the preview URL
+                                    }
+                                    e.target.value = "";
+                                  }}
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => removeVariantValue(gi, vi)}
+                                className="p-1 hover:bg-danger/20 rounded transition-colors shrink-0"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-danger" />
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => addVariantValue(gi)}
+                            className="text-xs text-neon-green hover:text-neon-green/80 transition-colors flex items-center gap-1"
+                          >
+                            <Plus className="w-3 h-3" /> Add Value
+                          </button>
+                        </div>
                       </div>
                     ))}
                     <Button

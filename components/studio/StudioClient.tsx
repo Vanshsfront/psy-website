@@ -78,14 +78,7 @@ export default function StudioClient({
           </p>
         </FadeInOnScroll>
 
-        {/* Studio Hours */}
-        <FadeInOnScroll direction="none" delay={0.8}>
-          <p className="font-sans text-caption text-taupe/80 uppercase tracking-widest text-center mt-4">
-            Open all days &middot; 11am — 9pm
-          </p>
-        </FadeInOnScroll>
-
-        <FadeInOnScroll direction="up" delay={0.9}>
+        <FadeInOnScroll direction="up" delay={0.8}>
           <div className="flex items-center gap-6 mt-10">
             <MagneticHover strength={0.4}>
               <button
@@ -255,21 +248,23 @@ export default function StudioClient({
                             No Photo
                           </div>
                         )}
-                        {/* Hover overlay with name */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-ink/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                          <div className="absolute bottom-4 left-4">
-                            <span className="font-sans text-caption text-bone">
-                              {artist.speciality}
-                            </span>
-                          </div>
-                        </div>
+                        {/* Hover overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-ink/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       </div>
                       <h3 className="font-display text-xl text-bone">
                         {artist.name}
                       </h3>
-                      <p className="font-sans text-caption text-taupe uppercase tracking-wide mt-1">
-                        {artist.speciality}
-                      </p>
+                      {artist.speciality && (
+                        <span className={`inline-block mt-2 px-3 py-1 text-micro uppercase tracking-widest font-sans border ${
+                          artist.speciality === "Tattoos"
+                            ? "border-psy-green/40 text-psy-green bg-psy-green/5"
+                            : artist.speciality === "Piercings"
+                            ? "border-gold/40 text-gold bg-gold/5"
+                            : "border-terracotta/40 text-terracotta bg-terracotta/5"
+                        }`}>
+                          {artist.speciality}
+                        </span>
+                      )}
                       <Link
                         href={`/studio/artists/${artist.slug}`}
                         className="text-cta font-sans uppercase tracking-widest text-micro text-psy-green mt-3 inline-block"
@@ -362,7 +357,7 @@ export default function StudioClient({
               </FadeInOnScroll>
 
               <FadeInOnScroll direction="up" delay={0.2}>
-                <BookingForm artists={artists} styles={styles} />
+                <BookingForm artists={artists} />
               </FadeInOnScroll>
             </div>
           </section>

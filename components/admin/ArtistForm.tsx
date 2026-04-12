@@ -144,8 +144,16 @@ export default function ArtistForm({ artist }: ArtistFormProps) {
           <Input {...register("instagram")} placeholder="@username" />
         </div>
         <div>
-          <label className="block text-sm mb-2 text-mutedText">Speciality</label>
-          <Input {...register("speciality")} placeholder="Fine Line & Geometric" />
+          <label className="block text-sm mb-2 text-mutedText">Category</label>
+          <select
+            {...register("speciality")}
+            className="flex h-10 w-full border border-borderDark bg-background px-3 py-2 text-sm text-bone rounded focus:border-neon-green focus:outline-none transition-colors"
+          >
+            <option value="">Select category</option>
+            <option value="Tattoos">Tattoos</option>
+            <option value="Piercings">Piercings</option>
+            <option value="Custom Artwork">Custom Artwork</option>
+          </select>
         </div>
       </div>
 

@@ -30,6 +30,7 @@ export type PortfolioItem = {
 export type VariantValue = {
   label: string;
   priceOverride: number | null;
+  imageUrl?: string | null;
 };
 
 export type VariantGroup = {
@@ -144,6 +145,7 @@ export type CommunityPost = {
   id: string;
   title: string;
   description: string | null;
+  content: string | null;
   type: "event" | "collab" | "announcement";
   image_url: string | null;
   event_date: string | null;

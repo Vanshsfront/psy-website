@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { createSSRClient } from "@/lib/supabase-server";
+import { createServiceClient } from "@/lib/supabase-server";
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = await createSSRClient();
+    const supabase = createServiceClient();
     const { searchParams } = new URL(request.url);
     const guestSpotId = searchParams.get("guest_spot_id");
 
