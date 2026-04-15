@@ -33,10 +33,38 @@ function OrdersContent() {
     const [search, setSearch] = useState("");
     const [artistFilter, setArtistFilter] = useState("");
     const [paymentFilter, setPaymentFilter] = useState("");
+    const [dateFrom, setDateFrom] = useState("");
+    const [dateTo, setDateTo] = useState("");
+    const [totalMin, setTotalMin] = useState("");
+    const [totalMax, setTotalMax] = useState("");
     const [showFilters, setShowFilters] = useState(false);
     const [sortKey, setSortKey] = useState<SortKey>("order_date");
     const [sortDir, setSortDir] = useState<SortDir>("desc");
     const [page, setPage] = useState(0);
+    const [isRestored, setIsRestored] = useState(false);
+
+    useEffect(() => {
+        const saved = sessionStorage.getItem("psy_orders_state");
+        if (saved) {
+            try {
+                const p = JSON.parse(saved);
+                if (p.search) setSearch(p.search);
+                if (p.artistFilter) setArtistFilter(p.artistFilter);
+                if (p.paymentFilter) setPaymentFilter(p.paymentFilter);
+                if (p.dateFrom) setDateFrom(p.dateFrom);
+                if (p.dateTo) setDateTo(p.dateTo);
+                if (p.totalMin) setTotalMin(p.totalMin);
+                if (p.totalMax) setTotalMax(p.totalMax);
+                if (p.showFilters) setShowFilters(p.showFilters);
+            } catch { /* ignore */ }
+        }
+        setIsRestored(true);
+    }, []);
+
+    useEffect(() => {
+        if (!isRestored) return;
+        sessionStorage.setItem("psy_orders_state", JSON.stringify({ search, artistFilter, paymentFilter, dateFrom, dateTo, totalMin, totalMax, showFilters }));
+    }, [isRestored, search, artistFilter, paymentFilter, dateFrom, dateTo, totalMin, totalMax, showFilters]);
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
@@ -85,6 +113,23 @@ function OrdersContent() {
     }
     if (artistFilter) filtered = filtered.filter(o => o.artist_id === artistFilter);
     if (paymentFilter) filtered = filtered.filter(o => o.payment_mode === paymentFilter);
+    if (dateFrom) {
+        const fromTs = new Date(dateFrom).getTime();
+        filtered = filtered.filter(o => new Date(o.order_date).getTime() >= fromTs);
+    }
+    if (dateTo) {
+        // Include the whole selected day
+        const toTs = new Date(dateTo).getTime() + 24 * 60 * 60 * 1000 - 1;
+        filtered = filtered.filter(o => new Date(o.order_date).getTime() <= toTs);
+    }
+    if (totalMin) {
+        const n = Number(totalMin);
+        if (!Number.isNaN(n)) filtered = filtered.filter(o => (o.total || 0) >= n);
+    }
+    if (totalMax) {
+        const n = Number(totalMax);
+        if (!Number.isNaN(n)) filtered = filtered.filter(o => (o.total || 0) <= n);
+    }
 
     const sorted = [...filtered].sort((a, b) => {
         let cmp = 0;
@@ -149,30 +194,76 @@ function OrdersContent() {
                     </div>
 
                     {showFilters && (
-                        <div className="mt-3 pt-3 border-t border-[var(--border-color)] flex flex-wrap items-center gap-3 animate-fadeIn">
-                            <select
-                                value={artistFilter}
-                                onChange={(e) => { setArtistFilter(e.target.value); setPage(0); }}
-                                className="px-3 py-2 neo-input text-sm"
-                            >
-                                <option value="">All Artists</option>
-                                {artists.map(a => (
-                                    <option key={a.id} value={a.id}>{a.name}</option>
-                                ))}
-                            </select>
-                            <select
-                                value={paymentFilter}
-                                onChange={(e) => { setPaymentFilter(e.target.value); setPage(0); }}
-                                className="px-3 py-2 neo-input text-sm"
-                            >
-                                <option value="">All Payments</option>
-                                <option value="cash">Cash</option>
-                                <option value="upi">UPI</option>
-                                <option value="card">Card</option>
-                            </select>
+                        <div className="mt-3 pt-3 border-t border-[var(--border-color)] flex flex-wrap items-end gap-3 animate-fadeIn">
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Artist</label>
+                                <select
+                                    value={artistFilter}
+                                    onChange={(e) => { setArtistFilter(e.target.value); setPage(0); }}
+                                    className="px-3 py-2 neo-input text-sm"
+                                >
+                                    <option value="">All Artists</option>
+                                    {artists.map(a => (
+                                        <option key={a.id} value={a.id}>{a.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Payment</label>
+                                <select
+                                    value={paymentFilter}
+                                    onChange={(e) => { setPaymentFilter(e.target.value); setPage(0); }}
+                                    className="px-3 py-2 neo-input text-sm"
+                                >
+                                    <option value="">All Payments</option>
+                                    <option value="cash">Cash</option>
+                                    <option value="upi">UPI</option>
+                                    <option value="card">Card</option>
+                                </select>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Date from</label>
+                                <input
+                                    type="date"
+                                    value={dateFrom}
+                                    onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
+                                    className="px-3 py-2 neo-input text-sm"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Date to</label>
+                                <input
+                                    type="date"
+                                    value={dateTo}
+                                    onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
+                                    className="px-3 py-2 neo-input text-sm"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Min total</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={totalMin}
+                                    onChange={(e) => { setTotalMin(e.target.value); setPage(0); }}
+                                    placeholder="0"
+                                    className="px-3 py-2 neo-input text-sm w-28"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Max total</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={totalMax}
+                                    onChange={(e) => { setTotalMax(e.target.value); setPage(0); }}
+                                    placeholder="∞"
+                                    className="px-3 py-2 neo-input text-sm w-28"
+                                />
+                            </div>
                             <button
-                                onClick={() => { setArtistFilter(""); setPaymentFilter(""); setSearch(""); setShowFilters(false); }}
-                                className="flex items-center gap-1 text-xs text-[var(--muted)] hover:text-[var(--danger)] cursor-pointer transition-colors"
+                                onClick={() => { setArtistFilter(""); setPaymentFilter(""); setSearch(""); setDateFrom(""); setDateTo(""); setTotalMin(""); setTotalMax(""); setPage(0); }}
+                                className="flex items-center gap-1 text-xs text-[var(--muted)] hover:text-[var(--danger)] cursor-pointer transition-colors pb-2"
                             >
                                 <X className="w-3 h-3" /> Clear
                             </button>

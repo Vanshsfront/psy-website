@@ -30,6 +30,10 @@ function CustomersContent() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [sourceFilter, setSourceFilter] = useState("");
+    const [dateFrom, setDateFrom] = useState("");
+    const [dateTo, setDateTo] = useState("");
+    const [spendMin, setSpendMin] = useState("");
+    const [spendMax, setSpendMax] = useState("");
     const [showFilters, setShowFilters] = useState(false);
     const [sortKey, setSortKey] = useState<SortKey>("name");
     const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -43,6 +47,10 @@ function CustomersContent() {
                 const p = JSON.parse(saved);
                 if (p.search) setSearch(p.search);
                 if (p.sourceFilter) setSourceFilter(p.sourceFilter);
+                if (p.dateFrom) setDateFrom(p.dateFrom);
+                if (p.dateTo) setDateTo(p.dateTo);
+                if (p.spendMin) setSpendMin(p.spendMin);
+                if (p.spendMax) setSpendMax(p.spendMax);
                 if (p.showFilters) setShowFilters(p.showFilters);
             } catch { /* ignore */ }
         }
@@ -51,8 +59,8 @@ function CustomersContent() {
 
     useEffect(() => {
         if (!isRestored) return;
-        sessionStorage.setItem("psy_customers_state", JSON.stringify({ search, sourceFilter, showFilters }));
-    }, [isRestored, search, sourceFilter, showFilters]);
+        sessionStorage.setItem("psy_customers_state", JSON.stringify({ search, sourceFilter, dateFrom, dateTo, spendMin, spendMax, showFilters }));
+    }, [isRestored, search, sourceFilter, dateFrom, dateTo, spendMin, spendMax, showFilters]);
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
@@ -77,13 +85,20 @@ function CustomersContent() {
     useEffect(() => {
         if (!isAuthenticated) return;
         const timer = setTimeout(() => {
-            api.getCustomers({ search, source: sourceFilter }).then(res => {
+            const params: Record<string, string | number> = {};
+            if (search) params.search = search;
+            if (sourceFilter) params.source = sourceFilter;
+            if (dateFrom) params.date_from = dateFrom;
+            if (dateTo) params.date_to = dateTo;
+            if (spendMin) params.spend_min = spendMin;
+            if (spendMax) params.spend_max = spendMax;
+            api.getCustomers(params).then(res => {
                 setCustomers(res.customers);
                 setPage(0);
             });
         }, 300);
         return () => clearTimeout(timer);
-    }, [search, sourceFilter]);
+    }, [search, sourceFilter, dateFrom, dateTo, spendMin, spendMax]);
 
     const handleDeleteCustomer = async (id: string, name: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -179,21 +194,64 @@ function CustomersContent() {
                     </div>
 
                     {showFilters && (
-                        <div className="mt-3 pt-3 border-t border-[var(--border-color)] flex items-center gap-3 animate-fadeIn">
-                            <select
-                                value={sourceFilter}
-                                onChange={(e) => setSourceFilter(e.target.value)}
-                                className="px-3 py-2 neo-input text-sm"
-                            >
-                                <option value="">All Sources</option>
-                                <option value="instagram">Instagram</option>
-                                <option value="walk-in">Walk-in</option>
-                                <option value="referral">Referral</option>
-                                <option value="google">Google</option>
-                            </select>
+                        <div className="mt-3 pt-3 border-t border-[var(--border-color)] flex flex-wrap items-end gap-3 animate-fadeIn">
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Source</label>
+                                <select
+                                    value={sourceFilter}
+                                    onChange={(e) => setSourceFilter(e.target.value)}
+                                    className="px-3 py-2 neo-input text-sm"
+                                >
+                                    <option value="">All Sources</option>
+                                    <option value="instagram">Instagram</option>
+                                    <option value="walk-in">Walk-in</option>
+                                    <option value="referral">Referral</option>
+                                    <option value="google">Google</option>
+                                </select>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Last visit from</label>
+                                <input
+                                    type="date"
+                                    value={dateFrom}
+                                    onChange={(e) => setDateFrom(e.target.value)}
+                                    className="px-3 py-2 neo-input text-sm"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Last visit to</label>
+                                <input
+                                    type="date"
+                                    value={dateTo}
+                                    onChange={(e) => setDateTo(e.target.value)}
+                                    className="px-3 py-2 neo-input text-sm"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Min spend</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={spendMin}
+                                    onChange={(e) => setSpendMin(e.target.value)}
+                                    placeholder="0"
+                                    className="px-3 py-2 neo-input text-sm w-28"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Max spend</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={spendMax}
+                                    onChange={(e) => setSpendMax(e.target.value)}
+                                    placeholder="∞"
+                                    className="px-3 py-2 neo-input text-sm w-28"
+                                />
+                            </div>
                             <button
-                                onClick={() => { setSourceFilter(""); setSearch(""); setShowFilters(false); }}
-                                className="flex items-center gap-1 text-xs text-[var(--muted)] hover:text-[var(--danger)] cursor-pointer transition-colors"
+                                onClick={() => { setSourceFilter(""); setSearch(""); setDateFrom(""); setDateTo(""); setSpendMin(""); setSpendMax(""); }}
+                                className="flex items-center gap-1 text-xs text-[var(--muted)] hover:text-[var(--danger)] cursor-pointer transition-colors pb-2"
                             >
                                 <X className="w-3 h-3" /> Clear
                             </button>

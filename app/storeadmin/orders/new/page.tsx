@@ -163,8 +163,22 @@ function NewOrderContent() {
                 source: manualForm.source || null,
                 address: manualForm.address || null,
             });
-            const custId = custRes.customer?.id;
-            if (!custId) throw new Error("Failed to create customer");
+            let custId = custRes.customer?.id;
+            if (!custId && custRes.duplicate_detected && custRes.matches?.length) {
+                const m = custRes.matches[0];
+                const ok = confirm(
+                    `An existing customer matches this ${custRes.match_type || "phone/Instagram"}:\n\n` +
+                    `  ${m.name}${m.phone ? ` · ${m.phone}` : ""}${m.instagram ? ` · @${m.instagram}` : ""}\n\n` +
+                    `Attach this order to them?`
+                );
+                if (!ok) { setLoading(false); return; }
+                custId = m.id;
+            }
+            if (!custId) {
+                alert("Could not create or match customer. Please check the name/phone/Instagram and try again.");
+                setLoading(false);
+                return;
+            }
             const serviceDesc = [
                 manualForm.appointment_type,
                 manualForm.service_description,
@@ -183,6 +197,7 @@ function NewOrderContent() {
             setStep("success");
         } catch (err) {
             console.error(err);
+            alert(`Failed to save order: ${err instanceof Error ? err.message : "Unknown error"}`);
         } finally {
             setLoading(false);
         }
