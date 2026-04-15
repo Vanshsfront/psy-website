@@ -15,6 +15,7 @@ import ImageManager from "@/components/admin/ImageManager";
 import { slugify } from "@/lib/slugify";
 import { useToast } from "@/hooks/useToast";
 import { useProductCategories } from "@/hooks/useProductCategories";
+import { useImageUpload } from "@/hooks/useImageUpload";
 import type { Product } from "@/types";
 
 /* ─── Schema ─── */
@@ -53,6 +54,7 @@ export default function ProductSlideOver({
   const isEditing = !!product;
   const { toast } = useToast();
   const { categories: dbCategories } = useProductCategories();
+  const { upload: uploadImage } = useImageUpload();
   const CATEGORIES = dbCategories.map((c) => c.name);
 
   // Form
@@ -241,30 +243,6 @@ export default function ProductSlideOver({
 
   const removeVariantGroup = (index: number) => {
     setVariants(variants.filter((_, i) => i !== index));
-  };
-
-  const handleVariantImageUpload = async (
-    groupIndex: number,
-    valueIndex: number,
-    file: File
-  ) => {
-    const fileExt = file.name.split(".").pop();
-    const fileName = `variants/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
-    try {
-      const res = await fetch(`/api/admin/upload`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bucket: "product-images", path: fileName }),
-      });
-      if (!res.ok) {
-        // Fallback: create a local object URL for preview, actual upload happens with product save
-        const objectUrl = URL.createObjectURL(file);
-        updateVariantValue(groupIndex, valueIndex, "imageUrl", objectUrl);
-        return;
-      }
-    } catch {
-      // Silently handle — variant images are optional
-    }
   };
 
   // Character counter for short description
@@ -749,34 +727,25 @@ export default function ProductSlideOver({
                                   className="hidden"
                                   onChange={async (e) => {
                                     const file = e.target.files?.[0];
-                                    if (!file) return;
-                                    const objectUrl = URL.createObjectURL(file);
-                                    updateVariantValue(gi, vi, "imageUrl", objectUrl);
-                                    // Upload to storage
-                                    const formData = new FormData();
-                                    formData.append("file", file);
-                                    try {
-                                      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-                                      const fileExt = file.name.split(".").pop();
-                                      const fileName = `products/${productId}/variants/${Date.now()}.${fileExt}`;
-                                      const res = await fetch(
-                                        `${supabaseUrl}/storage/v1/object/product-images/${fileName}`,
-                                        {
-                                          method: "POST",
-                                          headers: {
-                                            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-                                          },
-                                          body: file,
-                                        }
-                                      );
-                                      if (res.ok) {
-                                        const publicUrl = `${supabaseUrl}/storage/v1/object/public/product-images/${fileName}`;
-                                        updateVariantValue(gi, vi, "imageUrl", publicUrl);
-                                      }
-                                    } catch {
-                                      // Keep the preview URL
-                                    }
                                     e.target.value = "";
+                                    if (!file) return;
+                                    const preview = URL.createObjectURL(file);
+                                    updateVariantValue(gi, vi, "imageUrl", preview);
+                                    try {
+                                      const { url } = await uploadImage(
+                                        file,
+                                        "product-images",
+                                        `products/${productId}/variants`
+                                      );
+                                      updateVariantValue(gi, vi, "imageUrl", url);
+                                    } catch (err) {
+                                      toast.error(
+                                        err instanceof Error
+                                          ? err.message
+                                          : "Variant image upload failed"
+                                      );
+                                      updateVariantValue(gi, vi, "imageUrl", null);
+                                    }
                                   }}
                                 />
                               </label>

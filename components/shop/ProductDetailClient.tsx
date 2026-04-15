@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Product } from "@/types"
+import { useState, useEffect, useMemo } from "react"
+import { Product, VariantGroup, VariantValue } from "@/types"
 import { AnimatePresence, motion } from "framer-motion"
 import { Heart, Truck, Info, ChevronRight, Plus, Minus } from "lucide-react"
 import { useCartStore } from "@/store/cartStore"
@@ -10,6 +10,19 @@ import ProductCard from "./ProductCard"
 
 const PSY_EASE = [0.16, 1, 0.3, 1] as [number, number, number, number]
 
+function normalizeVariants(raw: unknown): VariantGroup[] {
+  if (!Array.isArray(raw) || raw.length === 0) return []
+  const first = raw[0] as Record<string, unknown>
+  if (first && typeof first === "object" && "group" in first && "values" in first) {
+    return raw as VariantGroup[]
+  }
+  const values: VariantValue[] = (raw as Record<string, unknown>[]).map((v) => {
+    const label = (v.size ?? v.label ?? Object.values(v)[0]) as string
+    return { label: String(label ?? ""), priceOverride: null }
+  })
+  return [{ group: "Option", values }]
+}
+
 export default function ProductDetailClient({
   product,
   relatedProducts,
@@ -17,11 +30,46 @@ export default function ProductDetailClient({
   product: Product
   relatedProducts: Product[]
 }) {
+  const variantGroups = useMemo(
+    () => normalizeVariants(product.variants as unknown),
+    [product.variants]
+  )
+
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [showFullDesc, setShowFullDesc] = useState(false)
-  const [selectedVariant, setSelectedVariant] = useState<
-    Record<string, any> | null
-  >(product.variants?.[0] || null)
+  const [selectedValues, setSelectedValues] = useState<Record<string, VariantValue>>(
+    () =>
+      Object.fromEntries(
+        variantGroups
+          .filter((g) => g.values.length > 0)
+          .map((g) => [g.group, g.values[0]])
+      )
+  )
+
+  // Variant image shown in the gallery (overrides product.images when set)
+  const [variantImage, setVariantImage] = useState<string | null>(() => {
+    for (const g of variantGroups) {
+      const v = g.values[0]
+      if (v?.imageUrl) return v.imageUrl
+    }
+    return null
+  })
+
+  const selectedVariant = useMemo(() => {
+    if (Object.keys(selectedValues).length === 0) return null
+    const out: Record<string, string> = {}
+    for (const [group, val] of Object.entries(selectedValues)) {
+      out[group] = val.label
+    }
+    return out
+  }, [selectedValues])
+
+  const handleSelectValue = (group: string, value: VariantValue) => {
+    setSelectedValues((prev) => ({ ...prev, [group]: value }))
+    if (value.imageUrl) {
+      setVariantImage(value.imageUrl)
+    }
+  }
 
   const { addItem: addItemToCart, removeItem, updateQuantity, items } = useCartStore()
   const {
@@ -92,12 +140,13 @@ export default function ProductDetailClient({
           <div className="relative aspect-[4/5] overflow-hidden bg-surface">
             <AnimatePresence mode="wait">
               <motion.img
-                key={activeImageIndex}
+                key={variantImage ?? `idx-${activeImageIndex}`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.4, ease: PSY_EASE }}
                 src={
+                  variantImage ||
                   product.images[activeImageIndex] ||
                   "https://via.placeholder.com/800x1000?text=No+Image"
                 }
@@ -110,23 +159,29 @@ export default function ProductDetailClient({
           {/* Thumbnails */}
           {product.images.length > 1 && (
             <div className="flex gap-3 overflow-x-auto hide-scrollbar">
-              {product.images.map((img, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setActiveImageIndex(idx)}
-                  className={`flex-shrink-0 w-16 aspect-square overflow-hidden transition-all duration-[400ms] cursor-pointer ${
-                    activeImageIndex === idx
-                      ? "opacity-100 border border-bone"
-                      : "opacity-40 hover:opacity-70 border border-transparent"
-                  }`}
-                >
-                  <img
-                    src={img}
-                    alt={`Thumbnail ${idx}`}
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-              ))}
+              {product.images.map((img, idx) => {
+                const isActive = !variantImage && activeImageIndex === idx
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setActiveImageIndex(idx)
+                      setVariantImage(null)
+                    }}
+                    className={`flex-shrink-0 w-16 aspect-square overflow-hidden transition-all duration-[400ms] cursor-pointer ${
+                      isActive
+                        ? "opacity-100 border border-bone"
+                        : "opacity-40 hover:opacity-70 border border-transparent"
+                    }`}
+                  >
+                    <img
+                      src={img}
+                      alt={`Thumbnail ${idx}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
@@ -171,28 +226,38 @@ export default function ProductDetailClient({
           </p>
 
           {/* Variant selector */}
-          {product.variants && product.variants.length > 0 && (
-            <div className="mb-8">
+          {variantGroups.map((g) => (
+            <div key={g.group} className="mb-8">
               <span className="block font-sans text-micro uppercase tracking-widest text-taupe mb-3">
-                Select Option
+                {g.group || "Select Option"}
               </span>
               <div className="flex flex-wrap gap-3">
-                {product.variants.map((v, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setSelectedVariant(v)}
-                    className={`px-4 py-2 font-sans text-caption uppercase transition-all duration-[400ms] border cursor-pointer ${
-                      JSON.stringify(selectedVariant) === JSON.stringify(v)
-                        ? "bg-bone text-ink border-bone"
-                        : "bg-transparent border-taupe/30 text-bone hover:border-bone"
-                    }`}
-                  >
-                    {Object.values(v).join(" — ")}
-                  </button>
-                ))}
+                {g.values.map((v, i) => {
+                  const isSelected = selectedValues[g.group]?.label === v.label
+                  return (
+                    <button
+                      key={`${v.label}-${i}`}
+                      onClick={() => handleSelectValue(g.group, v)}
+                      className={`flex items-center gap-2 px-3 py-2 font-sans text-caption uppercase transition-all duration-[400ms] border cursor-pointer ${
+                        isSelected
+                          ? "bg-bone text-ink border-bone"
+                          : "bg-transparent border-taupe/30 text-bone hover:border-bone"
+                      }`}
+                    >
+                      {v.imageUrl && (
+                        <img
+                          src={v.imageUrl}
+                          alt={v.label}
+                          className="w-6 h-6 object-cover rounded-[2px]"
+                        />
+                      )}
+                      <span>{v.label}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
-          )}
+          ))}
 
           {/* Add to Cart — +/− stepper */}
           <div className="mb-3">
