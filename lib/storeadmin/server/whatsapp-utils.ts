@@ -141,12 +141,56 @@ export async function sendTemplateMessage(
   }
 }
 
+function countPlaceholders(text: string): number {
+  const matches = text.match(/\{\{(\d+)\}\}/g);
+  if (!matches) return 0;
+  let max = 0;
+  for (const m of matches) {
+    const n = parseInt(m.slice(2, -2), 10);
+    if (n > max) max = n;
+  }
+  return max;
+}
+
+function paramForIndex(index: number, customer: Record<string, unknown>): string {
+  // {{1}} -> name, {{2}} -> phone, {{3}} -> instagram. Extra indices fall back to empty string.
+  switch (index) {
+    case 1:
+      return ((customer.name as string) ?? "").trim() || "there";
+    case 2:
+      return (customer.phone as string) ?? "";
+    case 3:
+      return (customer.instagram as string) ?? "";
+    default:
+      return "";
+  }
+}
+
+function buildParams(placeholderCount: number, customer: Record<string, unknown>) {
+  const params: Array<Record<string, string>> = [];
+  for (let i = 1; i <= placeholderCount; i++) {
+    params.push({ type: "text", text: paramForIndex(i, customer) });
+  }
+  return params;
+}
+
 export async function sendBatchTemplate(
   customers: Array<Record<string, unknown>>,
-  templateName: string,
+  template: Record<string, unknown>,
   languageCode = "en"
 ) {
   const results: Array<Record<string, unknown>> = [];
+
+  const components = (template.components as Array<Record<string, unknown>>) ?? [];
+  const bodyComp = components.find((c) => (c.type as string) === "BODY");
+  const headerComp = components.find((c) => (c.type as string) === "HEADER");
+  const bodyPlaceholders = bodyComp ? countPlaceholders((bodyComp.text as string) ?? "") : 0;
+  const headerPlaceholders =
+    headerComp && (headerComp.format as string | undefined) !== "IMAGE" && (headerComp.format as string | undefined) !== "VIDEO" && (headerComp.format as string | undefined) !== "DOCUMENT"
+      ? countPlaceholders((headerComp.text as string) ?? "")
+      : 0;
+
+  const templateName = (template.name as string) ?? "";
 
   for (const customer of customers) {
     const phone = (customer.phone as string) ?? "";
@@ -157,8 +201,8 @@ export async function sendBatchTemplate(
       continue;
     }
 
-    const bodyParams = [{ type: "text", text: name }];
-    const headerParams = [{ type: "text", text: name }];
+    const bodyParams = bodyPlaceholders > 0 ? buildParams(bodyPlaceholders, customer) : undefined;
+    const headerParams = headerPlaceholders > 0 ? buildParams(headerPlaceholders, customer) : undefined;
 
     const result = await sendTemplateMessage(phone, templateName, languageCode, bodyParams, headerParams);
 

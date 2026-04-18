@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
     await authenticateRequest(request);
     const params = request.nextUrl.searchParams;
 
+    const rawLimit = Number(params.get("limit"));
     const customers = await getCustomers({
       search: params.get("search") || "",
       source: params.get("source") || "",
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
       date_to: params.get("date_to") || "",
       spend_min: Number(params.get("spend_min")) || 0,
       spend_max: Number(params.get("spend_max")) || 0,
-      limit: Number(params.get("limit")) || 100,
+      ...(rawLimit > 0 ? { limit: rawLimit } : {}),
       offset: Number(params.get("offset")) || 0,
     });
 

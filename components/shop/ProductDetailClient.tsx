@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Product, VariantGroup, VariantValue } from "@/types"
+import { Product, ProductVariant, VariantGroup, VariantValue } from "@/types"
 import { AnimatePresence, motion } from "framer-motion"
 import { Heart, Truck, Info, ChevronRight, Plus, Minus } from "lucide-react"
 import { useCartStore } from "@/store/cartStore"
 import { useWishlistStore } from "@/store/wishlistStore"
 import ProductCard from "./ProductCard"
+import { availableQty, variantAvailableQty } from "@/lib/stock"
 
 const PSY_EASE = [0.16, 1, 0.3, 1] as [number, number, number, number]
 
@@ -25,9 +26,11 @@ function normalizeVariants(raw: unknown): VariantGroup[] {
 
 export default function ProductDetailClient({
   product,
+  variantRows,
   relatedProducts,
 }: {
   product: Product
+  variantRows?: ProductVariant[]
   relatedProducts: Product[]
 }) {
   const variantGroups = useMemo(
@@ -64,6 +67,34 @@ export default function ProductDetailClient({
     return out
   }, [selectedValues])
 
+  // Match the currently-selected JSONB variant against a product_variants row.
+  // Match rule: every group→label in selectedVariant is present in row.options.
+  // If no groups are selected, there is no matched row.
+  const matchedVariantRow = useMemo<ProductVariant | null>(() => {
+    if (!variantRows || variantRows.length === 0) return null
+    if (!selectedVariant || Object.keys(selectedVariant).length === 0) return null
+    for (const row of variantRows) {
+      const opts = (row.options || {}) as Record<string, string>
+      const allMatch = Object.entries(selectedVariant).every(
+        ([group, label]) => opts[group] === label
+      )
+      if (allMatch) return row
+    }
+    return null
+  }, [variantRows, selectedVariant])
+
+  // Effective stock: variant row takes precedence when present. If the product
+  // has variant rows but none match the current selection, treat the variant as
+  // unavailable rather than falling back to product-level stock.
+  const effectiveStock = useMemo(() => {
+    if (variantRows && variantRows.length > 0) {
+      return matchedVariantRow ? variantAvailableQty(matchedVariantRow) : 0
+    }
+    return availableQty(product)
+  }, [variantRows, matchedVariantRow, product])
+
+  const soldOut = !product.stock_status || effectiveStock <= 0
+
   const handleSelectValue = (group: string, value: VariantValue) => {
     setSelectedValues((prev) => ({ ...prev, [group]: value }))
     if (value.imageUrl) {
@@ -89,6 +120,7 @@ export default function ProductDetailClient({
   const cartQty = cartItem?.quantity || 0
 
   const handleIncrement = () => {
+    if (cartQty >= effectiveStock) return
     if (cartQty === 0) {
       addItemToCart({
         product_id: product.id,
@@ -97,6 +129,7 @@ export default function ProductDetailClient({
         price: product.price,
         image_url: product.images[0] || "",
         variant: selectedVariant,
+        variant_id: matchedVariantRow?.id ?? null,
         quantity: 1,
       })
     } else {
@@ -262,13 +295,13 @@ export default function ProductDetailClient({
           {/* Add to Cart — +/− stepper */}
           <div className="mb-3">
             <AnimatePresence mode="wait">
-              {!product.stock_status ? (
+              {soldOut ? (
                 <motion.button
-                  key="unavailable"
+                  key="soldout"
                   disabled
                   className="w-full border border-taupe/30 bg-transparent text-taupe uppercase tracking-widest text-caption py-4 rounded-[2px] opacity-50 cursor-not-allowed"
                 >
-                  Currently Unavailable
+                  Sold Out
                 </motion.button>
               ) : cartQty > 0 ? (
                 <motion.div

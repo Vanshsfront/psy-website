@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ShoppingBag, Menu, X, Settings, User } from "lucide-react"
+import { ShoppingBag, Menu, X, User } from "lucide-react"
 import { useCartStore } from "@/store/cartStore"
 import { useCustomerStore } from "@/store/customerStore"
 import { useEffect, useState } from "react"
@@ -101,9 +101,6 @@ export default function Navbar() {
               title={customerLoggedIn ? "Account" : "Login"}
             >
               <User className={`w-4.5 h-4.5 transition-all duration-300 group-hover:text-bone ${customerLoggedIn ? "text-psy-green" : "text-taupe/60"}`} />
-            </Link>
-            <Link href="/admin" className="relative group" title="Admin">
-              <Settings className="w-4 h-4 text-taupe/60 transition-all duration-300 group-hover:text-bone group-hover:rotate-90" />
             </Link>
             <Link href="/shop/cart" className="relative group">
               <ShoppingBag className="w-5 h-5 text-bone transition-opacity group-hover:opacity-70" />

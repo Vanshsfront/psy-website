@@ -47,11 +47,30 @@ export async function getArtistByName(name: string) {
 async function batchCustomerMetrics(customerIds: string[]): Promise<Record<string, Record<string, unknown>>> {
   if (!customerIds.length) return {};
 
-  const { data: allOrders } = await getDb()
-    .from("orders")
-    .select("customer_id, total, order_date, artist_id")
-    .in("customer_id", customerIds)
-    .order("order_date", { ascending: false });
+  // Chunk customer_ids so the PostgREST `in(...)` URL stays under practical URL
+  // length limits, and paginate each chunk's result in 1000-row windows to get
+  // past Supabase's per-response cap.
+  type OrderRow = { customer_id: string; total: number | null; order_date: string; artist_id: string | null; payment_mode: string | null };
+  const allOrders: OrderRow[] = [];
+  const ID_CHUNK = 200;
+  const PAGE = 1000;
+  for (let i = 0; i < customerIds.length; i += ID_CHUNK) {
+    const idChunk = customerIds.slice(i, i + ID_CHUNK);
+    let from = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { data } = await getDb()
+        .from("orders")
+        .select("customer_id, total, order_date, artist_id, payment_mode")
+        .in("customer_id", idChunk)
+        .order("order_date", { ascending: false })
+        .range(from, from + PAGE - 1);
+      if (!data?.length) break;
+      allOrders.push(...(data as OrderRow[]));
+      if (data.length < PAGE) break;
+      from += PAGE;
+    }
+  }
 
   const ordersByCust: Record<string, Array<Record<string, unknown>>> = {};
   const artistIdsNeeded = new Set<string>();
@@ -81,6 +100,14 @@ async function batchCustomerMetrics(customerIds: string[]): Promise<Record<strin
     const lastVisitDate = orders[0]?.order_date ?? null;
     const lastArtistId = orders[0]?.artist_id ?? null;
     const lastArtistName = lastArtistId ? artistNames[lastArtistId as string] ?? null : null;
+    const lastPaymentMode = (orders[0]?.payment_mode as string | null | undefined) ?? null;
+    const paymentModesUsed = Array.from(
+      new Set(
+        orders
+          .map((o) => o.payment_mode as string | null | undefined)
+          .filter((v): v is string => !!v)
+      )
+    );
 
     metrics[cid] = {
       lifetime_spend: lifetimeSpend,
@@ -88,6 +115,8 @@ async function batchCustomerMetrics(customerIds: string[]): Promise<Record<strin
       last_visit_date: lastVisitDate,
       last_artist_id: lastArtistId,
       last_artist_name: lastArtistName,
+      last_payment_mode: lastPaymentMode,
+      payment_modes_used: paymentModesUsed,
     };
   }
   return metrics;
@@ -104,19 +133,27 @@ export async function getCustomers(params: {
   limit?: number;
   offset?: number;
 } = {}) {
-  const { search = "", source = "", artist_id = "", date_from = "", date_to = "", spend_min = 0, spend_max = 0, limit = 100, offset = 0 } = params;
+  // Supabase caps each response at 1000 rows, so page internally to honour any limit.
+  const { search = "", source = "", artist_id = "", date_from = "", date_to = "", spend_min = 0, spend_max = 0, limit = 50000, offset = 0 } = params;
 
-  let q = getDb().from("customers").select("*");
-
-  if (search) {
-    q = q.or(`name.ilike.%${search}%,phone.ilike.%${search}%,instagram.ilike.%${search}%`);
+  type CustomerRow = Record<string, unknown> & { id: string };
+  const custs: CustomerRow[] = [];
+  const PAGE = 1000;
+  for (let fetched = 0; fetched < limit; fetched += PAGE) {
+    const pageStart = offset + fetched;
+    const pageEnd = offset + Math.min(fetched + PAGE, limit) - 1;
+    let q = getDb().from("customers").select("*");
+    if (search) {
+      q = q.or(`name.ilike.%${search}%,phone.ilike.%${search}%,instagram.ilike.%${search}%`);
+    }
+    if (source) {
+      q = q.eq("source", source);
+    }
+    const { data } = await q.order("created_at", { ascending: false }).range(pageStart, pageEnd);
+    if (!data?.length) break;
+    custs.push(...(data as CustomerRow[]));
+    if (data.length < pageEnd - pageStart + 1) break;
   }
-  if (source) {
-    q = q.eq("source", source);
-  }
-
-  const { data: customers } = await q.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
-  const custs = customers ?? [];
 
   const custIds = custs.map((c) => c.id);
   const allMetrics = await batchCustomerMetrics(custIds);
@@ -149,7 +186,7 @@ export async function getCustomerById(customerId: string) {
 export async function getCustomerMetrics(customerId: string) {
   const { data: orders } = await getDb()
     .from("orders")
-    .select("total, order_date, artist_id")
+    .select("total, order_date, artist_id, payment_mode")
     .eq("customer_id", customerId)
     .order("order_date", { ascending: false });
 
@@ -158,6 +195,14 @@ export async function getCustomerMetrics(customerId: string) {
   const visitCount = orderList.length;
   const lastVisitDate = orderList[0]?.order_date ?? null;
   const lastArtistId = orderList[0]?.artist_id ?? null;
+  const lastPaymentMode = (orderList[0]?.payment_mode as string | null | undefined) ?? null;
+  const paymentModesUsed = Array.from(
+    new Set(
+      orderList
+        .map((o) => o.payment_mode as string | null | undefined)
+        .filter((v): v is string => !!v)
+    )
+  );
 
   let lastArtistName: string | null = null;
   if (lastArtistId) {
@@ -165,7 +210,15 @@ export async function getCustomerMetrics(customerId: string) {
     if (artist?.[0]) lastArtistName = artist[0].name;
   }
 
-  return { lifetime_spend: lifetimeSpend, visit_count: visitCount, last_visit_date: lastVisitDate, last_artist_id: lastArtistId, last_artist_name: lastArtistName };
+  return {
+    lifetime_spend: lifetimeSpend,
+    visit_count: visitCount,
+    last_visit_date: lastVisitDate,
+    last_artist_id: lastArtistId,
+    last_artist_name: lastArtistName,
+    last_payment_mode: lastPaymentMode,
+    payment_modes_used: paymentModesUsed,
+  };
 }
 
 export async function checkDuplicateCustomer(phone = "", instagram = "") {
@@ -340,11 +393,21 @@ export async function searchCustomersByConditions(
 
 // ── Orders ──
 
-export async function getOrders(customerId = "", limit = 100) {
-  let q = getDb().from("orders").select("*, customers(name, phone), artists(name)");
-  if (customerId) q = q.eq("customer_id", customerId);
-  const { data } = await q.order("order_date", { ascending: false }).limit(limit);
-  return data ?? [];
+export async function getOrders(customerId = "", limit = 50000) {
+  // Supabase caps each response at 1000 rows; page internally to honour `limit`.
+  const PAGE = 1000;
+  type OrderRow = Record<string, unknown> & { id: string };
+  const rows: OrderRow[] = [];
+  for (let fetched = 0; fetched < limit; fetched += PAGE) {
+    const pageEnd = Math.min(fetched + PAGE, limit) - 1;
+    let q = getDb().from("orders").select("*, customers(name, phone), artists(name)");
+    if (customerId) q = q.eq("customer_id", customerId);
+    const { data } = await q.order("order_date", { ascending: false }).range(fetched, pageEnd);
+    if (!data?.length) break;
+    rows.push(...(data as OrderRow[]));
+    if (data.length < pageEnd - fetched + 1) break;
+  }
+  return rows;
 }
 
 export async function getOrderById(orderId: string) {
@@ -357,12 +420,13 @@ export async function getOrderById(orderId: string) {
 
 export async function createOrder(inputData: Record<string, unknown>) {
   const today = new Date().toISOString().split("T")[0];
+  const rawPaymentMode = inputData.payment_mode;
   const payload: Record<string, unknown> = {
     customer_id: inputData.customer_id,
     artist_id: inputData.artist_id,
     order_date: inputData.order_date ?? today,
     service_description: inputData.service_description,
-    payment_mode: inputData.payment_mode,
+    payment_mode: typeof rawPaymentMode === "string" ? rawPaymentMode.toLowerCase() : rawPaymentMode,
     deposit: inputData.deposit ?? 0,
     total: inputData.total ?? 0,
     comments: inputData.comments,
@@ -373,6 +437,46 @@ export async function createOrder(inputData: Record<string, unknown>) {
   }
   const { data } = await getDb().from("orders").insert(payload).select();
   return data?.[0] ?? {};
+}
+
+export async function updateOrder(orderId: string, inputData: Record<string, unknown>) {
+  const allowed = new Set([
+    "artist_id",
+    "order_date",
+    "service_description",
+    "payment_mode",
+    "deposit",
+    "total",
+    "comments",
+    "source",
+    "tracking_number",
+    "courier_name",
+    "admin_notes",
+    "discount_code",
+    "discount_amount",
+  ]);
+  const payload: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(inputData)) {
+    if (!allowed.has(k)) continue;
+    if (k === "payment_mode" && typeof v === "string") {
+      payload[k] = v.toLowerCase();
+    } else {
+      payload[k] = v;
+    }
+  }
+  if (!Object.keys(payload).length) return null;
+
+  const { data } = await getDb()
+    .from("orders")
+    .update(payload)
+    .eq("id", orderId)
+    .select("*, customers(name, phone), artists(name)");
+  return data?.[0] ?? null;
+}
+
+export async function deleteOrder(orderId: string): Promise<boolean> {
+  const { error } = await getDb().from("orders").delete().eq("id", orderId);
+  return !error;
 }
 
 // ── Expenses ──

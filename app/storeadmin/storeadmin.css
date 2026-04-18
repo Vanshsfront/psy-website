@@ -89,6 +89,11 @@
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes sa-slideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 @keyframes sa-skeletonPulse {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 0.7; }
@@ -100,6 +105,11 @@
 
 .storeadmin-scope .animate-slideIn {
   animation: sa-slideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.storeadmin-scope .animate-slideInRight,
+.animate-slideInRight {
+  animation: sa-slideInRight 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .storeadmin-scope .skeleton {

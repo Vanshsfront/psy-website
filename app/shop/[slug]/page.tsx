@@ -18,6 +18,12 @@ export default async function ProductPage({ params }: { params: { slug: string }
     notFound()
   }
 
+  // Fetch per-variant stock rows (separate table from the JSONB `variants` column)
+  const { data: variantRows } = await supabase
+    .from('product_variants')
+    .select('*')
+    .eq('product_id', product.id)
+
   // Fetch related products (same category, different ID)
   const { data: relatedProducts } = await supabase
     .from('products')
@@ -28,7 +34,11 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
   return (
     <main className="min-h-screen bg-background">
-      <ProductDetailClient product={product as any} relatedProducts={(relatedProducts || []) as any[]} />
+      <ProductDetailClient
+        product={product as any}
+        variantRows={(variantRows || []) as any[]}
+        relatedProducts={(relatedProducts || []) as any[]}
+      />
     </main>
   )
 }

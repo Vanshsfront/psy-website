@@ -14,6 +14,8 @@ export interface Customer {
     last_visit_date?: string | null;
     last_artist_name?: string | null;
     last_artist_id?: string | null;
+    last_payment_mode?: string | null;
+    payment_modes_used?: string[];
     orders?: Order[];
 }
 
@@ -36,6 +38,13 @@ export interface Order {
     comments: string | null;
     source: string | null;
     created_at: string;
+    updated_at?: string;
+    order_number?: string | null;
+    tracking_number?: string | null;
+    courier_name?: string | null;
+    admin_notes?: string | null;
+    discount_code?: string | null;
+    discount_amount?: number | null;
     customers?: { name: string; phone: string };
     artists?: { name: string };
 }

@@ -121,16 +121,33 @@ export const api = {
         }),
 
     // Orders
-    getOrders: (customerID?: string) => {
-        const query = customerID ? `?customer_id=${customerID}` : "";
+    getOrders: (customerID?: string, limit?: number) => {
+        const params = new URLSearchParams();
+        if (customerID) params.set("customer_id", customerID);
+        if (limit) params.set("limit", String(limit));
+        const query = params.toString() ? `?${params.toString()}` : "";
         return apiFetch<{ orders: import("@/types/storeadmin").Order[] }>(`/api/storeadmin/orders${query}`);
     },
+
+    getOrder: (id: string) =>
+        apiFetch<import("@/types/storeadmin").Order>(`/api/storeadmin/orders/${id}`),
 
     createOrder: (data: Record<string, unknown>) =>
         apiFetch<{ created: boolean; order: import("@/types/storeadmin").Order }>(
             "/api/storeadmin/orders",
             { method: "POST", body: JSON.stringify(data) }
         ),
+
+    updateOrder: (id: string, data: Record<string, unknown>) =>
+        apiFetch<{ updated: boolean; order: import("@/types/storeadmin").Order }>(
+            `/api/storeadmin/orders/${id}`,
+            { method: "PATCH", body: JSON.stringify(data) }
+        ),
+
+    deleteOrder: (id: string) =>
+        apiFetch<{ deleted: boolean }>(`/api/storeadmin/orders/${id}`, {
+            method: "DELETE",
+        }),
 
     // OCR
     ocrExtract: (file: File) => {

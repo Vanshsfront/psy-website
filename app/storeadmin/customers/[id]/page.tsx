@@ -4,14 +4,14 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/storeadmin/AuthProvider";
 import Sidebar from "@/components/storeadmin/Sidebar";
+import CustomerEditDrawer from "@/components/storeadmin/CustomerEditDrawer";
+import OrderEditDrawer from "@/components/storeadmin/OrderEditDrawer";
 import { api } from "@/lib/storeadmin/api";
 import { formatCurrency, formatDate, formatRelativeDate, getSourceColor, getPaymentColor } from "@/lib/storeadmin/utils";
 import type { Customer, Order } from "@/types/storeadmin";
 import {
     ArrowLeft,
     Edit3,
-    Save,
-    X,
     Phone,
     Instagram,
     Mail,
@@ -22,7 +22,6 @@ import {
     TrendingUp,
     Hash,
     Palette,
-    Trash2,
     PlusCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -36,9 +35,8 @@ function ProfileContent() {
     const [customer, setCustomer] = useState<Customer | null>(null);
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
-    const [editing, setEditing] = useState(false);
-    const [editData, setEditData] = useState<Record<string, string>>({});
-    const [saving, setSaving] = useState(false);
+    const [editCustomerOpen, setEditCustomerOpen] = useState(false);
+    const [editOrderId, setEditOrderId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
@@ -54,14 +52,6 @@ function ProfileContent() {
             const data = await api.getCustomer(customerId);
             setCustomer(data);
             setOrders(data.orders || []);
-            setEditData({
-                name: data.name || "",
-                phone: data.phone || "",
-                instagram: data.instagram || "",
-                email: data.email || "",
-                source: data.source || "",
-                notes: data.notes || "",
-            });
         } catch {
             console.error("Failed to load customer");
         } finally {
@@ -69,27 +59,16 @@ function ProfileContent() {
         }
     };
 
-    const handleSave = async () => {
-        setSaving(true);
-        try {
-            await api.updateCustomer(customerId, editData);
-            await loadCustomer();
-            setEditing(false);
-        } catch {
-            console.error("Failed to save");
-        } finally {
-            setSaving(false);
+    const handleCustomerSaved = (updated: Customer | null) => {
+        if (!updated) {
+            router.push("/storeadmin/customers");
+            return;
         }
+        loadCustomer();
     };
 
-    const handleDelete = async () => {
-        if (!confirm(`Delete "${customer?.name}"? This also deletes all their orders.`)) return;
-        try {
-            await api.deleteCustomer(customerId);
-            router.push("/storeadmin/customers");
-        } catch {
-            alert("Failed to delete customer.");
-        }
+    const handleOrderSaved = () => {
+        loadCustomer();
     };
 
     if (authLoading || !isAuthenticated || loading) {
@@ -142,61 +121,33 @@ function ProfileContent() {
                                         )}
                                     </div>
                                 </div>
-                                {!editing ? (
-                                    <div className="flex gap-1">
-                                        <button onClick={() => setEditing(true)} className="p-2 rounded text-[var(--muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition-colors cursor-pointer" title="Edit">
-                                            <Edit3 className="w-4 h-4" />
-                                        </button>
-                                        <button onClick={handleDelete} className="p-2 rounded text-[var(--muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors cursor-pointer" title="Delete">
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="flex gap-1">
-                                        <button onClick={handleSave} disabled={saving} className="p-2 rounded text-[var(--primary)] hover:bg-[var(--primary)]/10 transition-colors cursor-pointer">
-                                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                        </button>
-                                        <button onClick={() => setEditing(false)} className="p-2 rounded text-[var(--muted)] hover:text-[var(--danger)] transition-colors cursor-pointer">
-                                            <X className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                )}
+                                <button
+                                    onClick={() => setEditCustomerOpen(true)}
+                                    className="p-2 rounded text-[var(--muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition-colors cursor-pointer"
+                                    title="Edit"
+                                >
+                                    <Edit3 className="w-4 h-4" />
+                                </button>
                             </div>
 
                             <div className="space-y-3.5">
                                 {[
-                                    { icon: Phone, label: "Phone", key: "phone" },
-                                    { icon: Instagram, label: "Instagram", key: "instagram" },
-                                    { icon: Mail, label: "Email", key: "email" },
-                                    { icon: User, label: "Source", key: "source" },
-                                ].map(({ icon: Icon, label, key }) => (
-                                    <div key={key} className="flex items-start gap-3">
+                                    { icon: Phone, label: "Phone", value: customer.phone },
+                                    {
+                                        icon: Instagram,
+                                        label: "Instagram",
+                                        value: customer.instagram ? `@${customer.instagram}` : null,
+                                    },
+                                    { icon: Mail, label: "Email", value: customer.email },
+                                    { icon: User, label: "Source", value: customer.source },
+                                ].map(({ icon: Icon, label, value }) => (
+                                    <div key={label} className="flex items-start gap-3">
                                         <Icon className="w-4 h-4 text-[var(--muted)] mt-0.5" />
                                         <div className="flex-1">
-                                            <p className="text-[10px] text-[var(--muted)] uppercase tracking-wider">{label}</p>
-                                            {editing ? (
-                                                key === "source" ? (
-                                                    <select
-                                                        value={editData[key] || ""}
-                                                        onChange={(e) => setEditData({ ...editData, [key]: e.target.value })}
-                                                        className="w-full mt-1 px-3 py-2 neo-input text-sm"
-                                                    >
-                                                        <option value="">None</option>
-                                                        <option value="instagram">Instagram</option>
-                                                        <option value="walk-in">Walk-in</option>
-                                                        <option value="referral">Referral</option>
-                                                        <option value="google">Google</option>
-                                                    </select>
-                                                ) : (
-                                                    <input
-                                                        value={editData[key] || ""}
-                                                        onChange={(e) => setEditData({ ...editData, [key]: e.target.value })}
-                                                        className="w-full mt-1 px-3 py-2 neo-input text-sm"
-                                                    />
-                                                )
-                                            ) : (
-                                                <p className="text-sm">{(customer as unknown as Record<string, unknown>)[key] as string || "—"}</p>
-                                            )}
+                                            <p className="text-[10px] text-[var(--muted)] uppercase tracking-wider">
+                                                {label}
+                                            </p>
+                                            <p className="text-sm">{value || "—"}</p>
                                         </div>
                                     </div>
                                 ))}
@@ -205,16 +156,7 @@ function ProfileContent() {
                                     <Edit3 className="w-4 h-4 text-[var(--muted)] mt-0.5" />
                                     <div className="flex-1">
                                         <p className="text-[10px] text-[var(--muted)] uppercase tracking-wider">Notes</p>
-                                        {editing ? (
-                                            <textarea
-                                                value={editData.notes || ""}
-                                                onChange={(e) => setEditData({ ...editData, notes: e.target.value })}
-                                                className="w-full mt-1 px-3 py-2 neo-input text-sm resize-none"
-                                                rows={3}
-                                            />
-                                        ) : (
-                                            <p className="text-sm">{customer.notes || "No notes"}</p>
-                                        )}
+                                        <p className="text-sm whitespace-pre-wrap">{customer.notes || "No notes"}</p>
                                     </div>
                                 </div>
                             </div>
@@ -261,7 +203,9 @@ function ProfileContent() {
                             <div className="flex items-center justify-between p-5 border-b border-[var(--border-color)]">
                                 <div>
                                     <h3 className="text-base font-semibold">Order History</h3>
-                                    <p className="text-xs text-[var(--muted)]">{orders.length} orders</p>
+                                    <p className="text-xs text-[var(--muted)]">
+                                        {orders.length} orders · click a row to edit
+                                    </p>
                                 </div>
                                 <Link
                                     href={`/storeadmin/orders/new?customer=${encodeURIComponent(customer.name)}&phone=${encodeURIComponent(customer.phone || "")}`}
@@ -292,7 +236,19 @@ function ProfileContent() {
                                         </thead>
                                         <tbody>
                                             {orders.map((order) => (
-                                                <tr key={order.id} className="border-b border-[var(--border-color-subtle)] hover:bg-[var(--surface-hover)] transition-colors">
+                                                <tr
+                                                    key={order.id}
+                                                    tabIndex={0}
+                                                    role="button"
+                                                    onClick={() => setEditOrderId(order.id)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Enter" || e.key === " ") {
+                                                            e.preventDefault();
+                                                            setEditOrderId(order.id);
+                                                        }
+                                                    }}
+                                                    className="border-b border-[var(--border-color-subtle)] hover:bg-[var(--surface-hover)] cursor-pointer transition-colors"
+                                                >
                                                     <td className="px-5 py-3 text-sm">{formatDate(order.order_date)}</td>
                                                     <td className="px-5 py-3 text-sm max-w-[200px] truncate">{order.service_description || "—"}</td>
                                                     <td className="px-5 py-3 text-sm">{order.artists?.name || "—"}</td>
@@ -332,6 +288,20 @@ function ProfileContent() {
                         )}
                     </div>
                 </div>
+
+                <CustomerEditDrawer
+                    open={editCustomerOpen}
+                    customerId={customerId}
+                    onClose={() => setEditCustomerOpen(false)}
+                    onSaved={handleCustomerSaved}
+                />
+
+                <OrderEditDrawer
+                    open={editOrderId !== null}
+                    orderId={editOrderId}
+                    onClose={() => setEditOrderId(null)}
+                    onSaved={handleOrderSaved}
+                />
             </main>
         </div>
     );

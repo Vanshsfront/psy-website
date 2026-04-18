@@ -7,8 +7,8 @@ export async function GET(request: NextRequest) {
     await authenticateRequest(request);
     const params = request.nextUrl.searchParams;
     const customerId = params.get("customer_id") || "";
-    const limit = Number(params.get("limit")) || 100;
-    const orders = await getOrders(customerId, limit);
+    const rawLimit = Number(params.get("limit"));
+    const orders = rawLimit > 0 ? await getOrders(customerId, rawLimit) : await getOrders(customerId);
     return NextResponse.json({ orders });
   } catch {
     return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });

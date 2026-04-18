@@ -57,7 +57,29 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Verify all products exist, are in stock, and not deleted
+    const variantIds = items
+      .map((item: any) => item.variant_id)
+      .filter((id: any): id is string => typeof id === "string" && id.length > 0)
+
+    let variantRows: Array<{ id: string; product_id: string; stock_quantity: number }> = []
+    if (variantIds.length > 0) {
+      const { data: rows, error: variantsError } = await supabase
+        .from("product_variants")
+        .select("id, product_id, stock_quantity")
+        .in("id", variantIds)
+      if (variantsError) {
+        console.error("Variant stock check failed:", variantsError)
+        return NextResponse.json(
+          { error: "Failed to verify variant availability" },
+          { status: 500 }
+        )
+      }
+      variantRows = rows || []
+    }
+
+    // Verify each cart item: product must exist, be available, and have enough stock.
+    // When the item has a variant_id, per-variant stock governs; otherwise fall back
+    // to product-level stock.
     for (const item of items) {
       const product = products?.find((p: any) => p.id === item.product_id)
       if (!product) {
@@ -72,12 +94,44 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         )
       }
-      // Check quantity-based stock
-      if (product.stock_quantity > 0 && item.quantity > product.stock_quantity) {
-        return NextResponse.json(
-          { error: `Only ${product.stock_quantity} units of "${product.name}" available` },
-          { status: 400 }
+
+      if (item.variant_id) {
+        const row = variantRows.find(
+          (v) => v.id === item.variant_id && v.product_id === item.product_id
         )
+        if (!row) {
+          return NextResponse.json(
+            { error: `Selected option for "${product.name}" is no longer available` },
+            { status: 400 }
+          )
+        }
+        const avail = row.stock_quantity ?? 0
+        if (avail <= 0) {
+          return NextResponse.json(
+            { error: `"${product.name}" is sold out` },
+            { status: 400 }
+          )
+        }
+        if (item.quantity > avail) {
+          return NextResponse.json(
+            { error: `Only ${avail} units of "${product.name}" available` },
+            { status: 400 }
+          )
+        }
+      } else {
+        const avail = product.stock_quantity ?? 0
+        if (avail <= 0) {
+          return NextResponse.json(
+            { error: `"${product.name}" is sold out` },
+            { status: 400 }
+          )
+        }
+        if (item.quantity > avail) {
+          return NextResponse.json(
+            { error: `Only ${avail} units of "${product.name}" available` },
+            { status: 400 }
+          )
+        }
       }
     }
 
@@ -140,10 +194,27 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 5. Decrement inventory ────────────────────────────────────
+    // When a variant_id is present, decrement the variant row only — other
+    // variants of the same product may still have stock, so don't flip the
+    // product's stock_status. When no variant, decrement product-level stock
+    // and auto-flip stock_status when it hits zero.
     for (const item of items) {
+      if (item.variant_id) {
+        const row = variantRows.find(
+          (v) => v.id === item.variant_id && v.product_id === item.product_id
+        )
+        if (row) {
+          const newQty = Math.max(0, (row.stock_quantity ?? 0) - item.quantity)
+          await supabase
+            .from("product_variants")
+            .update({ stock_quantity: newQty })
+            .eq("id", row.id)
+        }
+        continue
+      }
       const product = products?.find((p: any) => p.id === item.product_id)
-      if (product && product.stock_quantity > 0) {
-        const newQty = Math.max(0, product.stock_quantity - item.quantity)
+      if (product) {
+        const newQty = Math.max(0, (product.stock_quantity ?? 0) - item.quantity)
         await supabase
           .from("products")
           .update({
