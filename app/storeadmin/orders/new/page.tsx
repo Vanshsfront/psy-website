@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/storeadmin/AuthProvider";
 import Sidebar from "@/components/storeadmin/Sidebar";
+import CustomerAutofill from "@/components/storeadmin/CustomerAutofill";
 import { api } from "@/lib/storeadmin/api";
-import { capitalizeWords, stripAtSign } from "@/lib/storeadmin/utils";
-import type { Artist, OCRResult } from "@/types/storeadmin";
+import { capitalizeWords, stripAtSign, formatCurrency, formatRelativeDate } from "@/lib/storeadmin/utils";
+import type { Artist, Customer, OCRResult } from "@/types/storeadmin";
 import {
     Upload,
     FileText,
@@ -28,6 +29,7 @@ import {
 // Types for the spreadsheet rows
 interface OrderRow {
     id: string; // client-side row ID
+    customer_id?: string; // set when row is linked to an existing customer via autofill
     customer_name: string;
     phone: string;
     instagram: string;
@@ -80,6 +82,7 @@ function NewOrderContent() {
         appointment_type: "", service_description: "", payment_mode: "cash", deposit: "",
         total: "", comments: "", source: "", address: "",
     });
+    const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [step, setStep] = useState<"form" | "success">("form");
 
     // OCR state
@@ -156,23 +159,26 @@ function NewOrderContent() {
         e.preventDefault();
         setLoading(true);
         try {
-            const custRes = await api.createCustomer({
-                name: capitalizeWords(manualForm.customer_name),
-                phone: manualForm.phone || null,
-                instagram: manualForm.instagram ? stripAtSign(manualForm.instagram) : null,
-                source: manualForm.source || null,
-                address: manualForm.address || null,
-            });
-            let custId = custRes.customer?.id;
-            if (!custId && custRes.duplicate_detected && custRes.matches?.length) {
-                const m = custRes.matches[0];
-                const ok = confirm(
-                    `An existing customer matches this ${custRes.match_type || "phone/Instagram"}:\n\n` +
-                    `  ${m.name}${m.phone ? ` · ${m.phone}` : ""}${m.instagram ? ` · @${m.instagram}` : ""}\n\n` +
-                    `Attach this order to them?`
-                );
-                if (!ok) { setLoading(false); return; }
-                custId = m.id;
+            let custId = selectedCustomer?.id;
+            if (!custId) {
+                const custRes = await api.createCustomer({
+                    name: capitalizeWords(manualForm.customer_name),
+                    phone: manualForm.phone || null,
+                    instagram: manualForm.instagram ? stripAtSign(manualForm.instagram) : null,
+                    source: manualForm.source || null,
+                    address: manualForm.address || null,
+                });
+                custId = custRes.customer?.id;
+                if (!custId && custRes.duplicate_detected && custRes.matches?.length) {
+                    const m = custRes.matches[0];
+                    const ok = confirm(
+                        `An existing customer matches this ${custRes.match_type || "phone/Instagram"}:\n\n` +
+                        `  ${m.name}${m.phone ? ` · ${m.phone}` : ""}${m.instagram ? ` · @${m.instagram}` : ""}\n\n` +
+                        `Attach this order to them?`
+                    );
+                    if (!ok) { setLoading(false); return; }
+                    custId = m.id;
+                }
             }
             if (!custId) {
                 alert("Could not create or match customer. Please check the name/phone/Instagram and try again.");
@@ -254,6 +260,10 @@ function NewOrderContent() {
                 // Auto-capitalize customer names
                 const finalValue = key === "customer_name" ? capitalizeWords(value) : value;
                 const updated = { ...r, [key]: finalValue };
+                // Editing the identity fields invalidates any existing customer link
+                if (r.customer_id && (key === "customer_name" || key === "phone" || key === "instagram")) {
+                    updated.customer_id = undefined;
+                }
                 // Auto-sync: if deposit changes and exceeds total, bump total
                 if (key === "deposit") {
                     const dep = parseFloat(value) || 0;
@@ -262,6 +272,29 @@ function NewOrderContent() {
                 }
                 return updated;
             })
+        );
+    };
+
+    const linkRowToCustomer = (rowId: string, c: Customer) => {
+        setOcrRows((prev) =>
+            prev.map((r) =>
+                r.id === rowId
+                    ? {
+                        ...r,
+                        customer_id: c.id,
+                        customer_name: c.name,
+                        phone: c.phone ?? r.phone,
+                        instagram: c.instagram ?? r.instagram,
+                        source: c.source ?? r.source,
+                    }
+                    : r
+            )
+        );
+    };
+
+    const clearRowCustomerLink = (rowId: string) => {
+        setOcrRows((prev) =>
+            prev.map((r) => (r.id === rowId ? { ...r, customer_id: undefined } : r))
         );
     };
 
@@ -305,8 +338,8 @@ function NewOrderContent() {
             const rowsToSave = ocrRows.filter((r) => selectedRows.has(r.id));
             const result = await api.ocrBulkConfirm({
                 session_id: ocrResult.session_id,
-                orders: rowsToSave.map((row) => ({
-                    fields: {
+                orders: rowsToSave.map((row) => {
+                    const fields = {
                         customer_name: capitalizeWords(row.customer_name),
                         phone: row.phone || null,
                         instagram: row.instagram ? stripAtSign(row.instagram) : null,
@@ -316,15 +349,25 @@ function NewOrderContent() {
                         deposit: parseFloat(row.deposit) || 0,
                         total: parseFloat(row.total) || 0,
                         source: row.source || null,
-                    },
-                    create_new_customer: true,
-                    customer_data: {
-                        name: capitalizeWords(row.customer_name) || "Unknown",
-                        phone: row.phone || null,
-                        instagram: row.instagram ? stripAtSign(row.instagram) : null,
-                        source: row.source || null,
-                    },
-                })),
+                    };
+                    if (row.customer_id) {
+                        return {
+                            fields,
+                            create_new_customer: false,
+                            customer_id: row.customer_id,
+                        };
+                    }
+                    return {
+                        fields,
+                        create_new_customer: true,
+                        customer_data: {
+                            name: capitalizeWords(row.customer_name) || "Unknown",
+                            phone: row.phone || null,
+                            instagram: row.instagram ? stripAtSign(row.instagram) : null,
+                            source: row.source || null,
+                        },
+                    };
+                }),
             });
             setSaveResult({ saved: result.saved, failed: result.failed });
             setOcrStep("success");
@@ -391,15 +434,61 @@ function NewOrderContent() {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="col-span-2">
                                             <label className="block text-sm text-[var(--muted)] mb-1">Customer Name *</label>
-                                            <input required value={manualForm.customer_name} onChange={(e) => setManualForm({ ...manualForm, customer_name: e.target.value })} className="w-full px-4 py-3 neo-input text-sm" />
+                                            <CustomerAutofill
+                                                value={manualForm.customer_name}
+                                                onChange={(v) => setManualForm({ ...manualForm, customer_name: v })}
+                                                onClear={() => { if (selectedCustomer) setSelectedCustomer(null); }}
+                                                onSelect={(c) => {
+                                                    setSelectedCustomer(c);
+                                                    setManualForm((prev) => ({
+                                                        ...prev,
+                                                        customer_name: c.name,
+                                                        phone: c.phone ?? "",
+                                                        instagram: c.instagram ?? "",
+                                                        address: c.address ?? prev.address,
+                                                        source: c.source ?? prev.source,
+                                                        artist_id: c.last_artist_id ?? prev.artist_id,
+                                                    }));
+                                                }}
+                                                inputClassName="w-full px-4 py-3 neo-input text-sm"
+                                                required
+                                                placeholder="Start typing name, phone, or @handle…"
+                                            />
+                                            {selectedCustomer && (
+                                                <div className="mt-2 text-xs text-[var(--muted)] flex items-center gap-2 flex-wrap">
+                                                    <span className="px-2 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-medium">Existing customer</span>
+                                                    <span>{formatCurrency(selectedCustomer.lifetime_spend ?? 0)} lifetime</span>
+                                                    <span>·</span>
+                                                    <span>{selectedCustomer.visit_count ?? 0} visit{(selectedCustomer.visit_count ?? 0) === 1 ? "" : "s"}</span>
+                                                    {selectedCustomer.last_visit_date && (
+                                                        <>
+                                                            <span>·</span>
+                                                            <span>last {formatRelativeDate(selectedCustomer.last_visit_date)}</span>
+                                                        </>
+                                                    )}
+                                                    {selectedCustomer.last_artist_name && (
+                                                        <>
+                                                            <span>·</span>
+                                                            <span>w/ {selectedCustomer.last_artist_name}</span>
+                                                        </>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedCustomer(null)}
+                                                        className="ml-auto text-[var(--muted)] hover:text-[var(--fg)] underline"
+                                                    >
+                                                        clear
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                         <div>
                                             <label className="block text-sm text-[var(--muted)] mb-1">Phone</label>
-                                            <input value={manualForm.phone} onChange={(e) => setManualForm({ ...manualForm, phone: e.target.value })} className="w-full px-4 py-3 neo-input text-sm" placeholder="+91..." />
+                                            <input value={manualForm.phone} onChange={(e) => { setManualForm({ ...manualForm, phone: e.target.value }); if (selectedCustomer) setSelectedCustomer(null); }} className="w-full px-4 py-3 neo-input text-sm" placeholder="+91..." />
                                         </div>
                                         <div>
                                             <label className="block text-sm text-[var(--muted)] mb-1">Instagram</label>
-                                            <input value={manualForm.instagram} onChange={(e) => setManualForm({ ...manualForm, instagram: e.target.value })} className="w-full px-4 py-3 neo-input text-sm" placeholder="@handle" />
+                                            <input value={manualForm.instagram} onChange={(e) => { setManualForm({ ...manualForm, instagram: e.target.value }); if (selectedCustomer) setSelectedCustomer(null); }} className="w-full px-4 py-3 neo-input text-sm" placeholder="@handle" />
                                         </div>
                                         <div>
                                             <label className="block text-sm text-[var(--muted)] mb-1">Artist <span className="text-xs opacity-50">(optional)</span></label>
@@ -479,7 +568,7 @@ function NewOrderContent() {
                                     <p className="text-[var(--muted)] mb-6">The order has been saved successfully.</p>
                                     <div className="flex gap-3 justify-center">
                                         <button onClick={() => router.push("/storeadmin")} className="px-6 py-3 neo-btn text-sm">Go to Dashboard</button>
-                                        <button onClick={() => { setStep("form"); setManualForm({ customer_name: "", phone: "", instagram: "", artist_id: "", order_date: new Date().toISOString().split("T")[0], appointment_type: "", service_description: "", payment_mode: "cash", deposit: "", total: "", comments: "", source: "", address: "" }); }} className="px-6 py-3 neo-btn neo-btn-primary text-sm border-none">New Order</button>
+                                        <button onClick={() => { setStep("form"); setSelectedCustomer(null); setManualForm({ customer_name: "", phone: "", instagram: "", artist_id: "", order_date: new Date().toISOString().split("T")[0], appointment_type: "", service_description: "", payment_mode: "cash", deposit: "", total: "", comments: "", source: "", address: "" }); }} className="px-6 py-3 neo-btn neo-btn-primary text-sm border-none">New Order</button>
                                     </div>
                                 </div>
                             )}
@@ -751,7 +840,21 @@ function NewOrderContent() {
                                                                     key={col.key}
                                                                     className="px-0.5 py-0.5 border-b border-r border-[var(--border-color)]"
                                                                 >
-                                                                    {col.type === "select" ? (
+                                                                    {col.key === "customer_name" ? (
+                                                                        <CustomerAutofill
+                                                                            value={row.customer_name}
+                                                                            onChange={(v) => updateRow(row.id, "customer_name", v)}
+                                                                            onClear={() => { if (row.customer_id) clearRowCustomerLink(row.id); }}
+                                                                            onSelect={(c) => linkRowToCustomer(row.id, c)}
+                                                                            inputClassName={`w-full px-2 py-1.5 bg-transparent border-0 text-sm focus:bg-[var(--background)] focus:outline-[var(--primary)] rounded ${row.customer_id
+                                                                                ? "text-[var(--primary)]"
+                                                                                : !row.customer_name
+                                                                                    ? "text-amber-400 placeholder-amber-400/60"
+                                                                                    : ""
+                                                                                }`}
+                                                                            placeholder="Required"
+                                                                        />
+                                                                    ) : col.type === "select" ? (
                                                                         <select
                                                                             value={row[col.key] as string}
                                                                             onChange={(e) => updateRow(row.id, col.key, e.target.value)}
@@ -768,11 +871,7 @@ function NewOrderContent() {
                                                                             type={col.type || "text"}
                                                                             value={row[col.key] as string}
                                                                             onChange={(e) => updateRow(row.id, col.key, e.target.value)}
-                                                                            className={`w-full px-2 py-1.5 bg-transparent border-0 text-sm focus:bg-[var(--background)] focus:outline-[var(--primary)] rounded ${!row[col.key] && col.key === "customer_name"
-                                                                                ? "text-amber-400 placeholder-amber-400/60"
-                                                                                : ""
-                                                                                }`}
-                                                                            placeholder={col.key === "customer_name" ? "Required" : ""}
+                                                                            className="w-full px-2 py-1.5 bg-transparent border-0 text-sm focus:bg-[var(--background)] focus:outline-[var(--primary)] rounded"
                                                                         />
                                                                     )}
                                                                 </td>

@@ -183,3 +183,49 @@ Rules:
 - Do NOT add any extra text, headers, or explanation
 - Maintain the exact same order as the input list`;
 }
+
+export function templateGenerationPrompt(brief: string): string {
+  return `You are drafting a WhatsApp Business message template for Psy Tattoos, a tattoo studio in Mumbai (psyonline.in).
+
+The studio uses these templates for outreach to customers who have previously visited, enquired, or engaged with the studio. Tone is friendly, direct, and slightly urgent without being pushy. Use 🖤 sparingly.
+
+Schema constraints — the template MUST match these exactly:
+- Category: either MARKETING (promotional, re-engagement, referral) or UTILITY (follow-up on an existing transaction / incomplete booking)
+- Body: greet by name with the placeholder {{1}} at the start. Under 500 characters. Do NOT include any URL inside the body — the URL goes on the button. No emojis other than 🖤 or 👋.
+- Button: exactly one URL button. Label ≤ 20 characters. URL MUST be on the psyonline.in domain, e.g. https://psyonline.in/studio (booking) or https://psyonline.in/shop (jewelry).
+- Name: lowercase snake_case, prefix "psy_", ≤ 40 chars, no spaces, no special characters. Must be unique and descriptive (e.g. psy_post_enquiry_followup).
+
+User brief:
+${brief}
+
+Return EXACTLY this format with no markdown, no commentary, no code fences. Use a single line for BODY (no real newlines — use the literal two characters \\n for line breaks inside the body if needed).
+
+NAME: <snake_case name here>
+CATEGORY: <MARKETING or UTILITY>
+BODY: <body text with {{1}} placeholder>
+BUTTON_TEXT: <button label>
+BUTTON_URL: <https://psyonline.in/... url>`;
+}
+
+export function parseTemplateGeneration(raw: string): {
+  name?: string;
+  category?: string;
+  body?: string;
+  button_text?: string;
+  button_url?: string;
+} {
+  const out: Record<string, string> = {};
+  const lines = raw.split(/\r?\n/);
+  for (const line of lines) {
+    const m = line.match(/^\s*(NAME|CATEGORY|BODY|BUTTON_TEXT|BUTTON_URL)\s*:\s*(.+?)\s*$/i);
+    if (m) out[m[1].toUpperCase()] = m[2];
+  }
+  const body = out.BODY?.replace(/\\n/g, "\n");
+  return {
+    name: out.NAME,
+    category: out.CATEGORY?.toUpperCase(),
+    body,
+    button_text: out.BUTTON_TEXT,
+    button_url: out.BUTTON_URL,
+  };
+}

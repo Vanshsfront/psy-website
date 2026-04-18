@@ -146,8 +146,9 @@ function ExpensesContent() {
             (e.category || "").toLowerCase().includes(q)
         );
     }
+    const canonCat = (c: string | null | undefined) => (c || "").trim().toLowerCase();
     if (categoryFilter) {
-        filtered = filtered.filter(e => e.category === categoryFilter);
+        filtered = filtered.filter(e => canonCat(e.category) === categoryFilter);
     }
 
     const sorted = [...filtered].sort((a, b) => new Date(b.expense_date).getTime() - new Date(a.expense_date).getTime());
@@ -155,11 +156,12 @@ function ExpensesContent() {
     const paginated = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
     const totalAmount = filtered.reduce((s, e) => s + e.amount, 0);
 
-    const categories = [...new Set(expenses.map(e => e.category))].filter(Boolean).sort();
+    const categories = [...new Set(expenses.map(e => canonCat(e.category)))].filter(Boolean).sort();
 
     const catTotals: Record<string, number> = {};
     filtered.forEach(e => {
-        catTotals[e.category] = (catTotals[e.category] || 0) + e.amount;
+        const k = canonCat(e.category);
+        catTotals[k] = (catTotals[k] || 0) + e.amount;
     });
     const topCats = Object.entries(catTotals).sort((a, b) => b[1] - a[1]).slice(0, 4);
 

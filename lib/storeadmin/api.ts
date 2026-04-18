@@ -165,7 +165,7 @@ export const api = {
             { method: "POST", body: JSON.stringify(data) }
         ),
 
-    ocrBulkConfirm: (data: { session_id: string; orders: Array<{ fields: Record<string, unknown>; create_new_customer: boolean; customer_data: Record<string, unknown> | null }> }) =>
+    ocrBulkConfirm: (data: { session_id: string; orders: Array<{ fields: Record<string, unknown>; create_new_customer: boolean; customer_data?: Record<string, unknown> | null; customer_id?: string }> }) =>
         apiFetch<{ success: boolean; total: number; saved: number; failed: number; results: Array<{ success: boolean; order_id?: string; customer_name?: string; error?: string }> }>(
             "/api/storeadmin/ocr/bulk-confirm",
             { method: "POST", body: JSON.stringify(data) }
@@ -176,6 +176,40 @@ export const api = {
         apiFetch<{ success: boolean; templates: import("@/types/storeadmin").WhatsAppTemplate[]; error?: string }>(
             "/api/storeadmin/whatsapp/templates"
         ),
+
+    getAllTemplates: () =>
+        apiFetch<{
+            success: boolean;
+            templates: import("@/types/storeadmin").TemplateWithStatus[];
+            error?: string;
+        }>("/api/storeadmin/whatsapp/templates/all"),
+
+    createTemplate: (data: import("@/types/storeadmin").CreateTemplateInput) =>
+        apiFetch<{ success: boolean; id?: string; status?: string; error?: string }>(
+            "/api/storeadmin/whatsapp/templates",
+            { method: "POST", body: JSON.stringify(data) },
+        ),
+
+    deleteTemplate: (name: string) =>
+        apiFetch<{ success: boolean; error?: string }>(
+            `/api/storeadmin/whatsapp/templates/${encodeURIComponent(name)}`,
+            { method: "DELETE" },
+        ),
+
+    generateTemplate: (brief: string) =>
+        apiFetch<{
+            success: boolean;
+            name?: string;
+            category?: string;
+            body?: string;
+            button_text?: string;
+            button_url?: string;
+            error?: string;
+            raw?: string;
+        }>("/api/storeadmin/whatsapp/templates/generate", {
+            method: "POST",
+            body: JSON.stringify({ brief }),
+        }),
 
     filterCampaign: (filterText: string) =>
         apiFetch<import("@/types/storeadmin").FilterResult>("/api/storeadmin/campaigns/filter", {

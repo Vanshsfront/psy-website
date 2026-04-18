@@ -139,7 +139,7 @@ function FinanceContent() {
     });
     const paymentBreakdown: Record<string, number> = {};
     filteredOrders.forEach(o => {
-        const mode = o.payment_mode || "unknown";
+        const mode = (o.payment_mode || "unknown").trim().toLowerCase();
         paymentBreakdown[mode] = (paymentBreakdown[mode] || 0) + (o.total || 0);
     });
     const paymentEntries = Object.entries(paymentBreakdown).sort((a, b) => b[1] - a[1]);

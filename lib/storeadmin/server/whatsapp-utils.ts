@@ -218,3 +218,120 @@ export async function sendBatchTemplate(
 
   return results;
 }
+
+export async function fetchAllTemplates() {
+  const config = getConfig();
+  if (!config) return { success: false, templates: [], error: "WhatsApp not configured" };
+  if (!config.wabaId) {
+    return { success: false, templates: [], error: "WHATSAPP_BUSINESS_ACCOUNT_ID not set" };
+  }
+
+  const url = `${config.baseUrl}/${config.wabaId}/message_templates?fields=name,language,category,status,components,rejected_reason,id&limit=100`;
+
+  try {
+    const resp = await fetch(url, {
+      headers: { Authorization: `Bearer ${config.token}` },
+      signal: AbortSignal.timeout(30000),
+    });
+    const respData = await resp.json();
+    if (!resp.ok) {
+      const errorMsg = respData.error?.message ?? JSON.stringify(respData);
+      return { success: false, templates: [], error: String(errorMsg) };
+    }
+    const templates = (respData.data ?? []).map((t: Record<string, unknown>) => ({
+      id: t.id,
+      name: t.name,
+      language: t.language,
+      category: t.category,
+      status: t.status,
+      components: t.components ?? [],
+      rejected_reason: t.rejected_reason ?? null,
+    }));
+    return { success: true, templates, error: null };
+  } catch (e) {
+    return { success: false, templates: [], error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+export async function createTemplate(input: {
+  name: string;
+  category: string;
+  language?: string;
+  body: string;
+  button_text?: string;
+  button_url?: string;
+  example?: string;
+}) {
+  const config = getConfig();
+  if (!config) return { success: false, error: "WhatsApp not configured" };
+  if (!config.wabaId) return { success: false, error: "WHATSAPP_BUSINESS_ACCOUNT_ID not set" };
+
+  const language = (input.language ?? "en").trim();
+  const example = (input.example ?? "Priya").trim() || "Priya";
+  const hasButton = !!(input.button_text && input.button_url);
+
+  const components: Array<Record<string, unknown>> = [
+    {
+      type: "BODY",
+      text: input.body,
+      ...(countPlaceholders(input.body) > 0 ? { example: { body_text: [[example]] } } : {}),
+    },
+  ];
+  if (hasButton) {
+    components.push({
+      type: "BUTTONS",
+      buttons: [{ type: "URL", text: input.button_text, url: input.button_url }],
+    });
+  }
+
+  const payload = {
+    name: input.name,
+    category: input.category,
+    language,
+    components,
+  };
+
+  const url = `${config.baseUrl}/${config.wabaId}/message_templates`;
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(30000),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      const errorMsg = data.error?.message ?? JSON.stringify(data);
+      return { success: false, error: String(errorMsg) };
+    }
+    return { success: true, id: data.id as string | undefined, status: data.status as string | undefined };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+export async function deleteTemplate(name: string) {
+  const config = getConfig();
+  if (!config) return { success: false, error: "WhatsApp not configured" };
+  if (!config.wabaId) return { success: false, error: "WHATSAPP_BUSINESS_ACCOUNT_ID not set" };
+
+  const url = `${config.baseUrl}/${config.wabaId}/message_templates?name=${encodeURIComponent(name)}`;
+  try {
+    const resp = await fetch(url, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${config.token}` },
+      signal: AbortSignal.timeout(30000),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      const errorMsg = data.error?.message ?? JSON.stringify(data);
+      return { success: false, error: String(errorMsg) };
+    }
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}

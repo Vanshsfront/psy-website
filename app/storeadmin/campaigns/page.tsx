@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/storeadmin/AuthProvider";
 import Sidebar from "@/components/storeadmin/Sidebar";
+import TemplatesTab from "@/components/storeadmin/TemplatesTab";
 import { api } from "@/lib/storeadmin/api";
 import { formatCurrency } from "@/lib/storeadmin/utils";
 import type { WhatsAppTemplate, Customer } from "@/types/storeadmin";
@@ -11,7 +12,6 @@ import {
     Send,
     MessageSquare,
     Filter,
-    Users,
     Eye,
     CheckCircle2,
     XCircle,
@@ -19,12 +19,14 @@ import {
     AlertTriangle,
     ArrowRight,
     Sparkles,
+    LayoutTemplate,
 } from "lucide-react";
 
 function CampaignsContent() {
     const { isAuthenticated, loading: authLoading } = useAuth();
     const router = useRouter();
 
+    const [tab, setTab] = useState<"send" | "templates">("send");
     const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
     const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
     const [selectedTemplate, setSelectedTemplate] = useState<WhatsAppTemplate | null>(null);
@@ -154,8 +156,34 @@ function CampaignsContent() {
             <main className="flex-1 ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10">
                 <div className="max-w-4xl mx-auto">
                     <h1 className="font-display text-4xl font-bold mb-2">WhatsApp Campaigns</h1>
-                    <p className="text-[var(--muted)] mb-8">Send template messages to filtered customer segments</p>
+                    <p className="text-[var(--muted)] mb-6">Send template messages to filtered customer segments</p>
 
+                    {/* Tab switcher */}
+                    <div className="flex gap-2 mb-8 border-b border-[var(--border-color)]">
+                        {[
+                            { key: "send" as const, label: "Send Campaign", icon: Send },
+                            { key: "templates" as const, label: "Templates", icon: LayoutTemplate },
+                        ].map(({ key, label, icon: Icon }) => (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={() => setTab(key)}
+                                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors cursor-pointer ${
+                                    tab === key
+                                        ? "border-[var(--primary)] text-[var(--primary)]"
+                                        : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
+                                }`}
+                            >
+                                <Icon className="w-4 h-4" />
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {tab === "templates" && <TemplatesTab />}
+
+                    {tab === "send" && (
+                    <>
                     {/* Progress Steps */}
                     <div className="flex items-center gap-2 mb-8">
                         {[
@@ -379,6 +407,8 @@ function CampaignsContent() {
                                 New Campaign
                             </button>
                         </div>
+                    )}
+                    </>
                     )}
                 </div>
             </main>

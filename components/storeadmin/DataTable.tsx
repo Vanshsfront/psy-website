@@ -54,6 +54,16 @@ interface DataTableProps<Row> {
 
 const EMPTY_LABEL = "(empty)";
 
+// Canonical key for grouping enum values: case-insensitive, with whitespace
+// around hyphens and slashes collapsed so "Walk - in" matches "walk-in".
+function canonicalKey(s: string): string {
+    return s
+        .trim()
+        .toLowerCase()
+        .replace(/\s*([-/])\s*/g, "$1")
+        .replace(/\s+/g, " ");
+}
+
 function defaultFilterFor(type: DataTableColType): FilterValue {
     switch (type) {
         case "text":
@@ -130,7 +140,7 @@ function matchRow<Row>(row: Row, col: DataTableColumn<Row>, f: FilterValue): boo
             const values = toStringList(v);
             const set = new Set(f.selected);
             if (values.length === 0) return set.has(EMPTY_LABEL);
-            return values.some((x) => set.has(x));
+            return values.some((x) => set.has(canonicalKey(x)));
         }
     }
 }
@@ -276,25 +286,43 @@ export default function DataTable<Row>({
         setPage(0);
     };
 
-    const facetCounts = (col: DataTableColumn<Row>): Array<{ value: string; count: number }> => {
+    const facetCounts = (col: DataTableColumn<Row>): Array<{ value: string; label: string; count: number }> => {
         const base = baseFiltered(col.key);
-        const counts = new Map<string, number>();
+        type Bucket = { count: number; labels: Map<string, number> };
+        const groups = new Map<string, Bucket>();
         for (const row of base) {
             const vals = toStringList(col.accessor(row));
             if (vals.length === 0) {
-                counts.set(EMPTY_LABEL, (counts.get(EMPTY_LABEL) ?? 0) + 1);
+                const b = groups.get(EMPTY_LABEL) ?? { count: 0, labels: new Map() };
+                b.count += 1;
+                groups.set(EMPTY_LABEL, b);
             } else {
-                for (const v of vals) {
-                    counts.set(v, (counts.get(v) ?? 0) + 1);
+                for (const raw of vals) {
+                    const key = canonicalKey(raw);
+                    const b = groups.get(key) ?? { count: 0, labels: new Map() };
+                    b.count += 1;
+                    b.labels.set(raw, (b.labels.get(raw) ?? 0) + 1);
+                    groups.set(key, b);
                 }
             }
         }
-        return Array.from(counts.entries())
-            .map(([value, count]) => ({ value, count }))
+        return Array.from(groups.entries())
+            .map(([key, b]) => {
+                if (key === EMPTY_LABEL) return { value: EMPTY_LABEL, label: EMPTY_LABEL, count: b.count };
+                let bestLabel = key;
+                let bestN = -1;
+                for (const [l, n] of b.labels) {
+                    if (n > bestN) {
+                        bestN = n;
+                        bestLabel = l;
+                    }
+                }
+                return { value: key, label: bestLabel, count: b.count };
+            })
             .sort((a, b) => {
                 if (a.value === EMPTY_LABEL) return 1;
                 if (b.value === EMPTY_LABEL) return -1;
-                return b.count - a.count || a.value.localeCompare(b.value);
+                return b.count - a.count || a.label.localeCompare(b.label);
             });
     };
 
@@ -608,7 +636,7 @@ function FilterPopover<Row>({
 }: {
     column: DataTableColumn<Row>;
     value: FilterValue;
-    facets: Array<{ value: string; count: number }>;
+    facets: Array<{ value: string; label: string; count: number }>;
     onChange: (v: FilterValue) => void;
     onClear: () => void;
     onClose: () => void;
@@ -733,14 +761,14 @@ function SetFilterUi<Row>({
 }: {
     column: DataTableColumn<Row>;
     value: SetFilter;
-    facets: Array<{ value: string; count: number }>;
+    facets: Array<{ value: string; label: string; count: number }>;
     onChange: (v: FilterValue) => void;
 }) {
     const [q, setQ] = useState("");
     const filtered = useMemo(() => {
         if (!q.trim()) return facets;
         const lq = q.trim().toLowerCase();
-        return facets.filter((f) => f.value.toLowerCase().includes(lq));
+        return facets.filter((f) => f.label.toLowerCase().includes(lq));
     }, [facets, q]);
 
     const toggle = (val: string) => {
@@ -781,7 +809,7 @@ function SetFilterUi<Row>({
                                     className="w-3.5 h-3.5 accent-[var(--primary)]"
                                 />
                                 <span className="text-sm truncate">
-                                    {column.facetLabel ? column.facetLabel(f.value) : f.value}
+                                    {column.facetLabel ? column.facetLabel(f.value) : f.label}
                                 </span>
                             </div>
                             <span className="text-xs text-[var(--muted)] tabular-nums">

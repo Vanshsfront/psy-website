@@ -6,6 +6,7 @@ export interface Customer {
     email: string | null;
     source: string | null;
     notes: string | null;
+    address?: string | null;
     created_at: string;
     updated_at: string;
     // Computed metrics
@@ -92,7 +93,24 @@ export interface WhatsAppTemplate {
         type: string;
         text?: string;
         format?: string;
+        buttons?: Array<{ type: string; text: string; url?: string; phone_number?: string }>;
     }>;
+}
+
+export interface TemplateWithStatus extends WhatsAppTemplate {
+    id?: string;
+    status: "APPROVED" | "PENDING" | "REJECTED" | "PAUSED" | "DISABLED" | string;
+    rejected_reason?: string | null;
+}
+
+export interface CreateTemplateInput {
+    name: string;
+    category: "MARKETING" | "UTILITY";
+    language?: string;
+    body: string;
+    button_text?: string;
+    button_url?: string;
+    example?: string;
 }
 
 export interface OCROrderRow {
