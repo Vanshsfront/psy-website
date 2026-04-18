@@ -1,6 +1,8 @@
 import { createServiceClient } from "@/lib/supabase-server"
 import AboutClient from "@/components/about/AboutClient"
 
+export const revalidate = 60
+
 export default async function AboutPage() {
   let meetTheTeam = { photo_url: "", heading: "Meet the Team", description: "" }
 

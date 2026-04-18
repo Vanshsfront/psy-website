@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, DM_Sans } from "next/font/google";
-import Script from "next/script";
 import SiteShell from "@/components/layout/SiteShell";
+import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
 import "./globals.css";
-
-const GA_MEASUREMENT_ID = "G-LESGBV6VK5";
 
 export const metadata: Metadata = {
   title: "PSY — Tattoos & Shop",
@@ -56,18 +54,7 @@ export default function RootLayout({
         <SiteShell>
           {children}
         </SiteShell>
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${GA_MEASUREMENT_ID}');
-          `}
-        </Script>
+        <GoogleAnalytics />
       </body>
     </html>
   );

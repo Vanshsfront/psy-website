@@ -52,6 +52,11 @@ export default function AdminSiteSettingsPage() {
         left_image_url: leftImage[0] || homepageImages.left_image_url || "",
         right_image_url: rightImage[0] || homepageImages.right_image_url || "",
       });
+      await fetch("/api/admin/revalidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paths: ["/"] }),
+      });
       toast.success("Homepage images updated");
     } catch {
       toast.error("Failed to update homepage images");
@@ -67,6 +72,11 @@ export default function AdminSiteSettingsPage() {
         photo_url: teamPhoto[0] || "",
         heading: teamHeading,
         description: teamDescription,
+      });
+      await fetch("/api/admin/revalidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paths: ["/about"] }),
       });
       toast.success("Meet the Team updated");
     } catch {
