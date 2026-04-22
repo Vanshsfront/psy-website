@@ -5,8 +5,18 @@ let _db: SupabaseClient | null = null;
 export function getDb(): SupabaseClient {
   if (_db) return _db;
   const url = process.env.SUPABASE_URL || "";
-  const key = process.env.SUPABASE_KEY || "";
-  if (!url || !key) throw new Error("SUPABASE_URL and SUPABASE_KEY must be set");
+  // Prefer the dedicated storeadmin service-role key. Fall back to SUPABASE_KEY
+  // for backward compatibility — but writes (e.g. webhook updates) require
+  // service_role; an anon key here will silently fail under RLS.
+  const key =
+    process.env.STOREADMIN_SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_KEY ||
+    "";
+  if (!url || !key) {
+    throw new Error(
+      "SUPABASE_URL and STOREADMIN_SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY) must be set"
+    );
+  }
   _db = createClient(url, key);
   return _db;
 }
