@@ -22,6 +22,40 @@ import {
     LayoutTemplate,
 } from "lucide-react";
 
+function renderPlaceholders(text: string, customer: Customer | undefined): string {
+    const fullName = (customer?.name ?? "").trim();
+    const firstName = fullName.split(/\s+/)[0] || "Customer";
+    const phone = customer?.phone ?? "";
+    const instagram = customer?.instagram ?? "";
+    return text
+        .replace(/\{\{(\d+)\}\}/g, (_, n) => {
+            const idx = parseInt(n, 10);
+            if (idx === 1) return firstName;
+            if (idx === 2) return phone;
+            if (idx === 3) return instagram;
+            return "";
+        })
+        .replace(/\{\{([a-zA-Z_]\w*)\}\}/g, (_, name) => {
+            switch (name.toLowerCase()) {
+                case "name":
+                case "customer_name":
+                case "first_name":
+                    return firstName;
+                case "full_name":
+                    return fullName || "Customer";
+                case "phone":
+                    return phone;
+                case "instagram":
+                case "ig":
+                    return instagram;
+                case "studio":
+                    return "PSY Tattoos";
+                default:
+                    return "";
+            }
+        });
+}
+
 function CampaignsContent() {
     const { isAuthenticated, loading: authLoading } = useAuth();
     const router = useRouter();
@@ -387,12 +421,12 @@ function CampaignsContent() {
                                 <div className="p-4 bg-[var(--background)] rounded border border-[var(--border-color)] mb-6">
                                     <p className="text-xs text-[var(--muted)] mb-2">Template Preview</p>
                                     {selectedTemplate.components.map((comp, idx) => {
-                                        const customerName = matchedCustomers[0]?.name || "Customer";
+                                        const previewCustomer = matchedCustomers.find((c) => (c.phone ?? "").trim()) ?? matchedCustomers[0];
                                         if (comp.type === "HEADER" && comp.text) {
-                                            return <p key={idx} className="text-sm font-bold mb-1">{comp.text.replace("{{1}}", customerName)}</p>;
+                                            return <p key={idx} className="text-sm font-bold mb-1">{renderPlaceholders(comp.text, previewCustomer)}</p>;
                                         }
                                         if (comp.type === "BODY" && comp.text) {
-                                            return <p key={idx} className="text-sm whitespace-pre-line">{comp.text.replace("{{1}}", customerName)}</p>;
+                                            return <p key={idx} className="text-sm whitespace-pre-line">{renderPlaceholders(comp.text, previewCustomer)}</p>;
                                         }
                                         if (comp.type === "FOOTER" && comp.text) {
                                             return <p key={idx} className="text-xs text-[var(--muted)] mt-2 italic">{comp.text}</p>;

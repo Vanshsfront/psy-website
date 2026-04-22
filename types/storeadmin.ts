@@ -89,6 +89,7 @@ export interface WhatsAppTemplate {
     name: string;
     language: string;
     category: string;
+    parameter_format?: "POSITIONAL" | "NAMED" | null;
     components: Array<{
         type: string;
         text?: string;

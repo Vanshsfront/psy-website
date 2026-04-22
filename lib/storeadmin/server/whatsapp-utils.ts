@@ -28,7 +28,7 @@ export async function fetchTemplates() {
     return { success: false, templates: [], error: "WHATSAPP_BUSINESS_ACCOUNT_ID not set — required for fetching templates" };
   }
 
-  const url = `${config.baseUrl}/${config.wabaId}/message_templates`;
+  const url = `${config.baseUrl}/${config.wabaId}/message_templates?fields=name,language,category,status,components,parameter_format&limit=100`;
 
   try {
     const resp = await fetch(url, {
@@ -44,6 +44,7 @@ export async function fetchTemplates() {
           name: t.name,
           language: t.language,
           category: t.category,
+          parameter_format: t.parameter_format ?? null,
           components: t.components ?? [],
         }));
       return { success: true, templates, error: null };
@@ -157,22 +158,73 @@ export async function sendTemplateMessage(
   }
 }
 
-function countPlaceholders(text: string): number {
-  const matches = text.match(/\{\{(\d+)\}\}/g);
-  if (!matches) return 0;
-  let max = 0;
-  for (const m of matches) {
-    const n = parseInt(m.slice(2, -2), 10);
-    if (n > max) max = n;
+// ─── Placeholder extraction ───────────────────────────────────────────────
+// Meta supports two parameter formats; templates pick one:
+//   POSITIONAL: {{1}}, {{2}} → params are {type, text}
+//   NAMED:      {{name}}, {{phone}} → params are {type, parameter_name, text}
+
+export type Placeholders =
+  | { kind: "none" }
+  | { kind: "positional"; max: number }
+  | { kind: "named"; names: string[] };
+
+export function extractPlaceholders(text: string): Placeholders {
+  if (!text) return { kind: "none" };
+  const positional = text.match(/\{\{(\d+)\}\}/g);
+  const named = text.match(/\{\{([a-zA-Z_]\w*)\}\}/g);
+  if (positional && positional.length > 0) {
+    let max = 0;
+    for (const m of positional) {
+      const n = parseInt(m.slice(2, -2), 10);
+      if (n > max) max = n;
+    }
+    return { kind: "positional", max };
   }
-  return max;
+  if (named && named.length > 0) {
+    const seen = new Set<string>();
+    const names: string[] = [];
+    for (const m of named) {
+      const name = m.slice(2, -2);
+      if (!seen.has(name)) {
+        seen.add(name);
+        names.push(name);
+      }
+    }
+    return { kind: "named", names };
+  }
+  return { kind: "none" };
 }
 
-function paramForIndex(index: number, customer: Record<string, unknown>): string {
-  // {{1}} -> name, {{2}} -> phone, {{3}} -> instagram. Extra indices fall back to empty string.
+// ─── Customer-field mapping (single source of truth for sender + preview) ──
+
+export function valueForName(name: string, customer: Record<string, unknown>): string {
+  const fullName = ((customer.name as string) ?? "").trim();
+  const firstName = fullName.split(/\s+/)[0] || "there";
+  switch (name.toLowerCase()) {
+    case "name":
+    case "customer_name":
+    case "first_name":
+      return firstName;
+    case "full_name":
+      return fullName || "there";
+    case "phone":
+      return (customer.phone as string) ?? "";
+    case "instagram":
+    case "ig":
+      return (customer.instagram as string) ?? "";
+    case "studio":
+      return "PSY Tattoos";
+    default:
+      return "";
+  }
+}
+
+export function valueForIndex(index: number, customer: Record<string, unknown>): string {
+  const fullName = ((customer.name as string) ?? "").trim();
+  const firstName = fullName.split(/\s+/)[0] || "there";
   switch (index) {
     case 1:
-      return ((customer.name as string) ?? "").trim() || "there";
+      return firstName;
     case 2:
       return (customer.phone as string) ?? "";
     case 3:
@@ -182,47 +234,72 @@ function paramForIndex(index: number, customer: Record<string, unknown>): string
   }
 }
 
-function buildParams(placeholderCount: number, customer: Record<string, unknown>) {
-  const params: Array<Record<string, string>> = [];
-  for (let i = 1; i <= placeholderCount; i++) {
-    params.push({ type: "text", text: paramForIndex(i, customer) });
+function buildParamsFor(p: Placeholders, customer: Record<string, unknown>): Array<Record<string, string>> | undefined {
+  if (p.kind === "none") return undefined;
+  if (p.kind === "positional") {
+    return Array.from({ length: p.max }, (_, i) => ({
+      type: "text",
+      text: valueForIndex(i + 1, customer),
+    }));
   }
-  return params;
+  return p.names.map((name) => ({
+    type: "text",
+    parameter_name: name,
+    text: valueForName(name, customer),
+  }));
 }
 
+// ─── Template analyzer ─────────────────────────────────────────────────────
+
 type TemplateShape = {
-  bodyPlaceholders: number;
-  headerTextPlaceholders: number;
+  body: Placeholders;
+  header: Placeholders;
   hasMediaHeader: boolean;
-  buttonPlaceholders: Array<{ index: number; count: number }>;
+  buttons: Array<{ index: number; placeholders: Placeholders }>;
+  format: "POSITIONAL" | "NAMED" | "MIXED" | "NONE";
 };
+
+function deriveFormat(shape: { body: Placeholders; header: Placeholders; buttons: Array<{ placeholders: Placeholders }> }): TemplateShape["format"] {
+  const all: Placeholders[] = [shape.body, shape.header, ...shape.buttons.map((b) => b.placeholders)];
+  let hasNamed = false;
+  let hasPositional = false;
+  for (const p of all) {
+    if (p.kind === "named") hasNamed = true;
+    if (p.kind === "positional") hasPositional = true;
+  }
+  if (hasNamed && hasPositional) return "MIXED";
+  if (hasNamed) return "NAMED";
+  if (hasPositional) return "POSITIONAL";
+  return "NONE";
+}
 
 function analyzeTemplate(template: Record<string, unknown>): { ok: boolean; shape: TemplateShape; error?: string } {
   const components = (template.components as Array<Record<string, unknown>>) ?? [];
   const shape: TemplateShape = {
-    bodyPlaceholders: 0,
-    headerTextPlaceholders: 0,
+    body: { kind: "none" },
+    header: { kind: "none" },
     hasMediaHeader: false,
-    buttonPlaceholders: [],
+    buttons: [],
+    format: "NONE",
   };
 
   for (const comp of components) {
     const type = (comp.type as string) ?? "";
     if (type === "BODY") {
-      shape.bodyPlaceholders = countPlaceholders((comp.text as string) ?? "");
+      shape.body = extractPlaceholders((comp.text as string) ?? "");
     } else if (type === "HEADER") {
       const format = (comp.format as string | undefined) ?? "TEXT";
       if (format === "IMAGE" || format === "VIDEO" || format === "DOCUMENT") {
         shape.hasMediaHeader = true;
       } else {
-        shape.headerTextPlaceholders = countPlaceholders((comp.text as string) ?? "");
+        shape.header = extractPlaceholders((comp.text as string) ?? "");
       }
     } else if (type === "BUTTONS") {
       const buttons = (comp.buttons as Array<Record<string, unknown>>) ?? [];
       buttons.forEach((b, idx) => {
         if ((b.type as string) === "URL") {
-          const count = countPlaceholders((b.url as string) ?? "");
-          if (count > 0) shape.buttonPlaceholders.push({ index: idx, count });
+          const ph = extractPlaceholders((b.url as string) ?? "");
+          if (ph.kind !== "none") shape.buttons.push({ index: idx, placeholders: ph });
         }
       });
     }
@@ -234,6 +311,22 @@ function analyzeTemplate(template: Record<string, unknown>): { ok: boolean; shap
       shape,
       error:
         "Template has a media header (IMAGE/VIDEO/DOCUMENT). This sender does not support media templates — use a text-only template.",
+    };
+  }
+
+  // Prefer Meta-supplied parameter_format when present, fall back to derived from text scan
+  const metaFormat = template.parameter_format as string | undefined;
+  if (metaFormat === "NAMED" || metaFormat === "POSITIONAL") {
+    shape.format = metaFormat;
+  } else {
+    shape.format = deriveFormat(shape);
+  }
+
+  if (shape.format === "MIXED") {
+    return {
+      ok: false,
+      shape,
+      error: "Template mixes named and positional placeholders — not supported.",
     };
   }
 
@@ -273,16 +366,16 @@ export async function sendBatchTemplate(
       continue;
     }
 
-    const bodyParams = shape.bodyPlaceholders > 0 ? buildParams(shape.bodyPlaceholders, customer) : undefined;
-    const headerParams = shape.headerTextPlaceholders > 0 ? buildParams(shape.headerTextPlaceholders, customer) : undefined;
+    const bodyParams = buildParamsFor(shape.body, customer);
+    const headerParams = buildParamsFor(shape.header, customer);
 
     const buttonComponents: Array<Record<string, unknown>> | undefined =
-      shape.buttonPlaceholders.length > 0
-        ? shape.buttonPlaceholders.map(({ index, count }) => ({
+      shape.buttons.length > 0
+        ? shape.buttons.map(({ index, placeholders }) => ({
             type: "button",
             sub_type: "url",
             index: String(index),
-            parameters: buildParams(count, customer),
+            parameters: buildParamsFor(placeholders, customer) ?? [],
           }))
         : undefined;
 
@@ -315,7 +408,7 @@ export async function fetchAllTemplates() {
     return { success: false, templates: [], error: "WHATSAPP_BUSINESS_ACCOUNT_ID not set" };
   }
 
-  const url = `${config.baseUrl}/${config.wabaId}/message_templates?fields=name,language,category,status,components,rejected_reason,id&limit=100`;
+  const url = `${config.baseUrl}/${config.wabaId}/message_templates?fields=name,language,category,status,components,parameter_format,rejected_reason,id&limit=100`;
 
   try {
     const resp = await fetch(url, {
@@ -333,6 +426,7 @@ export async function fetchAllTemplates() {
       language: t.language,
       category: t.category,
       status: t.status,
+      parameter_format: t.parameter_format ?? null,
       components: t.components ?? [],
       rejected_reason: t.rejected_reason ?? null,
     }));
@@ -363,7 +457,7 @@ export async function createTemplate(input: {
     {
       type: "BODY",
       text: input.body,
-      ...(countPlaceholders(input.body) > 0 ? { example: { body_text: [[example]] } } : {}),
+      ...(extractPlaceholders(input.body).kind !== "none" ? { example: { body_text: [[example]] } } : {}),
     },
   ];
   if (hasButton) {
