@@ -102,7 +102,8 @@ function CampaignsContent() {
             const res = await api.filterCampaign(filterText);
             if (res.success) {
                 setMatchedCustomers(res.customers);
-                setSelectedIds(new Set(res.customers.map((c: Customer) => c.id)));
+                const valid = res.customers.filter((c: Customer) => (c.phone ?? "").trim().length > 0);
+                setSelectedIds(new Set(valid.map((c: Customer) => c.id)));
                 if (res.inference_caution) setInferenceCaution(res.inference_caution);
                 if (res.inferred_fields) setInferredFields(res.inferred_fields);
                 setStep(3);
@@ -326,28 +327,60 @@ function CampaignsContent() {
                                 </div>
                             )}
 
-                            <div className="max-h-[400px] overflow-y-auto space-y-2 mb-6">
-                                {matchedCustomers.map((c) => (
-                                    <label key={c.id} className="flex items-center gap-3 p-3 rounded bg-[var(--surface-hover)] hover:bg-[var(--border-color)]/30 cursor-pointer transition-colors">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedIds.has(c.id)}
-                                            onChange={() => toggleCustomer(c.id)}
-                                            className="w-4 h-4 accent-[var(--primary)]"
-                                        />
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2">
-                                                <p className="text-sm font-medium">{c.name}</p>
-                                                {(c as any)._inferred_gender && (
-                                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--warning)]/20 text-[var(--warning)] font-medium">
-                                                        {(c as any)._inferred_gender} (inferred)
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <p className="text-xs text-[var(--muted)]">{c.phone} · Spent {formatCurrency(c.lifetime_spend || 0)}</p>
+                            {(() => {
+                                const invalidCount = matchedCustomers.filter((c) => !(c.phone ?? "").trim()).length;
+                                return invalidCount > 0 ? (
+                                    <div className="mb-4 p-3 bg-[var(--danger)]/10 border border-[var(--danger)]/30 rounded">
+                                        <div className="flex items-start gap-2">
+                                            <AlertTriangle className="w-4 h-4 text-[var(--danger)] mt-0.5 shrink-0" />
+                                            <p className="text-sm text-[var(--muted)]">
+                                                {invalidCount} customer{invalidCount === 1 ? "" : "s"} excluded — no phone number on file
+                                            </p>
                                         </div>
-                                    </label>
-                                ))}
+                                    </div>
+                                ) : null;
+                            })()}
+
+                            <div className="max-h-[400px] overflow-y-auto space-y-2 mb-6">
+                                {matchedCustomers.map((c) => {
+                                    const hasPhone = (c.phone ?? "").trim().length > 0;
+                                    return (
+                                        <label
+                                            key={c.id}
+                                            className={`flex items-center gap-3 p-3 rounded bg-[var(--surface-hover)] transition-colors ${
+                                                hasPhone
+                                                    ? "hover:bg-[var(--border-color)]/30 cursor-pointer"
+                                                    : "opacity-60 cursor-not-allowed"
+                                            }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={hasPhone && selectedIds.has(c.id)}
+                                                disabled={!hasPhone}
+                                                onChange={() => hasPhone && toggleCustomer(c.id)}
+                                                className="w-4 h-4 accent-[var(--primary)] disabled:cursor-not-allowed"
+                                            />
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-sm font-medium">{c.name}</p>
+                                                    {!hasPhone && (
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--danger)]/20 text-[var(--danger)] font-medium">
+                                                            No phone
+                                                        </span>
+                                                    )}
+                                                    {(c as any)._inferred_gender && (
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--warning)]/20 text-[var(--warning)] font-medium">
+                                                            {(c as any)._inferred_gender} (inferred)
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs text-[var(--muted)]">
+                                                    {c.phone || "—"} · Spent {formatCurrency(c.lifetime_spend || 0)}
+                                                </p>
+                                            </div>
+                                        </label>
+                                    );
+                                })}
                             </div>
 
                             {selectedTemplate && (

@@ -12,6 +12,14 @@ import { formatCurrency, formatDate, getPaymentColor } from "@/lib/storeadmin/ut
 import type { Order } from "@/types/storeadmin";
 import { Loader2, PlusCircle } from "lucide-react";
 
+const APPOINTMENT_TYPES = ["Tattoo", "Piercing", "Free Consultation"] as const;
+function parseAppointmentType(desc: string | null | undefined): string {
+    if (!desc) return "";
+    const idx = desc.indexOf(" - ");
+    const head = (idx >= 0 ? desc.slice(0, idx) : desc).trim();
+    return (APPOINTMENT_TYPES as readonly string[]).includes(head) ? head : "";
+}
+
 function OrdersContent() {
     const { isAuthenticated, loading: authLoading } = useAuth();
     const router = useRouter();
@@ -96,6 +104,21 @@ function OrdersContent() {
                         {o.service_description || "—"}
                     </span>
                 ),
+            },
+            {
+                key: "appointment_type",
+                label: "Type",
+                type: "enum",
+                accessor: (o) => parseAppointmentType(o.service_description),
+                render: (o) => {
+                    const t = parseAppointmentType(o.service_description);
+                    return t ? (
+                        <span className="text-sm">{t}</span>
+                    ) : (
+                        <span className="text-[var(--muted)]">—</span>
+                    );
+                },
+                width: "140px",
             },
             {
                 key: "artist_name",
@@ -201,7 +224,8 @@ function OrdersContent() {
                     columns={columns}
                     rowKey={(o) => o.id}
                     onRowClick={(o) => setEditingId(o.id)}
-                    storageKey="psy_orders_table_v2"
+                    storageKey="psy_orders_table_v3"
+                    defaultHiddenColumns={["order_number", "tracking_number"]}
                     loading={loading}
                     globalSearch={{
                         placeholder: "Search customer, service, tracking, order #…",

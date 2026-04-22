@@ -13,6 +13,7 @@ import {
     ArrowUpDown,
     ChevronLeft,
     ChevronRight,
+    Columns3,
     Filter as FilterIcon,
     Search,
     X,
@@ -50,6 +51,7 @@ interface DataTableProps<Row> {
     summary?: (filteredRows: Row[]) => React.ReactNode;
     emptyState?: React.ReactNode;
     loading?: boolean;
+    defaultHiddenColumns?: string[];
 }
 
 const EMPTY_LABEL = "(empty)";
@@ -171,6 +173,7 @@ interface PersistedState {
     filters: Record<string, FilterValue>;
     globalQ: string;
     page: number;
+    hiddenColumns: string[];
 }
 
 export default function DataTable<Row>({
@@ -184,12 +187,15 @@ export default function DataTable<Row>({
     summary,
     emptyState,
     loading,
+    defaultHiddenColumns,
 }: DataTableProps<Row>) {
     const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
     const [filters, setFilters] = useState<Record<string, FilterValue>>({});
     const [globalQ, setGlobalQ] = useState("");
     const [page, setPage] = useState(0);
+    const [hiddenColumns, setHiddenColumns] = useState<string[]>(defaultHiddenColumns ?? []);
     const [openPopover, setOpenPopover] = useState<string | null>(null);
+    const [columnsPopoverOpen, setColumnsPopoverOpen] = useState(false);
     const [restored, setRestored] = useState(false);
 
     useEffect(() => {
@@ -205,6 +211,7 @@ export default function DataTable<Row>({
                 if (parsed.filters) setFilters(parsed.filters);
                 if (parsed.globalQ) setGlobalQ(parsed.globalQ);
                 if (parsed.page) setPage(parsed.page);
+                if (Array.isArray(parsed.hiddenColumns)) setHiddenColumns(parsed.hiddenColumns);
             }
         } catch {
             /* ignore */
@@ -214,9 +221,14 @@ export default function DataTable<Row>({
 
     useEffect(() => {
         if (!restored || !storageKey) return;
-        const payload: PersistedState = { sort, filters, globalQ, page };
+        const payload: PersistedState = { sort, filters, globalQ, page, hiddenColumns };
         sessionStorage.setItem(storageKey, JSON.stringify(payload));
-    }, [restored, storageKey, sort, filters, globalQ, page]);
+    }, [restored, storageKey, sort, filters, globalQ, page, hiddenColumns]);
+
+    const visibleColumns = useMemo(
+        () => columns.filter((c) => !hiddenColumns.includes(c.key)),
+        [columns, hiddenColumns]
+    );
 
     const activeFilters = useMemo(
         () => Object.entries(filters).filter(([, f]) => isFilterActive(f)),
@@ -345,6 +357,20 @@ export default function DataTable<Row>({
                             />
                         </div>
                     )}
+                    <ColumnsTrigger
+                        open={columnsPopoverOpen}
+                        onToggle={() => setColumnsPopoverOpen((p) => !p)}
+                        hiddenCount={hiddenColumns.length}
+                    >
+                        {columnsPopoverOpen && (
+                            <ColumnsPopover
+                                columns={columns}
+                                hidden={hiddenColumns}
+                                onChange={setHiddenColumns}
+                                onClose={() => setColumnsPopoverOpen(false)}
+                            />
+                        )}
+                    </ColumnsTrigger>
                     {(activeFilters.length > 0 || globalQ) && (
                         <button
                             type="button"
@@ -367,7 +393,7 @@ export default function DataTable<Row>({
                     <table className="w-full">
                         <thead>
                             <tr className="border-b border-[var(--border-color)]">
-                                {columns.map((col) => {
+                                {visibleColumns.map((col) => {
                                     const isSorted = sort?.key === col.key;
                                     const f = filters[col.key];
                                     const active = f ? isFilterActive(f) : false;
@@ -439,7 +465,7 @@ export default function DataTable<Row>({
                             {loading ? (
                                 <tr>
                                     <td
-                                        colSpan={columns.length}
+                                        colSpan={visibleColumns.length}
                                         className="text-center py-20 text-[var(--muted)]"
                                     >
                                         Loading…
@@ -448,7 +474,7 @@ export default function DataTable<Row>({
                             ) : paginated.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan={columns.length}
+                                        colSpan={visibleColumns.length}
                                         className="text-center py-20 text-[var(--muted)]"
                                     >
                                         {emptyState ?? "No results"}
@@ -474,7 +500,7 @@ export default function DataTable<Row>({
                                         className={`border-b border-[var(--border-color-subtle)] transition-colors animate-fadeIn ${onRowClick ? "cursor-pointer hover:bg-[var(--surface-hover)]" : ""}`}
                                         style={{ animationDelay: `${Math.min(idx, 20) * 0.015}s` }}
                                     >
-                                        {columns.map((col) => (
+                                        {visibleColumns.map((col) => (
                                             <td
                                                 key={col.key}
                                                 className={`px-4 py-3 text-sm ${col.align === "right" ? "text-right" : ""}`}
@@ -578,6 +604,124 @@ function FilterTrigger({
                 </PopoverAnchor>
             )}
         </>
+    );
+}
+
+function ColumnsTrigger({
+    open,
+    onToggle,
+    hiddenCount,
+    children,
+}: {
+    open: boolean;
+    onToggle: () => void;
+    hiddenCount: number;
+    children?: React.ReactNode;
+}) {
+    const btnRef = useRef<HTMLButtonElement | null>(null);
+    return (
+        <>
+            <button
+                ref={btnRef}
+                type="button"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onToggle();
+                }}
+                className="flex items-center gap-1.5 text-xs text-[var(--muted)] hover:text-[var(--foreground)] px-2 py-1 cursor-pointer transition-colors"
+                aria-haspopup="dialog"
+                aria-expanded={open}
+                aria-label="Toggle columns"
+            >
+                <Columns3 className="w-3.5 h-3.5" />
+                <span>Columns{hiddenCount > 0 ? ` (${hiddenCount} hidden)` : ""}</span>
+            </button>
+            {open && (
+                <PopoverAnchor triggerRef={btnRef}>
+                    {children}
+                </PopoverAnchor>
+            )}
+        </>
+    );
+}
+
+function ColumnsPopover<Row>({
+    columns,
+    hidden,
+    onChange,
+    onClose,
+}: {
+    columns: DataTableColumn<Row>[];
+    hidden: string[];
+    onChange: (hidden: string[]) => void;
+    onClose: () => void;
+}) {
+    const ref = useRef<HTMLDivElement | null>(null);
+    const visibleCount = columns.length - hidden.length;
+
+    useEffect(() => {
+        const onDoc = (e: MouseEvent) => {
+            if (!ref.current) return;
+            if (!ref.current.contains(e.target as Node)) onClose();
+        };
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                e.stopPropagation();
+                onClose();
+            }
+        };
+        const t = setTimeout(() => {
+            document.addEventListener("mousedown", onDoc);
+        }, 0);
+        document.addEventListener("keydown", onKey);
+        return () => {
+            clearTimeout(t);
+            document.removeEventListener("mousedown", onDoc);
+            document.removeEventListener("keydown", onKey);
+        };
+    }, [onClose]);
+
+    const toggle = (key: string) => {
+        const set = new Set(hidden);
+        if (set.has(key)) set.delete(key);
+        else set.add(key);
+        onChange(Array.from(set));
+    };
+
+    return (
+        <div
+            ref={ref}
+            role="dialog"
+            aria-label="Toggle columns"
+            onClick={(e) => e.stopPropagation()}
+            className="min-w-[220px] max-w-[280px] glass-panel p-3 shadow-2xl normal-case tracking-normal text-sm text-[var(--foreground)]"
+        >
+            <p className="text-xs text-[var(--muted)] mb-2 px-1">Show / hide columns</p>
+            <div className="max-h-72 overflow-y-auto flex flex-col">
+                {columns.map((col) => {
+                    const isHidden = hidden.includes(col.key);
+                    const isVisible = !isHidden;
+                    const wouldHideLast = isVisible && visibleCount <= 1;
+                    return (
+                        <label
+                            key={col.key}
+                            className={`flex items-center gap-2 py-1.5 px-1 rounded ${
+                                wouldHideLast ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-[var(--surface-hover)]/40"
+                            }`}
+                        >
+                            <input
+                                type="checkbox"
+                                checked={isVisible}
+                                disabled={wouldHideLast}
+                                onChange={() => toggle(col.key)}
+                                className="w-3.5 h-3.5 accent-[var(--primary)] disabled:cursor-not-allowed"
+                            />
+                            <span className="text-sm truncate">{col.label}</span>
+                        </label>
+                    );
+                })}
+            </div>
+        </div>
     );
 }
 

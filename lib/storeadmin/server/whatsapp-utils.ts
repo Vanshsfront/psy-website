@@ -86,17 +86,30 @@ export function renderTemplatePreview(template: Record<string, unknown>, custome
   };
 }
 
+// Indian-mobile default: studio operates in India (₹, UPI).
+function normalizePhone(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let p = raw.replace(/[\s\-()]/g, "");
+  if (p.startsWith("+")) p = p.slice(1);
+  if (p.startsWith("0") && p.length === 11) p = p.slice(1);
+  if (/^[6-9]\d{9}$/.test(p)) p = "91" + p;
+  if (!/^\d{10,15}$/.test(p)) return null;
+  return p;
+}
+
 export async function sendTemplateMessage(
   phone: string,
   templateName: string,
   languageCode = "en",
   bodyParameters?: Array<Record<string, string>>,
-  headerParameters?: Array<Record<string, string>>
+  headerParameters?: Array<Record<string, string>>,
+  buttonComponents?: Array<Record<string, unknown>>
 ) {
   const config = getConfig();
   if (!config) return { success: false, error: "WhatsApp not configured" };
 
-  const cleanPhone = phone.replace(/[\s-]/g, "").replace(/^\+/, "");
+  const cleanPhone = normalizePhone(phone);
+  if (!cleanPhone) return { success: false, error: "Invalid phone format" };
 
   const components: Array<Record<string, unknown>> = [];
   if (headerParameters) {
@@ -104,6 +117,9 @@ export async function sendTemplateMessage(
   }
   if (bodyParameters) {
     components.push({ type: "body", parameters: bodyParameters });
+  }
+  if (buttonComponents) {
+    for (const b of buttonComponents) components.push(b);
   }
 
   const payload = {
@@ -174,23 +190,79 @@ function buildParams(placeholderCount: number, customer: Record<string, unknown>
   return params;
 }
 
+type TemplateShape = {
+  bodyPlaceholders: number;
+  headerTextPlaceholders: number;
+  hasMediaHeader: boolean;
+  buttonPlaceholders: Array<{ index: number; count: number }>;
+};
+
+function analyzeTemplate(template: Record<string, unknown>): { ok: boolean; shape: TemplateShape; error?: string } {
+  const components = (template.components as Array<Record<string, unknown>>) ?? [];
+  const shape: TemplateShape = {
+    bodyPlaceholders: 0,
+    headerTextPlaceholders: 0,
+    hasMediaHeader: false,
+    buttonPlaceholders: [],
+  };
+
+  for (const comp of components) {
+    const type = (comp.type as string) ?? "";
+    if (type === "BODY") {
+      shape.bodyPlaceholders = countPlaceholders((comp.text as string) ?? "");
+    } else if (type === "HEADER") {
+      const format = (comp.format as string | undefined) ?? "TEXT";
+      if (format === "IMAGE" || format === "VIDEO" || format === "DOCUMENT") {
+        shape.hasMediaHeader = true;
+      } else {
+        shape.headerTextPlaceholders = countPlaceholders((comp.text as string) ?? "");
+      }
+    } else if (type === "BUTTONS") {
+      const buttons = (comp.buttons as Array<Record<string, unknown>>) ?? [];
+      buttons.forEach((b, idx) => {
+        if ((b.type as string) === "URL") {
+          const count = countPlaceholders((b.url as string) ?? "");
+          if (count > 0) shape.buttonPlaceholders.push({ index: idx, count });
+        }
+      });
+    }
+  }
+
+  if (shape.hasMediaHeader) {
+    return {
+      ok: false,
+      shape,
+      error:
+        "Template has a media header (IMAGE/VIDEO/DOCUMENT). This sender does not support media templates — use a text-only template.",
+    };
+  }
+
+  return { ok: true, shape };
+}
+
 export async function sendBatchTemplate(
   customers: Array<Record<string, unknown>>,
   template: Record<string, unknown>,
   languageCode = "en"
 ) {
   const results: Array<Record<string, unknown>> = [];
-
-  const components = (template.components as Array<Record<string, unknown>>) ?? [];
-  const bodyComp = components.find((c) => (c.type as string) === "BODY");
-  const headerComp = components.find((c) => (c.type as string) === "HEADER");
-  const bodyPlaceholders = bodyComp ? countPlaceholders((bodyComp.text as string) ?? "") : 0;
-  const headerPlaceholders =
-    headerComp && (headerComp.format as string | undefined) !== "IMAGE" && (headerComp.format as string | undefined) !== "VIDEO" && (headerComp.format as string | undefined) !== "DOCUMENT"
-      ? countPlaceholders((headerComp.text as string) ?? "")
-      : 0;
-
   const templateName = (template.name as string) ?? "";
+
+  const analysis = analyzeTemplate(template);
+  if (!analysis.ok) {
+    for (const customer of customers) {
+      results.push({
+        customer_id: customer.id,
+        customer_name: (customer.name as string) ?? "Unknown",
+        phone: (customer.phone as string) ?? "",
+        success: false,
+        error: analysis.error,
+      });
+    }
+    return results;
+  }
+
+  const { shape } = analysis;
 
   for (const customer of customers) {
     const phone = (customer.phone as string) ?? "";
@@ -201,10 +273,27 @@ export async function sendBatchTemplate(
       continue;
     }
 
-    const bodyParams = bodyPlaceholders > 0 ? buildParams(bodyPlaceholders, customer) : undefined;
-    const headerParams = headerPlaceholders > 0 ? buildParams(headerPlaceholders, customer) : undefined;
+    const bodyParams = shape.bodyPlaceholders > 0 ? buildParams(shape.bodyPlaceholders, customer) : undefined;
+    const headerParams = shape.headerTextPlaceholders > 0 ? buildParams(shape.headerTextPlaceholders, customer) : undefined;
 
-    const result = await sendTemplateMessage(phone, templateName, languageCode, bodyParams, headerParams);
+    const buttonComponents: Array<Record<string, unknown>> | undefined =
+      shape.buttonPlaceholders.length > 0
+        ? shape.buttonPlaceholders.map(({ index, count }) => ({
+            type: "button",
+            sub_type: "url",
+            index: String(index),
+            parameters: buildParams(count, customer),
+          }))
+        : undefined;
+
+    const result = await sendTemplateMessage(
+      phone,
+      templateName,
+      languageCode,
+      bodyParams,
+      headerParams,
+      buttonComponents
+    );
 
     results.push({
       customer_id: customer.id,

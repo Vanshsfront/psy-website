@@ -160,7 +160,7 @@ export default function CustomerAutofill({
                             width: Math.max(coords!.width, 320),
                             zIndex: 9999,
                         }}
-                        className="glass-panel shadow-2xl max-h-80 overflow-y-auto rounded border border-[var(--border-color)]"
+                        className="storeadmin-portal-panel shadow-2xl max-h-80 overflow-y-auto"
                     >
                         {loading && (
                             <div className="px-3 py-2 text-xs text-[var(--muted)]">Searching…</div>

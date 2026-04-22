@@ -132,6 +132,26 @@
   border-color: rgba(255, 255, 255, 0.1);
 }
 
+/* For panels rendered via createPortal to document.body — outside .storeadmin-scope.
+   Redeclares the CSS variables so var() refs in children still resolve. */
+.storeadmin-portal-panel {
+  --primary: #3BA37C;
+  --primary-muted: rgba(59, 163, 124, 0.1);
+  --surface: #111111;
+  --surface-hover: #1a1a1a;
+  --border-color: rgba(255, 255, 255, 0.06);
+  --border-color-subtle: rgba(255, 255, 255, 0.03);
+  --foreground: #F5F3EF;
+  --muted: #B8ADA4;
+  --danger: #ff3c3c;
+
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border-color);
+  border-radius: 0.25rem;
+  font-family: "DM Sans", system-ui, sans-serif;
+}
+
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    NEO-CARD — Elevated card
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
