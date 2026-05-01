@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/storeadmin/AuthProvider";
 import Sidebar from "@/components/storeadmin/Sidebar";
+import DailyNotesPanel from "@/components/storeadmin/DailyNotesPanel";
 import { api } from "@/lib/storeadmin/api";
 import { formatCurrency } from "@/lib/storeadmin/utils";
 import type { FinancialSummary, Order } from "@/types/storeadmin";
@@ -335,6 +336,11 @@ function FinanceContent() {
                                     </>
                                 )}
                             </div>
+                        </div>
+
+                        {/* Daily tally notes — sticky-note style log */}
+                        <div className="mb-6">
+                            <DailyNotesPanel dateFrom={dateFrom || undefined} dateTo={dateTo || undefined} />
                         </div>
 
                         {/* Bottom row */}

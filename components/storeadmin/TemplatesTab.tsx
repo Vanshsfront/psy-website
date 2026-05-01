@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw, Trash2, Loader2, AlertTriangle } from "lucide-react";
 import DataTable, { DataTableColumn } from "./DataTable";
 import TemplateCreateDrawer from "./TemplateCreateDrawer";
+import TemplateViewModal from "./TemplateViewModal";
 import { api, clearApiCache } from "@/lib/storeadmin/api";
 import type { TemplateWithStatus } from "@/types/storeadmin";
 
@@ -41,6 +42,7 @@ export default function TemplatesTab() {
     const [fetchError, setFetchError] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [deleting, setDeleting] = useState<string | null>(null);
+    const [viewing, setViewing] = useState<TemplateWithStatus | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -226,6 +228,7 @@ export default function TemplatesTab() {
                 rowKey={(r) => r.name}
                 pageSize={25}
                 storageKey="psy_templates_table"
+                onRowClick={(r) => setViewing(r)}
                 globalSearch={{
                     placeholder: "Search templates by name or body…",
                     accessor: (r) => `${r.name} ${extractBody(r)}`,
@@ -249,6 +252,12 @@ export default function TemplatesTab() {
                 open={createOpen}
                 onClose={() => setCreateOpen(false)}
                 onCreated={() => load()}
+            />
+
+            <TemplateViewModal
+                open={viewing !== null}
+                template={viewing}
+                onClose={() => setViewing(null)}
             />
         </div>
     );

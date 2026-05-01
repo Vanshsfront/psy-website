@@ -49,10 +49,10 @@ export function getSourceColor(source: string | null): string {
 
 export function getPaymentColor(mode: string | null): string {
     switch (mode?.toLowerCase()) {
-        case "cash": return "text-[#3BA37C]";
-        case "upi": return "text-[#2C233A]";
-        case "card": return "text-[#B8ADA4]";
-        case "bank_transfer": return "text-[#C6A96B]";
+        case "cash": return "text-[#3BA37C] font-medium";
+        case "upi": return "text-[#8B7CFF] font-medium";
+        case "card": return "text-[#E0D4C4] font-medium";
+        case "bank_transfer": return "text-[#C6A96B] font-medium";
         default: return "text-gray-400";
     }
 }

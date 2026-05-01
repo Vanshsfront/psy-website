@@ -46,8 +46,17 @@ export interface Order {
     admin_notes?: string | null;
     discount_code?: string | null;
     discount_amount?: number | null;
+    consent_signed?: boolean;
     customers?: { name: string; phone: string };
     artists?: { name: string };
+}
+
+export interface DailyNote {
+    id: string;
+    note_date: string; // YYYY-MM-DD
+    body: string;
+    author: string | null;
+    created_at: string;
 }
 
 export interface Expense {

@@ -7,7 +7,7 @@ import { useCartStore } from "@/store/cartStore"
 import { useWishlistStore } from "@/store/wishlistStore"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { isSoldOut, availableQty, LOW_STOCK_THRESHOLD } from "@/lib/stock"
+import { isSoldOut, availableQty, stockLabel } from "@/lib/stock"
 
 const PSY_EASE = [0.16, 1, 0.3, 1] as [number, number, number, number]
 
@@ -130,16 +130,29 @@ export default function ProductCard({ product }: { product: Product }) {
             </span>
           )}
 
-          {/* Stock badge — Sold Out takes precedence over low-stock */}
-          {isSoldOut(product) ? (
-            <span className="absolute top-4 left-4 font-sans text-micro uppercase tracking-widest text-terracotta bg-ink/60 px-3 py-1 backdrop-blur-sm">
-              Sold Out
-            </span>
-          ) : availableQty(product) < LOW_STOCK_THRESHOLD ? (
-            <span className="absolute top-4 left-4 font-sans text-micro uppercase tracking-widest text-terracotta bg-ink/60 px-3 py-1 backdrop-blur-sm">
-              {availableQty(product)} {availableQty(product) === 1 ? "piece" : "pieces"} left
-            </span>
-          ) : null}
+          {/* Stock badge — Sold Out > Low > In Stock. Exact counts above 2 are hidden. */}
+          {(() => {
+            const s = stockLabel(product)
+            if (s.kind === "sold_out") {
+              return (
+                <span className="absolute top-4 left-4 font-sans text-micro uppercase tracking-widest text-terracotta bg-ink/60 px-3 py-1 backdrop-blur-sm">
+                  Sold Out
+                </span>
+              )
+            }
+            if (s.kind === "low_stock") {
+              return (
+                <span className="absolute top-4 left-4 font-sans text-micro uppercase tracking-widest text-terracotta bg-ink/60 px-3 py-1 backdrop-blur-sm">
+                  {s.qty === 1 ? "Last one left" : "Last two left"}
+                </span>
+              )
+            }
+            return (
+              <span className="absolute top-4 left-4 font-sans text-micro uppercase tracking-widest text-psy-green bg-ink/60 px-3 py-1 backdrop-blur-sm">
+                In Stock
+              </span>
+            )
+          })()}
 
           {/* Quick add overlay — +/− stepper */}
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-ink/90 via-ink/50 to-transparent px-4 py-4 opacity-60 group-hover:opacity-100 transition-all duration-[400ms] translate-y-0">

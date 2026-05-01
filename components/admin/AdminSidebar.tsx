@@ -21,6 +21,7 @@ import {
   FolderOpen,
   Settings,
   Layers,
+  BookOpen,
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -36,6 +37,7 @@ const navItems = [
   { label: "Bookings", href: "/admin/bookings", icon: Calendar },
   { label: "Artists", href: "/admin/artists", icon: Users },
   { label: "Community", href: "/admin/community", icon: Megaphone },
+  { label: "Blog", href: "/admin/blog", icon: BookOpen },
   { label: "Guest Spots", href: "/admin/guest-spots", icon: UserPlus },
   { label: "Testimonials", href: "/admin/testimonials", icon: Star },
   { label: "Inventory", href: "/admin/inventory", icon: Warehouse },

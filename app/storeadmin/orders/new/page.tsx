@@ -80,7 +80,7 @@ function NewOrderContent() {
         customer_name: "", phone: "", instagram: "", artist_id: "",
         order_date: new Date().toISOString().split("T")[0],
         appointment_type: "", service_description: "", payment_mode: "cash", deposit: "",
-        total: "", comments: "", source: "", address: "",
+        total: "", comments: "", source: "", address: "", consent_signed: false,
     });
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [step, setStep] = useState<"form" | "success">("form");
@@ -198,6 +198,7 @@ function NewOrderContent() {
                 deposit: parseFloat(manualForm.deposit) || 0,
                 total: parseFloat(manualForm.total) || 0,
                 comments: manualForm.comments,
+                consent_signed: manualForm.consent_signed,
                 source: manualForm.source,
             });
             setStep("success");
@@ -555,6 +556,22 @@ function NewOrderContent() {
                                             <label className="block text-sm text-[var(--muted)] mb-1">Comments</label>
                                             <textarea value={manualForm.comments} onChange={(e) => setManualForm({ ...manualForm, comments: e.target.value })} className="w-full px-4 py-3 neo-input text-sm resize-none" rows={2} />
                                         </div>
+                                        <div className="col-span-2">
+                                            <label className="flex items-start gap-3 p-3 rounded border border-[var(--border-color)] bg-[var(--surface-hover)] cursor-pointer hover:border-[var(--primary)]/40 transition-colors">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={manualForm.consent_signed}
+                                                    onChange={(e) => setManualForm({ ...manualForm, consent_signed: e.target.checked })}
+                                                    className="mt-0.5 w-4 h-4 accent-[var(--primary)]"
+                                                />
+                                                <span className="text-sm">
+                                                    <span className="font-medium">Consent form signed</span>
+                                                    <span className="block text-xs text-[var(--muted)] mt-0.5">
+                                                        Customer has read and signed the studio consent (aftercare, waivers, photo release).
+                                                    </span>
+                                                </span>
+                                            </label>
+                                        </div>
                                     </div>
                                     <button type="submit" disabled={loading} className="w-full py-3 neo-btn neo-btn-primary font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all border-none">
                                         {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><ArrowRight className="w-5 h-5" /> Create Order</>}
@@ -568,7 +585,7 @@ function NewOrderContent() {
                                     <p className="text-[var(--muted)] mb-6">The order has been saved successfully.</p>
                                     <div className="flex gap-3 justify-center">
                                         <button onClick={() => router.push("/storeadmin")} className="px-6 py-3 neo-btn text-sm">Go to Dashboard</button>
-                                        <button onClick={() => { setStep("form"); setSelectedCustomer(null); setManualForm({ customer_name: "", phone: "", instagram: "", artist_id: "", order_date: new Date().toISOString().split("T")[0], appointment_type: "", service_description: "", payment_mode: "cash", deposit: "", total: "", comments: "", source: "", address: "" }); }} className="px-6 py-3 neo-btn neo-btn-primary text-sm border-none">New Order</button>
+                                        <button onClick={() => { setStep("form"); setSelectedCustomer(null); setManualForm({ customer_name: "", phone: "", instagram: "", artist_id: "", order_date: new Date().toISOString().split("T")[0], appointment_type: "", service_description: "", payment_mode: "cash", deposit: "", total: "", comments: "", source: "", address: "", consent_signed: false }); }} className="px-6 py-3 neo-btn neo-btn-primary text-sm border-none">New Order</button>
                                     </div>
                                 </div>
                             )}

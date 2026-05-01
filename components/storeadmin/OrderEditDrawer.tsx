@@ -28,6 +28,7 @@ interface FormState {
     discount_amount: string;
     comments: string;
     admin_notes: string;
+    consent_signed: boolean;
 }
 
 const EMPTY_FORM: FormState = {
@@ -44,6 +45,7 @@ const EMPTY_FORM: FormState = {
     discount_amount: "",
     comments: "",
     admin_notes: "",
+    consent_signed: false,
 };
 
 function orderToForm(o: Order): FormState {
@@ -61,6 +63,7 @@ function orderToForm(o: Order): FormState {
         discount_amount: o.discount_amount != null ? String(o.discount_amount) : "",
         comments: o.comments || "",
         admin_notes: o.admin_notes || "",
+        consent_signed: !!o.consent_signed,
     };
 }
 
@@ -429,6 +432,23 @@ export default function OrderEditDrawer({
                                 placeholder="Internal only"
                             />
                         </Field>
+
+                        <div className="col-span-2">
+                            <label className="flex items-start gap-3 p-3 rounded border border-[var(--border-color)] bg-[var(--surface-hover)] cursor-pointer hover:border-[var(--primary)]/40 transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={form.consent_signed}
+                                    onChange={(e) => update("consent_signed", e.target.checked)}
+                                    className="mt-0.5 w-4 h-4 accent-[var(--primary)]"
+                                />
+                                <span className="text-sm">
+                                    <span className="font-medium">Consent form signed</span>
+                                    <span className="block text-xs text-[var(--muted)] mt-0.5">
+                                        Aftercare, waivers, photo release.
+                                    </span>
+                                </span>
+                            </label>
+                        </div>
                     </div>
                 </div>
             )}

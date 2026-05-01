@@ -46,12 +46,12 @@ export default function BookingForm({
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
     try {
-      let referenceImageUrl = null
+      let referenceImageUrl: string | null = null
 
       if (data.reference_image && data.reference_image.length > 0) {
         const file = data.reference_image[0]
         const fileExt = file.name.split(".").pop()
-        const fileName = `${Math.random()}.${fileExt}`
+        const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
 
         const { error: uploadError, data: uploadData } = await supabase.storage
           .from("reference_images")
@@ -65,24 +65,31 @@ export default function BookingForm({
         }
       }
 
-      const { error } = await supabase.from("bookings").insert({
-        name: data.name,
-        email: data.email,
-        inquiry_type: data.inquiry_type,
-        phone: data.phone || null,
-        artist_id: data.artist_id || null,
-        description: data.description || null,
-        preferred_date: data.preferred_date || null,
-        reference_image_url: referenceImageUrl,
+      const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          inquiry_type: data.inquiry_type,
+          phone: data.phone || null,
+          artist_id: data.artist_id || null,
+          description: data.description || null,
+          preferred_date: data.preferred_date || null,
+          reference_image_url: referenceImageUrl,
+        }),
       })
 
-      if (error) throw error
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || "Failed to submit booking")
+      }
 
       setSuccess(true)
       reset()
     } catch (error) {
       console.error("Booking error:", error)
-      alert("Something went quiet. Try again.")
+      alert("Something went quiet. Please try again.")
     } finally {
       setIsSubmitting(false)
     }

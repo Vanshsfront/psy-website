@@ -15,16 +15,26 @@ import HeroBackground from "@/components/animations/HeroBackground"
 import CommunityTab from "@/components/studio/CommunityTab"
 import GuestSpotTab from "@/components/studio/GuestSpotTab"
 import CustomersTab from "@/components/studio/CustomersTab"
+import BlogTab from "@/components/studio/BlogTab"
 import { scrollToSection } from "@/lib/smoothScroll"
-import type { Artist, CustomStyle, PortfolioItem, CommunityPost, GuestSpot, CustomerTestimonial } from "@/types"
+import type {
+  Artist,
+  CustomStyle,
+  PortfolioItem,
+  CommunityPost,
+  GuestSpot,
+  CustomerTestimonial,
+  BlogPost,
+} from "@/types"
 
-type StudioTab = "studio" | "community" | "guest-spot" | "customers"
+type StudioTab = "studio" | "community" | "guest-spot" | "customers" | "blog"
 
 const TABS: { id: StudioTab; label: string }[] = [
   { id: "studio", label: "Portfolio" },
   { id: "community", label: "Community" },
   { id: "guest-spot", label: "Guest Spot" },
   { id: "customers", label: "Customers" },
+  { id: "blog", label: "Blog" },
 ]
 
 interface StudioClientProps {
@@ -34,6 +44,7 @@ interface StudioClientProps {
   communityPosts: CommunityPost[]
   guestSpots: GuestSpot[]
   testimonials: CustomerTestimonial[]
+  blogPosts: BlogPost[]
 }
 
 export default function StudioClient({
@@ -43,6 +54,7 @@ export default function StudioClient({
   communityPosts,
   guestSpots,
   testimonials,
+  blogPosts,
 }: StudioClientProps) {
   const [activeTab, setActiveTab] = useState<StudioTab>("studio")
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: "start", slidesToScroll: 1 })
@@ -374,6 +386,10 @@ export default function StudioClient({
 
       {activeTab === "customers" && (
         <CustomersTab testimonials={testimonials} />
+      )}
+
+      {activeTab === "blog" && (
+        <BlogTab posts={blogPosts} />
       )}
     </main>
   )

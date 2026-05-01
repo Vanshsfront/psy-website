@@ -16,6 +16,7 @@ const ALLOWED_FIELDS = new Set([
   "admin_notes",
   "discount_code",
   "discount_amount",
+  "consent_signed",
 ]);
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {

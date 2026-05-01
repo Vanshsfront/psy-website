@@ -33,6 +33,33 @@ export async function createUser(username: string, passwordHash: string) {
   return data?.[0] ?? {};
 }
 
+// ── Daily Notes ──
+
+export async function getDailyNotes(dateFrom?: string, dateTo?: string) {
+  let q = getDb().from("daily_notes").select("*");
+  if (dateFrom) q = q.gte("note_date", dateFrom);
+  if (dateTo) q = q.lte("note_date", dateTo);
+  const { data } = await q.order("note_date", { ascending: false }).order("created_at", { ascending: false });
+  return data ?? [];
+}
+
+export async function createDailyNote(input: { note_date: string; body: string; author?: string | null }) {
+  const { data } = await getDb()
+    .from("daily_notes")
+    .insert({
+      note_date: input.note_date,
+      body: input.body,
+      author: input.author ?? null,
+    })
+    .select();
+  return data?.[0] ?? null;
+}
+
+export async function deleteDailyNote(id: string) {
+  const { error } = await getDb().from("daily_notes").delete().eq("id", id);
+  return !error;
+}
+
 // ── Artists ──
 
 export async function getArtists(activeOnly = true) {
@@ -49,6 +76,15 @@ export async function createArtist(name: string) {
 
 export async function getArtistByName(name: string) {
   const { data } = await getDb().from("artists").select("*").ilike("name", name);
+  return data?.[0] ?? null;
+}
+
+export async function updateArtist(id: string, patch: Record<string, unknown>) {
+  const { data } = await getDb()
+    .from("artists")
+    .update(patch)
+    .eq("id", id)
+    .select();
   return data?.[0] ?? null;
 }
 
@@ -441,6 +477,7 @@ export async function createOrder(inputData: Record<string, unknown>) {
     total: inputData.total ?? 0,
     comments: inputData.comments,
     source: inputData.source,
+    consent_signed: inputData.consent_signed,
   };
   for (const k of Object.keys(payload)) {
     if (payload[k] == null) delete payload[k];
@@ -464,6 +501,7 @@ export async function updateOrder(orderId: string, inputData: Record<string, unk
     "admin_notes",
     "discount_code",
     "discount_amount",
+    "consent_signed",
   ]);
   const payload: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(inputData)) {
@@ -569,6 +607,86 @@ export async function updateCampaignStatus(campaignId: string, status: string) {
 export async function createMessageLog(logData: Record<string, unknown>) {
   const { data } = await getDb().from("message_logs").insert(logData).select();
   return data?.[0] ?? {};
+}
+
+export async function listCampaigns(limit = 100) {
+  const { data } = await getDb()
+    .from("campaigns")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return data ?? [];
+}
+
+export async function getCampaignWithLogs(campaignId: string) {
+  const [{ data: campaign }, { data: logs }] = await Promise.all([
+    getDb().from("campaigns").select("*").eq("id", campaignId).maybeSingle(),
+    getDb()
+      .from("message_logs")
+      .select("*, customers:customer_id(name, phone, instagram)")
+      .eq("campaign_id", campaignId)
+      .order("sent_at", { ascending: false }),
+  ]);
+  return { campaign: campaign ?? null, logs: logs ?? [] };
+}
+
+export async function getCampaignStats(campaignIds: string[]) {
+  if (!campaignIds.length) return {} as Record<string, { sent: number; failed: number }>;
+  const { data } = await getDb()
+    .from("message_logs")
+    .select("campaign_id, status")
+    .in("campaign_id", campaignIds);
+  const stats: Record<string, { sent: number; failed: number }> = {};
+  for (const id of campaignIds) stats[id] = { sent: 0, failed: 0 };
+  for (const row of data ?? []) {
+    const id = (row as { campaign_id: string }).campaign_id;
+    const status = ((row as { status: string }).status ?? "").toLowerCase();
+    if (!stats[id]) stats[id] = { sent: 0, failed: 0 };
+    if (status === "failed" || status === "error") stats[id].failed += 1;
+    else stats[id].sent += 1;
+  }
+  return stats;
+}
+
+export async function getCustomerMessageLogs(customerId: string, limit = 100) {
+  const { data } = await getDb()
+    .from("message_logs")
+    .select("*")
+    .eq("customer_id", customerId)
+    .order("sent_at", { ascending: false })
+    .limit(limit);
+  return data ?? [];
+}
+
+/**
+ * Returns customer IDs that have already received a given template, optionally
+ * filtered to messages sent within the last N days. Used to auto-exclude or
+ * gate campaign sends so the same person isn't pinged twice on accident.
+ */
+export async function getRecentRecipients(opts: {
+  templateName?: string;
+  withinDays?: number;
+}) {
+  let q = getDb().from("message_logs").select("customer_id, template_name, sent_at, status");
+  if (opts.templateName) q = q.eq("template_name", opts.templateName);
+  if (opts.withinDays && opts.withinDays > 0) {
+    const since = new Date(Date.now() - opts.withinDays * 24 * 60 * 60 * 1000).toISOString();
+    q = q.gte("sent_at", since);
+  }
+  const { data } = await q;
+  const recipients: Record<string, { last_sent_at: string; template_name: string }> = {};
+  for (const row of data ?? []) {
+    const r = row as { customer_id: string | null; template_name: string | null; sent_at: string };
+    if (!r.customer_id) continue;
+    const prev = recipients[r.customer_id];
+    if (!prev || prev.last_sent_at < r.sent_at) {
+      recipients[r.customer_id] = {
+        last_sent_at: r.sent_at,
+        template_name: r.template_name ?? "",
+      };
+    }
+  }
+  return recipients;
 }
 
 // ── OCR Sessions ──

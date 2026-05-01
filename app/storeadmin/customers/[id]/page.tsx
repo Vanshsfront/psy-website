@@ -8,7 +8,7 @@ import CustomerEditDrawer from "@/components/storeadmin/CustomerEditDrawer";
 import OrderEditDrawer from "@/components/storeadmin/OrderEditDrawer";
 import { api } from "@/lib/storeadmin/api";
 import { formatCurrency, formatDate, formatRelativeDate, getSourceColor, getPaymentColor } from "@/lib/storeadmin/utils";
-import type { Customer, Order } from "@/types/storeadmin";
+import type { Customer, Order, MessageLog } from "@/types/storeadmin";
 import {
     ArrowLeft,
     Edit3,
@@ -23,6 +23,9 @@ import {
     Hash,
     Palette,
     PlusCircle,
+    MessageSquare,
+    CheckCircle2,
+    XCircle,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -34,6 +37,7 @@ function ProfileContent() {
 
     const [customer, setCustomer] = useState<Customer | null>(null);
     const [orders, setOrders] = useState<Order[]>([]);
+    const [messages, setMessages] = useState<MessageLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [editCustomerOpen, setEditCustomerOpen] = useState(false);
     const [editOrderId, setEditOrderId] = useState<string | null>(null);
@@ -49,9 +53,13 @@ function ProfileContent() {
     const loadCustomer = async () => {
         setLoading(true);
         try {
-            const data = await api.getCustomer(customerId);
+            const [data, msgRes] = await Promise.all([
+                api.getCustomer(customerId),
+                api.getCustomerMessages(customerId).catch(() => ({ logs: [] as MessageLog[] })),
+            ]);
             setCustomer(data);
             setOrders(data.orders || []);
+            setMessages(msgRes.logs || []);
         } catch {
             console.error("Failed to load customer");
         } finally {
@@ -266,6 +274,46 @@ function ProfileContent() {
                                 </div>
                             )}
                         </div>
+
+                        {/* WhatsApp messages received */}
+                        {messages.length > 0 && (
+                            <div className="glass-panel p-5 animate-fadeIn" style={{ animationDelay: "0.18s" }}>
+                                <h3 className="text-[10px] font-semibold text-[var(--muted)] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                    <MessageSquare className="w-3 h-3" />
+                                    WhatsApp Messages
+                                    <span className="text-[var(--muted)] font-normal">({messages.length})</span>
+                                </h3>
+                                <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                                    {messages.map((m) => (
+                                        <div
+                                            key={m.id}
+                                            className={`flex items-start gap-2 p-2.5 rounded text-sm ${
+                                                m.status === "sent"
+                                                    ? "bg-[var(--primary)]/5"
+                                                    : "bg-[var(--danger)]/5"
+                                            }`}
+                                        >
+                                            {m.status === "sent" ? (
+                                                <CheckCircle2 className="w-3.5 h-3.5 text-[var(--primary)] mt-0.5 shrink-0" />
+                                            ) : (
+                                                <XCircle className="w-3.5 h-3.5 text-[var(--danger)] mt-0.5 shrink-0" />
+                                            )}
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-medium truncate">{m.template_name}</p>
+                                                <p className="text-xs text-[var(--muted)] mt-0.5">
+                                                    {formatDate(m.sent_at)} · {m.status}
+                                                </p>
+                                                {m.error_message && (
+                                                    <p className="text-[10px] text-[var(--danger)] mt-0.5">
+                                                        {m.error_message}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Comments timeline */}
                         {orders.some(o => o.comments) && (

@@ -234,6 +234,40 @@ export const api = {
             body: JSON.stringify(data),
         }),
 
+    listCampaigns: () =>
+        apiFetch<{
+            campaigns: Array<
+                import("@/types/storeadmin").Campaign & {
+                    sent_count: number;
+                    failed_count: number;
+                }
+            >;
+        }>("/api/storeadmin/campaigns"),
+
+    getCampaign: (id: string) =>
+        apiFetch<{
+            campaign: import("@/types/storeadmin").Campaign;
+            logs: Array<
+                import("@/types/storeadmin").MessageLog & {
+                    customers?: { name: string; phone: string | null; instagram: string | null } | null;
+                }
+            >;
+        }>(`/api/storeadmin/campaigns/${id}`),
+
+    getRecentRecipients: (templateName: string, withinDays: number) => {
+        const params = new URLSearchParams();
+        if (templateName) params.set("template_name", templateName);
+        if (withinDays > 0) params.set("within_days", String(withinDays));
+        return apiFetch<{ recipients: Record<string, { last_sent_at: string; template_name: string }> }>(
+            `/api/storeadmin/campaigns/recent-recipients?${params}`
+        );
+    },
+
+    getCustomerMessages: (id: string) =>
+        apiFetch<{ logs: import("@/types/storeadmin").MessageLog[] }>(
+            `/api/storeadmin/customers/${id}/messages`
+        ),
+
     // Expenses
     parseExpense: (text: string) =>
         apiFetch<import("@/types/storeadmin").ExpenseParseResult>("/api/storeadmin/expenses/parse", {
@@ -268,8 +302,38 @@ export const api = {
     },
 
     // Artists
-    getArtists: () =>
-        apiFetch<{ artists: import("@/types/storeadmin").Artist[] }>("/api/storeadmin/artists"),
+    getArtists: (includeInactive: boolean = false) =>
+        apiFetch<{ artists: import("@/types/storeadmin").Artist[] }>(
+            `/api/storeadmin/artists${includeInactive ? "?include_inactive=true" : ""}`
+        ),
+
+    updateArtist: (id: string, data: Record<string, unknown>) =>
+        apiFetch<{ updated: boolean; artist: import("@/types/storeadmin").Artist }>(
+            `/api/storeadmin/artists/${id}`,
+            { method: "PATCH", body: JSON.stringify(data) }
+        ),
+
+    // Daily notes (cash-tally comments per date)
+    getDailyNotes: (dateFrom?: string, dateTo?: string) => {
+        const params = new URLSearchParams();
+        if (dateFrom) params.set("date_from", dateFrom);
+        if (dateTo) params.set("date_to", dateTo);
+        const query = params.toString() ? `?${params}` : "";
+        return apiFetch<{ notes: import("@/types/storeadmin").DailyNote[] }>(
+            `/api/storeadmin/daily-notes${query}`
+        );
+    },
+
+    createDailyNote: (data: { note_date: string; body: string }) =>
+        apiFetch<{ created: boolean; note: import("@/types/storeadmin").DailyNote }>(
+            `/api/storeadmin/daily-notes`,
+            { method: "POST", body: JSON.stringify(data) }
+        ),
+
+    deleteDailyNote: (id: string) =>
+        apiFetch<{ deleted: boolean }>(`/api/storeadmin/daily-notes/${id}`, {
+            method: "DELETE",
+        }),
 
     // Petty Cash
     getPettyCashBalance: () =>

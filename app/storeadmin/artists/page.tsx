@@ -14,6 +14,7 @@ import {
     TrendingUp,
     DollarSign,
 } from "lucide-react";
+import { clearApiCache } from "@/lib/storeadmin/api";
 
 function ArtistsContent() {
     const { isAuthenticated, loading: authLoading } = useAuth();
@@ -21,6 +22,7 @@ function ArtistsContent() {
     const [artists, setArtists] = useState<Artist[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
+    const [togglingId, setTogglingId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
@@ -34,7 +36,7 @@ function ArtistsContent() {
         setLoading(true);
         try {
             const [artistRes, orderRes] = await Promise.all([
-                api.getArtists(),
+                api.getArtists(true),
                 api.getOrders(),
             ]);
             setArtists(artistRes.artists);
@@ -43,6 +45,26 @@ function ArtistsContent() {
             console.error("Failed to load artists:", e);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const toggleActive = async (artist: Artist) => {
+        setTogglingId(artist.id);
+        const next = !artist.is_active;
+        setArtists((prev) =>
+            prev.map((a) => (a.id === artist.id ? { ...a, is_active: next } : a))
+        );
+        try {
+            await api.updateArtist(artist.id, { is_active: next });
+            clearApiCache();
+        } catch (e) {
+            console.error("Toggle failed:", e);
+            setArtists((prev) =>
+                prev.map((a) => (a.id === artist.id ? { ...a, is_active: !next } : a))
+            );
+            alert("Failed to update artist status");
+        } finally {
+            setTogglingId(null);
         }
     };
 
@@ -110,12 +132,29 @@ function ArtistsContent() {
                                         <div className="w-11 h-11 rounded-full bg-[var(--surface-hover)] flex items-center justify-center text-white text-lg font-bold">
                                             {artist.name.charAt(0)}
                                         </div>
-                                        <div>
-                                            <h3 className="font-semibold">{artist.name}</h3>
-                                            <p className="text-xs text-[var(--muted)]">
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-semibold truncate">{artist.name}</h3>
+                                            <p className={`text-xs ${artist.is_active ? "text-[var(--primary)]" : "text-[var(--muted)]"}`}>
                                                 {artist.is_active ? "Active" : "Inactive"}
                                             </p>
                                         </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleActive(artist)}
+                                            disabled={togglingId === artist.id}
+                                            role="switch"
+                                            aria-checked={artist.is_active}
+                                            title={artist.is_active ? "Deactivate (hide from new-order dropdown)" : "Activate"}
+                                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors disabled:opacity-50 ${
+                                                artist.is_active ? "bg-[var(--primary)]" : "bg-[var(--surface-hover)] border border-[var(--border-color)]"
+                                            }`}
+                                        >
+                                            <span
+                                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                                    artist.is_active ? "translate-x-6" : "translate-x-1"
+                                                }`}
+                                            />
+                                        </button>
                                     </div>
 
                                     {/* Revenue bar */}

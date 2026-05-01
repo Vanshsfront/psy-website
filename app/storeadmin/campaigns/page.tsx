@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/storeadmin/AuthProvider";
 import Sidebar from "@/components/storeadmin/Sidebar";
 import TemplatesTab from "@/components/storeadmin/TemplatesTab";
+import TemplateViewModal from "@/components/storeadmin/TemplateViewModal";
+import CampaignHistoryTab from "@/components/storeadmin/CampaignHistoryTab";
 import { api } from "@/lib/storeadmin/api";
 import { formatCurrency } from "@/lib/storeadmin/utils";
 import type { WhatsAppTemplate, Customer } from "@/types/storeadmin";
@@ -20,6 +22,8 @@ import {
     ArrowRight,
     Sparkles,
     LayoutTemplate,
+    Eye as EyeIcon,
+    History as HistoryIcon,
 } from "lucide-react";
 
 function renderPlaceholders(text: string, customer: Customer | undefined): string {
@@ -60,7 +64,10 @@ function CampaignsContent() {
     const { isAuthenticated, loading: authLoading } = useAuth();
     const router = useRouter();
 
-    const [tab, setTab] = useState<"send" | "templates">("send");
+    const [tab, setTab] = useState<"send" | "templates" | "history">("send");
+    const [cooldownDays, setCooldownDays] = useState<number>(14);
+    const [autoExclude, setAutoExclude] = useState<boolean>(true);
+    const [recentRecipients, setRecentRecipients] = useState<Record<string, { last_sent_at: string; template_name: string }>>({});
     const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
     const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
     const [selectedTemplate, setSelectedTemplate] = useState<WhatsAppTemplate | null>(null);
@@ -75,6 +82,7 @@ function CampaignsContent() {
     const [loading, setLoading] = useState(false);
     const [templatesLoading, setTemplatesLoading] = useState(false);
     const [isRestored, setIsRestored] = useState(false);
+    const [previewTemplate, setPreviewTemplate] = useState<WhatsAppTemplate | null>(null);
 
     useEffect(() => {
         const saved = sessionStorage.getItem("psy_campaigns_state");
@@ -136,8 +144,25 @@ function CampaignsContent() {
             const res = await api.filterCampaign(filterText);
             if (res.success) {
                 setMatchedCustomers(res.customers);
+
+                // Pull recent recipients of this template within cooldown window so we can
+                // auto-exclude / badge them.
+                let recents: Record<string, { last_sent_at: string; template_name: string }> = {};
+                if (selectedTemplate) {
+                    try {
+                        const r = await api.getRecentRecipients(selectedTemplate.name, cooldownDays);
+                        recents = r.recipients;
+                    } catch {
+                        // non-fatal
+                    }
+                }
+                setRecentRecipients(recents);
+
                 const valid = res.customers.filter((c: Customer) => (c.phone ?? "").trim().length > 0);
-                setSelectedIds(new Set(valid.map((c: Customer) => c.id)));
+                const initialSelection = autoExclude
+                    ? valid.filter((c: Customer) => !recents[c.id])
+                    : valid;
+                setSelectedIds(new Set(initialSelection.map((c: Customer) => c.id)));
                 if (res.inference_caution) setInferenceCaution(res.inference_caution);
                 if (res.inferred_fields) setInferredFields(res.inferred_fields);
                 setStep(3);
@@ -198,6 +223,7 @@ function CampaignsContent() {
                         {[
                             { key: "send" as const, label: "Send Campaign", icon: Send },
                             { key: "templates" as const, label: "Templates", icon: LayoutTemplate },
+                            { key: "history" as const, label: "History", icon: HistoryIcon },
                         ].map(({ key, label, icon: Icon }) => (
                             <button
                                 key={key}
@@ -216,6 +242,8 @@ function CampaignsContent() {
                     </div>
 
                     {tab === "templates" && <TemplatesTab />}
+
+                    {tab === "history" && <CampaignHistoryTab />}
 
                     {tab === "send" && (
                     <>
@@ -262,22 +290,37 @@ function CampaignsContent() {
                             ) : (
                                 <div className="space-y-2">
                                     {templates.map((t) => (
-                                        <button
+                                        <div
                                             key={t.name}
-                                            onClick={() => { setSelectedTemplate(t); setStep(2); }}
-                                            className={`w-full p-4 rounded text-left border transition-all ${selectedTemplate?.name === t.name
-                                                ? "border-[var(--primary)] bg-[var(--primary-muted)]"
-                                                : "border-[var(--border-color)] bg-[var(--surface-hover)] hover:border-[var(--primary)]/50"
-                                                }`}
+                                            className={`group flex items-stretch rounded border transition-all overflow-hidden ${
+                                                selectedTemplate?.name === t.name
+                                                    ? "border-[var(--primary)] bg-[var(--primary-muted)]"
+                                                    : "border-[var(--border-color)] bg-[var(--surface-hover)] hover:border-[var(--primary)]/50"
+                                            }`}
                                         >
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <p className="font-medium">{t.name}</p>
-                                                    <p className="text-xs text-[var(--muted)]">{t.category} · {t.language}</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => setPreviewTemplate(t)}
+                                                title="View template details"
+                                                className="px-3 flex items-center gap-1 text-[var(--muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition-colors border-r border-[var(--border-color)] cursor-pointer"
+                                            >
+                                                <EyeIcon className="w-4 h-4" />
+                                                <span className="text-xs hidden sm:inline">View</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setSelectedTemplate(t); setStep(2); }}
+                                                className="flex-1 p-4 text-left cursor-pointer"
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <div className="min-w-0">
+                                                        <p className="font-medium truncate">{t.name}</p>
+                                                        <p className="text-xs text-[var(--muted)]">{t.category} · {t.language}</p>
+                                                    </div>
+                                                    <ArrowRight className="w-4 h-4 text-[var(--muted)] shrink-0 ml-3" />
                                                 </div>
-                                                <ArrowRight className="w-4 h-4 text-[var(--muted)]" />
-                                            </div>
-                                        </button>
+                                            </button>
+                                        </div>
                                     ))}
                                 </div>
                             )}
@@ -312,6 +355,34 @@ function CampaignsContent() {
                                     className="w-full px-4 py-3 neo-input text-sm resize-none"
                                     rows={3}
                                 />
+                            </div>
+
+                            {/* Cooldown controls */}
+                            <div className="mt-4 p-3 rounded bg-[var(--surface-hover)] border border-[var(--border-color)] space-y-2">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={autoExclude}
+                                        onChange={(e) => setAutoExclude(e.target.checked)}
+                                        className="w-4 h-4 accent-[var(--primary)]"
+                                    />
+                                    <span className="text-sm font-medium">Auto-exclude recently messaged</span>
+                                </label>
+                                <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
+                                    <span>Skip anyone who got</span>
+                                    <span className="font-mono">{selectedTemplate?.name || "this template"}</span>
+                                    <span>in the last</span>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={365}
+                                        value={cooldownDays}
+                                        onChange={(e) => setCooldownDays(Math.max(1, Number(e.target.value) || 1))}
+                                        disabled={!autoExclude}
+                                        className="w-16 px-2 py-1 neo-input text-xs disabled:opacity-50"
+                                    />
+                                    <span>days</span>
+                                </div>
                             </div>
 
                             {filterError && (
@@ -378,6 +449,7 @@ function CampaignsContent() {
                             <div className="max-h-[400px] overflow-y-auto space-y-2 mb-6">
                                 {matchedCustomers.map((c) => {
                                     const hasPhone = (c.phone ?? "").trim().length > 0;
+                                    const recent = recentRecipients[c.id];
                                     return (
                                         <label
                                             key={c.id}
@@ -395,11 +467,19 @@ function CampaignsContent() {
                                                 className="w-4 h-4 accent-[var(--primary)] disabled:cursor-not-allowed"
                                             />
                                             <div className="flex-1">
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-2 flex-wrap">
                                                     <p className="text-sm font-medium">{c.name}</p>
                                                     {!hasPhone && (
                                                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--danger)]/20 text-[var(--danger)] font-medium">
                                                             No phone
+                                                        </span>
+                                                    )}
+                                                    {recent && (
+                                                        <span
+                                                            title={`Last messaged on ${new Date(recent.last_sent_at).toLocaleDateString()}`}
+                                                            className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--warning)]/20 text-[var(--warning)] font-medium"
+                                                        >
+                                                            Already messaged
                                                         </span>
                                                     )}
                                                     {(c as any)._inferred_gender && (
@@ -479,6 +559,12 @@ function CampaignsContent() {
                     )}
                 </div>
             </main>
+
+            <TemplateViewModal
+                open={previewTemplate !== null}
+                template={previewTemplate}
+                onClose={() => setPreviewTemplate(null)}
+            />
         </div>
     );
 }
