@@ -164,6 +164,7 @@ export default function BookingForm({
             </option>
             <option value="Tattoo" className="bg-ink text-bone">Tattoo</option>
             <option value="Piercing" className="bg-ink text-bone">Piercing</option>
+            <option value="Jewellery" className="bg-ink text-bone">Jewellery</option>
             <option value="Custom Art" className="bg-ink text-bone">Custom Art</option>
             <option value="Other" className="bg-ink text-bone">Other</option>
           </select>
@@ -301,6 +302,19 @@ export default function BookingForm({
       >
         {isSubmitting ? "Submitting..." : "Start Your Journey"}
       </button>
+
+      <p className="text-center font-sans text-micro text-taupe/60">
+        By booking, you agree to review and sign our{" "}
+        <a
+          href="/consent"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-psy-green hover:text-bone underline underline-offset-2 transition-colors"
+        >
+          consent form
+        </a>{" "}
+        before your session.
+      </p>
     </form>
   )
 }

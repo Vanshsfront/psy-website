@@ -13,6 +13,7 @@ import {
     ClipboardList,
     TrendingUp,
     DollarSign,
+    PlusCircle,
 } from "lucide-react";
 import { clearApiCache } from "@/lib/storeadmin/api";
 
@@ -23,6 +24,10 @@ function ArtistsContent() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [togglingId, setTogglingId] = useState<string | null>(null);
+    const [showAdd, setShowAdd] = useState(false);
+    const [newName, setNewName] = useState("");
+    const [creating, setCreating] = useState(false);
+    const [createError, setCreateError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
@@ -45,6 +50,25 @@ function ArtistsContent() {
             console.error("Failed to load artists:", e);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleCreate = async () => {
+        const name = newName.trim();
+        if (!name) return;
+        setCreating(true);
+        setCreateError(null);
+        try {
+            const res = await api.createArtist(name);
+            clearApiCache();
+            setArtists((prev) => [...prev, res.artist]);
+            setNewName("");
+            setShowAdd(false);
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : "Failed to add artist";
+            setCreateError(msg);
+        } finally {
+            setCreating(false);
         }
     };
 
@@ -100,12 +124,55 @@ function ArtistsContent() {
         <div className="flex min-h-screen">
             <Sidebar />
             <main className="flex-1 ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10 max-w-7xl">
-                <div className="mb-8">
-                    <h1 className="font-display text-4xl font-bold">Artists</h1>
-                    <p className="text-[var(--muted)] mt-1 text-sm">
-                        {artists.length} artists &middot; Performance & revenue
-                    </p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+                    <div>
+                        <h1 className="font-display text-4xl font-bold">Artists</h1>
+                        <p className="text-[var(--muted)] mt-1 text-sm">
+                            {artists.length} artists &middot; Performance & revenue
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => { setShowAdd(s => !s); setCreateError(null); }}
+                        className="neo-btn neo-btn-primary px-5 py-2.5 text-sm flex items-center gap-2 cursor-pointer"
+                    >
+                        <PlusCircle className="w-4 h-4" />
+                        Add Artist
+                    </button>
                 </div>
+
+                {showAdd && (
+                    <div className="glass-panel p-4 mb-6 animate-fadeIn">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <input
+                                value={newName}
+                                onChange={(e) => setNewName(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
+                                placeholder="Artist name"
+                                className="flex-1 min-w-[200px] px-4 py-2.5 neo-input text-sm"
+                                autoFocus
+                            />
+                            <button
+                                type="button"
+                                onClick={handleCreate}
+                                disabled={creating || !newName.trim()}
+                                className="neo-btn neo-btn-primary px-5 py-2.5 text-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                            >
+                                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setShowAdd(false); setNewName(""); setCreateError(null); }}
+                                className="neo-btn px-4 py-2.5 text-sm cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                        {createError && (
+                            <p className="text-xs text-[var(--danger)] mt-2">{createError}</p>
+                        )}
+                    </div>
+                )}
 
                 {loading ? (
                     <div className="flex items-center justify-center py-20">

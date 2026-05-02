@@ -307,6 +307,12 @@ export const api = {
             `/api/storeadmin/artists${includeInactive ? "?include_inactive=true" : ""}`
         ),
 
+    createArtist: (name: string) =>
+        apiFetch<{ created: boolean; artist: import("@/types/storeadmin").Artist }>(
+            `/api/storeadmin/artists`,
+            { method: "POST", body: JSON.stringify({ name }) }
+        ),
+
     updateArtist: (id: string, data: Record<string, unknown>) =>
         apiFetch<{ updated: boolean; artist: import("@/types/storeadmin").Artist }>(
             `/api/storeadmin/artists/${id}`,

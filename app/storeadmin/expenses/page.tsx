@@ -42,6 +42,8 @@ function ExpensesContent() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("");
+    const [dateFrom, setDateFrom] = useState("");
+    const [dateTo, setDateTo] = useState("");
     const [page, setPage] = useState(0);
 
     const [showInput, setShowInput] = useState(false);
@@ -149,6 +151,12 @@ function ExpensesContent() {
     const canonCat = (c: string | null | undefined) => (c || "").trim().toLowerCase();
     if (categoryFilter) {
         filtered = filtered.filter(e => canonCat(e.category) === categoryFilter);
+    }
+    if (dateFrom) {
+        filtered = filtered.filter(e => (e.expense_date || "").slice(0, 10) >= dateFrom);
+    }
+    if (dateTo) {
+        filtered = filtered.filter(e => (e.expense_date || "").slice(0, 10) <= dateTo);
     }
 
     const sorted = [...filtered].sort((a, b) => new Date(b.expense_date).getTime() - new Date(a.expense_date).getTime());
@@ -318,8 +326,8 @@ function ExpensesContent() {
 
                 {/* Search */}
                 <div className="glass-panel p-4 mb-5">
-                    <div className="flex items-center gap-3">
-                        <div className="flex-1 relative">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex-1 min-w-[200px] relative">
                             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
                             <input
                                 type="text"
@@ -339,10 +347,27 @@ function ExpensesContent() {
                                 <option key={c} value={c}>{c}</option>
                             ))}
                         </select>
-                        {(search || categoryFilter) && (
+                        <div className="flex items-center gap-2">
+                            <label className="text-xs text-[var(--muted)] uppercase tracking-wider">From</label>
+                            <input
+                                type="date"
+                                value={dateFrom}
+                                onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
+                                className="px-3 py-2.5 neo-input text-sm cursor-pointer [color-scheme:dark]"
+                            />
+                            <label className="text-xs text-[var(--muted)] uppercase tracking-wider">To</label>
+                            <input
+                                type="date"
+                                value={dateTo}
+                                onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
+                                className="px-3 py-2.5 neo-input text-sm cursor-pointer [color-scheme:dark]"
+                            />
+                        </div>
+                        {(search || categoryFilter || dateFrom || dateTo) && (
                             <button
-                                onClick={() => { setSearch(""); setCategoryFilter(""); }}
+                                onClick={() => { setSearch(""); setCategoryFilter(""); setDateFrom(""); setDateTo(""); setPage(0); }}
                                 className="p-2 text-[var(--muted)] hover:text-[var(--danger)] cursor-pointer transition-colors"
+                                title="Clear filters"
                             >
                                 <X className="w-4 h-4" />
                             </button>

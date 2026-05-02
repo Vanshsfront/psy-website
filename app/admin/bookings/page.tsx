@@ -150,7 +150,12 @@ export default function AdminBookingsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-borderDark text-sm">
-                {filteredBookings.map((booking) => (
+                {filteredBookings.map((booking) => {
+                  const isGuestLead = booking._source === "guest_spot_lead";
+                  const detailHref = isGuestLead && booking.guest_spot_id
+                    ? `/admin/guest-spots/${booking.guest_spot_id}/leads`
+                    : `/admin/bookings/${booking.id}`;
+                  return (
                   <tr
                     key={booking.id}
                     className="hover:bg-surfaceLighter/50 transition-colors"
@@ -164,7 +169,16 @@ export default function AdminBookingsPage() {
                       </p>
                       <p className="text-xs text-mutedText">{booking.email}</p>
                     </td>
-                    <td className="p-4 font-mono text-xs">{booking.inquiry_type || '—'}</td>
+                    <td className="p-4 font-mono text-xs">
+                      <span className="inline-flex items-center gap-2">
+                        {booking.inquiry_type || '—'}
+                        {isGuestLead && (
+                          <span className="px-1.5 py-0.5 text-[9px] uppercase rounded bg-psy-green/15 text-psy-green border border-psy-green/30">
+                            Guest
+                          </span>
+                        )}
+                      </span>
+                    </td>
                     <td className="p-4 font-mono text-xs">{booking.style || '—'}</td>
                     <td className="p-4 text-xs text-mutedText">
                       {booking.artists?.name || "—"}
@@ -184,7 +198,7 @@ export default function AdminBookingsPage() {
                       </span>
                     </td>
                     <td className="p-4 text-right">
-                      <Link href={`/admin/bookings/${booking.id}`}>
+                      <Link href={detailHref}>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -195,7 +209,8 @@ export default function AdminBookingsPage() {
                       </Link>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

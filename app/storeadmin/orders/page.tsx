@@ -11,9 +11,9 @@ import OrderEditDrawer from "@/components/storeadmin/OrderEditDrawer";
 import { api, clearApiCache } from "@/lib/storeadmin/api";
 import { formatCurrency, formatDate, getPaymentColor } from "@/lib/storeadmin/utils";
 import type { Order, Artist } from "@/types/storeadmin";
-import { Loader2, PlusCircle, Pencil, CheckCircle2, Circle } from "lucide-react";
+import { Loader2, PlusCircle, Pencil, CheckCircle2, Circle, Download } from "lucide-react";
 
-const APPOINTMENT_TYPES = ["Tattoo", "Piercing", "Free Consultation"] as const;
+const APPOINTMENT_TYPES = ["Tattoo", "Piercing", "Jewellery", "Free Consultation"] as const;
 function parseAppointmentType(desc: string | null | undefined): string {
     if (!desc) return "";
     const idx = desc.indexOf(" - ");
@@ -385,6 +385,72 @@ function OrdersContent() {
         [router, artistOptions]
     );
 
+    const exportCsv = () => {
+        const headers = [
+            "Order #",
+            "Date",
+            "Customer",
+            "Phone",
+            "Service",
+            "Type",
+            "Artist",
+            "Payment",
+            "Deposit",
+            "Total",
+            "Source",
+            "Tracking",
+            "Consent",
+            "Comments",
+        ];
+        const escape = (v: unknown) => {
+            const s = v === null || v === undefined ? "" : String(v);
+            return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+        const rows = orders.map((o) => [
+            o.order_number ?? "",
+            o.order_date ? o.order_date.split("T")[0] : "",
+            o.customers?.name ?? "",
+            o.customers?.phone ?? "",
+            o.service_description ?? "",
+            parseAppointmentType(o.service_description),
+            o.artists?.name ?? "",
+            o.payment_mode ?? "",
+            o.deposit ?? 0,
+            o.total ?? 0,
+            o.source ?? "",
+            o.tracking_number ?? "",
+            o.consent_signed ? "Yes" : "No",
+            o.comments ?? "",
+        ]);
+        const csv = [headers, ...rows].map((r) => r.map(escape).join(",")).join("\n");
+        const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `psy-orders-${new Date().toISOString().split("T")[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const exportXlsx = async () => {
+        try {
+            const blob = await api.exportMastersheet();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `PsyShot_Mastersheet_${new Date().toISOString().split("T")[0]}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error("Export failed:", e);
+            alert("Excel export failed");
+        }
+    };
+
     const handleSaved = (updated: Order | null) => {
         if (!editingId) return;
         if (!updated) {
@@ -413,13 +479,34 @@ function OrdersContent() {
                             {orders.length} orders · click any cell to edit, pencil for full drawer
                         </p>
                     </div>
-                    <Link
-                        href="/storeadmin/orders/new"
-                        className="neo-btn neo-btn-primary px-5 py-2.5 text-sm flex items-center gap-2 cursor-pointer"
-                    >
-                        <PlusCircle className="w-4 h-4" />
-                        New Order
-                    </Link>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={exportCsv}
+                            disabled={orders.length === 0}
+                            title="Download visible orders as CSV"
+                            className="neo-btn px-4 py-2.5 text-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                        >
+                            <Download className="w-4 h-4" />
+                            CSV
+                        </button>
+                        <button
+                            type="button"
+                            onClick={exportXlsx}
+                            title="Download full mastersheet (orders + petty) as Excel"
+                            className="neo-btn px-4 py-2.5 text-sm flex items-center gap-2 cursor-pointer"
+                        >
+                            <Download className="w-4 h-4" />
+                            Excel
+                        </button>
+                        <Link
+                            href="/storeadmin/orders/new"
+                            className="neo-btn neo-btn-primary px-5 py-2.5 text-sm flex items-center gap-2 cursor-pointer"
+                        >
+                            <PlusCircle className="w-4 h-4" />
+                            New Order
+                        </Link>
+                    </div>
                 </div>
 
                 <DataTable<Order>

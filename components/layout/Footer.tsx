@@ -2,11 +2,12 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Instagram, Facebook, MapPin, Clock } from "lucide-react"
+import { Instagram, Facebook, Linkedin, MapPin, Clock } from "lucide-react"
 
 const SOCIAL_LINKS = {
   instagram: "https://www.instagram.com/psytattoosindia/reels/?hl=en",
   facebook: "https://www.facebook.com/214077871800038",
+  linkedin: "https://www.linkedin.com/company/psytattoos/",
   maps: "https://maps.app.goo.gl/LuT5mfS5BdNn9pjy8",
 }
 
@@ -80,6 +81,15 @@ export default function Footer() {
               >
                 <Facebook className="w-4 h-4 transition-transform duration-300 group-hover:scale-110" />
                 <span className="font-sans text-caption">PSY Tattoos India</span>
+              </a>
+              <a
+                href={SOCIAL_LINKS.linkedin}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 text-taupe hover:text-psy-green transition-colors duration-300 group"
+              >
+                <Linkedin className="w-4 h-4 transition-transform duration-300 group-hover:scale-110" />
+                <span className="font-sans text-caption">PSY Tattoos</span>
               </a>
               <a
                 href={SOCIAL_LINKS.maps}

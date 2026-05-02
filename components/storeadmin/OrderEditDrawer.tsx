@@ -444,7 +444,16 @@ export default function OrderEditDrawer({
                                 <span className="text-sm">
                                     <span className="font-medium">Consent form signed</span>
                                     <span className="block text-xs text-[var(--muted)] mt-0.5">
-                                        Aftercare, waivers, photo release.
+                                        Aftercare, waivers, photo release.{" "}
+                                        <a
+                                            href="/consent"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="text-[var(--primary)] hover:underline"
+                                        >
+                                            View form &rarr;
+                                        </a>
                                     </span>
                                 </span>
                             </label>

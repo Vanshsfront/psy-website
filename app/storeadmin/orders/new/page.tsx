@@ -515,6 +515,7 @@ function NewOrderContent() {
                                                 <option value="">Select type</option>
                                                 <option value="Tattoo">Tattoo</option>
                                                 <option value="Piercing">Piercing</option>
+                                                <option value="Jewellery">Jewellery</option>
                                                 <option value="Free Consultation">Free Consultation</option>
                                             </select>
                                         </div>

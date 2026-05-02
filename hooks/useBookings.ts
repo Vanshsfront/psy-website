@@ -15,6 +15,8 @@ interface Booking {
   admin_notes: string | null;
   created_at: string;
   artists?: { name: string } | null;
+  _source?: "guest_spot_lead";
+  guest_spot_id?: string | null;
 }
 
 interface UseBookingsParams {
