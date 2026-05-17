@@ -7,6 +7,11 @@ import Sidebar from "@/components/storeadmin/Sidebar";
 import { api } from "@/lib/storeadmin/api";
 import { formatCurrency, formatDate, getPaymentColor } from "@/lib/storeadmin/utils";
 import type { Expense, ExpenseParseResult } from "@/types/storeadmin";
+import ExpenseFields, {
+    emptyExpenseFields,
+    validateExpenseFields,
+    type ExpenseFieldValues,
+} from "@/components/storeadmin/ExpenseFields";
 import {
     Receipt,
     Loader2,
@@ -47,8 +52,12 @@ function ExpensesContent() {
     const [page, setPage] = useState(0);
 
     const [showInput, setShowInput] = useState(false);
+    const [entryMode, setEntryMode] = useState<"ai" | "manual">("ai");
     const [expenseText, setExpenseText] = useState("");
     const [parsedExpense, setParsedExpense] = useState<ExpenseParseResult | null>(null);
+    const [fields, setFields] = useState<ExpenseFieldValues>(emptyExpenseFields());
+    const [fieldError, setFieldError] = useState("");
+    const [actionError, setActionError] = useState("");
     const [parsing, setParsing] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -83,30 +92,75 @@ function ExpensesContent() {
         }
     };
 
+    const resetEntry = () => {
+        setParsedExpense(null);
+        setExpenseText("");
+        setFields(emptyExpenseFields());
+        setFieldError("");
+        setActionError("");
+    };
+
+    const switchMode = (mode: "ai" | "manual") => {
+        setEntryMode(mode);
+        resetEntry();
+    };
+
     const handleParse = async () => {
         if (!expenseText.trim()) return;
         setParsing(true);
+        setActionError("");
+        setFieldError("");
         try {
             const res = await api.parseExpense(expenseText);
             setParsedExpense(res);
-        } catch {
-            console.error("Parse failed");
+            if (res.success && res.fields) {
+                const f = res.fields;
+                // Seed the editable form so the user can override any field the
+                // AI got wrong before saving.
+                setFields({
+                    amount: Number(f.amount) || 0,
+                    category: String(f.category || "other"),
+                    description: String(f.description || ""),
+                    vendor: String(f.vendor || "UNKNOWN"),
+                    payment_mode: String(f.payment_mode || "cash"),
+                    date: String(f.date || new Date().toISOString().split("T")[0]),
+                    raw_input: String(f.raw_input || expenseText),
+                });
+            }
+        } catch (e) {
+            setActionError(
+                e instanceof Error
+                    ? `Could not reach AI: ${e.message}. Try again or switch to Manual entry.`
+                    : "Could not reach AI. Try again or switch to Manual entry."
+            );
         } finally {
             setParsing(false);
         }
     };
 
-    const handleConfirm = async () => {
-        if (!parsedExpense?.fields) return;
+    const handleSave = async () => {
+        const v = validateExpenseFields(fields);
+        if (v) {
+            setFieldError(v);
+            return;
+        }
+        setFieldError("");
+        setActionError("");
         setSaving(true);
         try {
-            await api.confirmExpense(parsedExpense.fields);
-            setParsedExpense(null);
-            setExpenseText("");
+            await api.confirmExpense({
+                ...fields,
+                raw_input:
+                    fields.raw_input ||
+                    (entryMode === "manual" ? "manual entry" : expenseText),
+            });
+            resetEntry();
             setShowInput(false);
             loadData(); // reloads balance too
-        } catch {
-            console.error("Confirm failed");
+        } catch (e) {
+            setActionError(
+                e instanceof Error ? e.message : "Failed to save expense. Please try again."
+            );
         } finally {
             setSaving(false);
         }
@@ -122,8 +176,10 @@ function ExpensesContent() {
             setTopupNote("");
             setShowTopup(false);
             loadData();
-        } catch {
-            console.error("Topup failed");
+        } catch (e) {
+            setActionError(
+                e instanceof Error ? e.message : "Top up failed. Please try again."
+            );
         } finally {
             setTopupSaving(false);
         }
@@ -246,61 +302,100 @@ function ExpensesContent() {
                     </button>
                 </div>
 
-                {/* NL Expense Input */}
+                {/* Expense Input — AI parse or Manual entry */}
                 {showInput && (
                     <div className="glass-panel p-5 mb-5 animate-fadeIn">
-                        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-[var(--accent)]" />
-                            Natural Language Expense Entry
-                        </h3>
-                        <div className="flex gap-3 mb-3">
-                            <input
-                                value={expenseText}
-                                onChange={(e) => setExpenseText(e.target.value)}
-                                placeholder='e.g. "Spent 2300 on inks from ABC supplier today via UPI"'
-                                className="flex-1 px-4 py-2.5 neo-input text-sm"
-                                onKeyDown={(e) => e.key === "Enter" && handleParse()}
-                            />
+                        {/* Mode toggle */}
+                        <div className="flex gap-2 mb-4">
                             <button
-                                onClick={handleParse}
-                                disabled={parsing || !expenseText.trim()}
-                                className="px-5 py-2.5 neo-btn neo-btn-primary text-sm disabled:opacity-50 cursor-pointer"
+                                onClick={() => switchMode("ai")}
+                                className={`px-4 py-2 rounded text-sm font-medium flex items-center gap-2 cursor-pointer transition-all ${entryMode === "ai"
+                                    ? "bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/30"
+                                    : "neo-btn"
+                                    }`}
                             >
-                                {parsing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Parse"}
+                                <Sparkles className="w-4 h-4" />
+                                AI Parse
+                            </button>
+                            <button
+                                onClick={() => switchMode("manual")}
+                                className={`px-4 py-2 rounded text-sm font-medium flex items-center gap-2 cursor-pointer transition-all ${entryMode === "manual"
+                                    ? "bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/30"
+                                    : "neo-btn"
+                                    }`}
+                            >
+                                <PlusCircle className="w-4 h-4" />
+                                Manual Entry
                             </button>
                         </div>
 
-                        {parsedExpense && (
-                            <div className="animate-fadeIn">
-                                {parsedExpense.success ? (
-                                    <div className="space-y-3">
-                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                            {Object.entries(parsedExpense.fields).filter(([k]) => k !== "raw_input").map(([key, value]) => (
-                                                <div key={key} className="p-3 bg-[var(--surface-hover)] rounded">
-                                                    <p className="text-[10px] text-[var(--muted)] uppercase tracking-wider">{key.replace(/_/g, " ")}</p>
-                                                    <p className="text-sm font-medium mt-0.5">{key === "amount" ? formatCurrency(value as number) : String(value)}</p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <div className="flex gap-3">
-                                            <button
-                                                onClick={handleConfirm}
-                                                disabled={saving}
-                                                className="flex-1 py-2.5 neo-btn neo-btn-primary text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
-                                            >
-                                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4" /> Confirm & Save</>}
-                                            </button>
-                                            <button onClick={() => setParsedExpense(null)} className="px-5 py-2.5 neo-btn text-sm cursor-pointer">
-                                                Discard
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : (
+                        {/* AI mode: natural-language box */}
+                        {entryMode === "ai" && (
+                            <div className="flex gap-3 mb-3">
+                                <input
+                                    value={expenseText}
+                                    onChange={(e) => setExpenseText(e.target.value)}
+                                    placeholder='e.g. "Spent 2300 on inks from ABC supplier today via UPI"'
+                                    className="flex-1 px-4 py-2.5 neo-input text-sm"
+                                    onKeyDown={(e) => e.key === "Enter" && handleParse()}
+                                />
+                                <button
+                                    onClick={handleParse}
+                                    disabled={parsing || !expenseText.trim()}
+                                    className="px-5 py-2.5 neo-btn neo-btn-primary text-sm disabled:opacity-50 cursor-pointer"
+                                >
+                                    {parsing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Parse"}
+                                </button>
+                            </div>
+                        )}
+
+                        {/* AI parse failure (success:false from the parser) */}
+                        {entryMode === "ai" && parsedExpense && !parsedExpense.success && (
+                            <div className="mb-3 p-3 bg-[var(--danger)]/10 border border-[var(--danger)]/20 rounded flex items-center gap-2 animate-fadeIn">
+                                <AlertTriangle className="w-4 h-4 text-[var(--danger)] shrink-0" />
+                                <span className="text-sm text-[var(--danger)]">
+                                    {parsedExpense.error} — fix it below or use Manual Entry.
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Editable fields: always in manual mode; in AI mode once parsed */}
+                        {(entryMode === "manual" || (entryMode === "ai" && parsedExpense?.success)) && (
+                            <div className="space-y-3 animate-fadeIn">
+                                {entryMode === "ai" && (
+                                    <p className="text-xs text-[var(--muted)]">
+                                        Review the AI-parsed values and correct anything before saving.
+                                    </p>
+                                )}
+                                <ExpenseFields values={fields} onChange={setFields} disabled={saving} />
+
+                                {fieldError && (
                                     <div className="p-3 bg-[var(--danger)]/10 border border-[var(--danger)]/20 rounded flex items-center gap-2">
-                                        <AlertTriangle className="w-4 h-4 text-[var(--danger)]" />
-                                        <span className="text-sm text-[var(--danger)]">{parsedExpense.error}</span>
+                                        <AlertTriangle className="w-4 h-4 text-[var(--danger)] shrink-0" />
+                                        <span className="text-sm text-[var(--danger)]">{fieldError}</span>
                                     </div>
                                 )}
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={saving}
+                                        className="flex-1 py-2.5 neo-btn neo-btn-primary text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                                    >
+                                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4" /> Save Expense</>}
+                                    </button>
+                                    <button onClick={resetEntry} className="px-5 py-2.5 neo-btn text-sm cursor-pointer">
+                                        Reset
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Network / save / AI-unreachable errors */}
+                        {actionError && (
+                            <div className="mt-3 p-3 bg-[var(--danger)]/10 border border-[var(--danger)]/20 rounded flex items-center gap-2 animate-fadeIn">
+                                <AlertTriangle className="w-4 h-4 text-[var(--danger)] shrink-0" />
+                                <span className="text-sm text-[var(--danger)]">{actionError}</span>
                             </div>
                         )}
                     </div>
