@@ -13,6 +13,7 @@ import { useProductCategories } from "@/hooks/useProductCategories"
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
+import { stripDashes } from '@/lib/sanitizeText'
 
 const productSchema = z.object({
   name: z.string().min(2, "Name required"),
@@ -128,13 +129,13 @@ export default function ProductForm({ initialData }: { initialData?: any }) {
       const formattedTags = data.tags ? data.tags.split(',').map(t => t.trim()).filter(Boolean) : []
 
       const productPayload = {
-        name: data.name,
+        name: stripDashes(data.name),
         slug: data.slug,
         category: data.category,
         price: data.price,
         compare_at_price: data.compare_at_price || null,
-        description_short: data.description_short,
-        description_full: editor?.getHTML() || "",
+        description_short: stripDashes(data.description_short),
+        description_full: stripDashes(editor?.getHTML() || ""),
         material: data.material,
         tags: formattedTags,
         images: uploadedImageUrls,

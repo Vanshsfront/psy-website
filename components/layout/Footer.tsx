@@ -102,7 +102,7 @@ export default function Footer() {
               </a>
               <div className="flex items-center gap-3 text-taupe">
                 <Clock className="w-4 h-4" />
-                <span className="font-sans text-caption">Open all days &middot; 11am — 9pm</span>
+                <span className="font-sans text-caption">Open all days &middot; 11am to 9pm</span>
               </div>
             </div>
 
@@ -141,7 +141,7 @@ export default function Footer() {
             </Link>
           </div>
           <span className="font-display italic text-micro text-taupe/30">
-            — where the mind meets the skin
+            where the mind meets the skin
           </span>
         </div>
       </div>

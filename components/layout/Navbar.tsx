@@ -35,6 +35,7 @@ export default function Navbar() {
 
   const navLinks = [
     { name: "Studio", path: "/studio" },
+    { name: "Blog", path: "/blog" },
     { name: "Shop", path: "/shop" },
     { name: "About", path: "/about" },
   ]
@@ -65,7 +66,7 @@ export default function Navbar() {
             {navLinks.map((link) => {
               const isActive =
                 link.path === "/studio"
-                  ? pathname === "/studio"
+                  ? pathname.startsWith("/studio")
                   : link.path === "/shop"
                   ? pathname.startsWith("/shop")
                   : pathname.startsWith(link.path)

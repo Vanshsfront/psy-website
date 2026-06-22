@@ -22,6 +22,7 @@ import {
   Settings,
   Layers,
   BookOpen,
+  Inbox,
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -39,6 +40,7 @@ const navItems = [
   { label: "Community", href: "/admin/community", icon: Megaphone },
   { label: "Blog", href: "/admin/blog", icon: BookOpen },
   { label: "Guest Spots", href: "/admin/guest-spots", icon: UserPlus },
+  { label: "Guest Artists", href: "/admin/guest-artists", icon: Inbox },
   { label: "Testimonials", href: "/admin/testimonials", icon: Star },
   { label: "Inventory", href: "/admin/inventory", icon: Warehouse },
   { label: "Collections", href: "/admin/collections", icon: FolderOpen },

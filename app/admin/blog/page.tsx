@@ -127,7 +127,7 @@ export default function AdminBlogPage() {
                     </p>
                   )}
                   <p className="text-xs text-taupe/70 font-mono truncate">
-                    /studio/blog/{post.slug}
+                    /blog/{post.slug}
                   </p>
                   <div className="flex gap-2 pt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button

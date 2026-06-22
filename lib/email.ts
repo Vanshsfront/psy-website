@@ -40,7 +40,7 @@ export async function sendOrderConfirmationEmail({
 }) {
   await sendEmail({
     to,
-    subject: `Order Confirmed — ${orderNumber}`,
+    subject: `Order Confirmed: ${orderNumber}`,
     html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0A0A0A; color: #F5F3EF; padding: 40px;">
         <h1 style="font-size: 24px; font-weight: 300; letter-spacing: 0.1em; margin-bottom: 8px;">PSY</h1>
@@ -121,7 +121,7 @@ export async function sendReturnStatusEmail({
 
   await sendEmail({
     to,
-    subject: `Return Update — ${orderNumber}`,
+    subject: `Return Update: ${orderNumber}`,
     html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0A0A0A; color: #F5F3EF; padding: 40px;">
         <h1 style="font-size: 24px; font-weight: 300; letter-spacing: 0.1em; margin-bottom: 8px;">PSY</h1>

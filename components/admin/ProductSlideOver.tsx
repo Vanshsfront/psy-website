@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/useToast";
 import { useProductCategories } from "@/hooks/useProductCategories";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import type { Product } from "@/types";
+import { stripDashes } from "@/lib/sanitizeText";
 
 /* ─── Schema ─── */
 const productSchema = z.object({
@@ -258,7 +259,9 @@ export default function ProductSlideOver({
       try {
         const payload = {
           ...data,
-          description_full: editor?.getHTML() || "",
+          name: stripDashes(data.name),
+          description_short: stripDashes(data.description_short),
+          description_full: stripDashes(editor?.getHTML() || ""),
           tags,
           images,
           variants: variants as unknown as Record<string, unknown>[],

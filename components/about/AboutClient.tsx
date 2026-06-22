@@ -281,7 +281,7 @@ export default function AboutClient({
                     <div>
                       <span className="font-sans text-body text-bone block">Studio Hours</span>
                       <span className="font-sans text-caption text-taupe block mt-1">
-                        Open all days: 11:00 AM – 9:00 PM
+                        Open all days: 11:00 AM to 9:00 PM
                       </span>
                     </div>
                   </div>
@@ -324,7 +324,7 @@ export default function AboutClient({
             Ready to begin?
           </h2>
           <p className="font-display italic text-taupe text-xl mb-10">
-            — every tattoo begins with a conversation.
+            Every tattoo begins with a conversation.
           </p>
           <div className="flex items-center justify-center gap-6 flex-wrap">
             <Link

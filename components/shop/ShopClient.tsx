@@ -79,7 +79,7 @@ export default function ShopClient({
 
             <FadeInOnScroll direction="none" delay={0.6}>
               <p className="font-display italic text-taupe text-body-lg mb-12 max-w-md">
-                — a collection born from ritual.
+                A collection born from ritual.
               </p>
             </FadeInOnScroll>
 

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { useToast } from "@/hooks/useToast";
 import type { BlogPost } from "@/types";
+import { stripDashes } from "@/lib/sanitizeText";
 
 interface BlogPostSlideOverProps {
   isOpen: boolean;
@@ -136,12 +137,12 @@ export default function BlogPostSlideOver({
     setIsSaving(true);
     try {
       const payload = {
-        title: title.trim(),
+        title: stripDashes(title.trim()),
         slug: slug.trim() || slugify(title),
-        excerpt: excerpt.trim() || null,
-        content: html,
+        excerpt: stripDashes(excerpt.trim() || null),
+        content: stripDashes(html),
         cover_image_url: coverUrl,
-        author: author.trim() || null,
+        author: stripDashes(author.trim() || null),
         is_published: isPublished,
       };
 
@@ -163,7 +164,7 @@ export default function BlogPostSlideOver({
       await fetch("/api/admin/revalidate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paths: ["/studio", `/studio/blog/${payload.slug}`] }),
+        body: JSON.stringify({ paths: ["/blog", `/blog/${payload.slug}`] }),
       });
 
       toast.success(isEditing ? "Post updated" : "Post created");
@@ -244,7 +245,7 @@ export default function BlogPostSlideOver({
                   placeholder="auto-derived from title"
                 />
                 <p className="mt-1 text-xs text-taupe/70">
-                  Public URL: /studio/blog/{slug || "your-slug"}
+                  Public URL: /blog/{slug || "your-slug"}
                 </p>
               </div>
 

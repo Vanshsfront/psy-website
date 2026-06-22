@@ -5,7 +5,7 @@ import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PSY — Tattoos & Shop",
+  title: "PSY Tattoos & Shop",
   description:
     "Custom tattoo artistry and handcrafted jewelry. Each piece a conversation between artist and skin.",
   keywords: [
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     "Mumbai tattoo studio",
   ],
   openGraph: {
-    title: "PSY — Tattoos & Shop",
+    title: "PSY Tattoos & Shop",
     description: "Where the mind meets the skin. Wear the ritual.",
     url: "https://psytattoos.com",
     siteName: "PSY",

@@ -15,14 +15,11 @@ export async function generateText(prompt: string, maxTokens = 1000): Promise<st
   if (!client) return "AI error: GOOGLE_API_KEY not configured";
   try {
     const model = client.getGenerativeModel({
-      // gemma-3-27b-it was discontinued by Google (API now 404s it). Gemma 4
-      // (gemma-4-26b-a4b-it) is the intended replacement — identical SDK/endpoint,
-      // only the model id changes — but the current key's GCP project is 403-denied
-      // for gemma-4/gemini-2.5. Interim default is gemini-2.0-flash (allowed on this
-      // project type). Once a fresh, un-flagged free key is in place, switch back via
-      //   GOOGLE_TEXT_MODEL=gemma-4-26b-a4b-it
-      // with no code change.
-      model: process.env.GOOGLE_TEXT_MODEL || "gemini-2.0-flash",
+      // Gemini Flash Lite is the default for storeadmin AI text features (fast,
+      // cheap, allowed on this project type, unlike gemma-4/gemini-2.5 which are
+      // 403-denied on the current free key). Override with no code change via
+      //   GOOGLE_TEXT_MODEL=...
+      model: process.env.GOOGLE_TEXT_MODEL || "gemini-2.0-flash-lite",
       generationConfig: { temperature: 0.3, maxOutputTokens: maxTokens },
     });
     const result = await model.generateContent(prompt);

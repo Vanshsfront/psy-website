@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { useToast } from "@/hooks/useToast";
 import type { CommunityPost } from "@/types";
+import { stripDashes } from "@/lib/sanitizeText";
 
 interface CommunityPostSlideOverProps {
   isOpen: boolean;
@@ -127,10 +128,10 @@ export default function CommunityPostSlideOver({
     setIsSaving(true);
     try {
       const payload = {
-        title: title.trim(),
+        title: stripDashes(title.trim()),
         type,
-        description: description.trim() || null,
-        content: editor?.getHTML() || null,
+        description: stripDashes(description.trim() || null),
+        content: stripDashes(editor?.getHTML() || null),
         event_date: type === "event" && eventDate ? eventDate : null,
         image_url: imageUrl,
         is_published: isPublished,
