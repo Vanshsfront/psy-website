@@ -3,7 +3,7 @@ import { AuthProvider } from "@/components/storeadmin/AuthProvider";
 import "./storeadmin.css";
 
 export const metadata: Metadata = {
-  title: "PsyShot Store Admin",
+  title: "Psy Tattoos Store Admin",
   robots: { index: false, follow: false },
 };
 
