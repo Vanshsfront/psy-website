@@ -704,18 +704,34 @@ export async function updateOcrSession(sessionId: string, updateData: Record<str
 // ── Financial Aggregation ──
 
 export async function getFinancialSummary(dateFrom = "", dateTo = "") {
-  let oq = getDb().from("orders").select("total");
-  if (dateFrom) oq = oq.gte("order_date", dateFrom);
-  if (dateTo) oq = oq.lte("order_date", dateTo);
-  const { data: ordersData } = await oq;
-  const revenue = (ordersData ?? []).reduce((sum, o) => sum + Number(o.total ?? 0), 0);
+  // Supabase caps each response at 1000 rows. Page through so revenue and the
+  // order count stay accurate for large windows (e.g. "all time" > 1000 orders).
+  const PAGE = 1000;
 
-  let eq = getDb().from("expenses").select("amount, category");
-  if (dateFrom) eq = eq.gte("expense_date", dateFrom);
-  if (dateTo) eq = eq.lte("expense_date", dateTo);
-  const { data: expensesData } = await eq;
+  const ordersData: { total: number | null }[] = [];
+  for (let from = 0; ; from += PAGE) {
+    let oq = getDb().from("orders").select("total").order("order_date", { ascending: false });
+    if (dateFrom) oq = oq.gte("order_date", dateFrom);
+    if (dateTo) oq = oq.lte("order_date", dateTo);
+    const { data } = await oq.range(from, from + PAGE - 1);
+    if (!data?.length) break;
+    ordersData.push(...(data as { total: number | null }[]));
+    if (data.length < PAGE) break;
+  }
+  const revenue = ordersData.reduce((sum, o) => sum + Number(o.total ?? 0), 0);
+
+  const expensesData: { amount: number | null; category: string | null }[] = [];
+  for (let from = 0; ; from += PAGE) {
+    let eq = getDb().from("expenses").select("amount, category").order("expense_date", { ascending: false });
+    if (dateFrom) eq = eq.gte("expense_date", dateFrom);
+    if (dateTo) eq = eq.lte("expense_date", dateTo);
+    const { data } = await eq.range(from, from + PAGE - 1);
+    if (!data?.length) break;
+    expensesData.push(...(data as { amount: number | null; category: string | null }[]));
+    if (data.length < PAGE) break;
+  }
   // Exclude topup entries from expense calculations
-  const expensesList = (expensesData ?? []).filter(e => e.category !== "topup");
+  const expensesList = expensesData.filter(e => e.category !== "topup");
   const totalExpenses = expensesList.reduce((sum, e) => sum + Number(e.amount ?? 0), 0);
 
   const categoryTotals: Record<string, number> = {};
@@ -733,7 +749,7 @@ export async function getFinancialSummary(dateFrom = "", dateTo = "") {
     profit: revenue, // petty cash has no connection to revenue
     petty_cash_balance: pettyCash.balance,
     category_breakdown: categoryTotals,
-    order_count: (ordersData ?? []).length,
+    order_count: ordersData.length,
     expense_count: expensesList.length,
   };
 }

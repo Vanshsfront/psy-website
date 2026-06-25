@@ -68,6 +68,11 @@ function DashboardContent() {
     const ordersThisMonth = orders.filter(o => new Date(o.order_date) >= thisMonthStart);
     const newCustomersThisMonth = customers.filter(c => new Date(c.created_at) >= thisMonthStart).length;
 
+    // Revenue figures mirror the order counts so the dashboard reconciles with
+    // the Orders table (all time) and Finance card (this month).
+    const revenueThisMonth = ordersThisMonth.reduce((s, o) => s + (o.total || 0), 0);
+    const totalRevenue = orders.reduce((s, o) => s + (o.total || 0), 0);
+
     // Recent orders (last 5)
     const recentOrders = [...orders]
         .sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime())
@@ -133,6 +138,12 @@ function DashboardContent() {
                                 </div>
                                 <div className="text-3xl font-bold">{ordersThisMonth.length}</div>
                                 <p className="text-xs text-[var(--muted)] mt-1">{totalOrders} all time</p>
+                                {role === "superadmin" && (
+                                    <p className="text-xs text-[var(--primary)] mt-2 font-medium">
+                                        {formatCurrency(revenueThisMonth)}
+                                        <span className="text-[var(--muted)] font-normal"> · {formatCurrency(totalRevenue)} all time</span>
+                                    </p>
+                                )}
                             </Link>
 
                             <Link href="/storeadmin/customers" className="neo-card p-5 animate-fadeIn cursor-pointer" style={{ animationDelay: "0.1s" }}>

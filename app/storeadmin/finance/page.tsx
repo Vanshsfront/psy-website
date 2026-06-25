@@ -138,6 +138,19 @@ function FinanceContent() {
         const d = new Date(o.order_date);
         return d >= new Date(dateFrom) && (!dateTo || d <= new Date(dateTo));
     });
+    // Headline revenue + order count are derived from the same filtered order set
+    // that powers the breakdowns below, so the card always reconciles with them
+    // (and with the Orders table for "All time"). Avoids divergence from a
+    // separately-queried summary.
+    const periodRevenue = filteredOrders.reduce((s, o) => s + (o.total || 0), 0);
+    const periodOrderCount = filteredOrders.length;
+    const periodLabels: Record<DatePreset, string> = {
+        this_week: "This week",
+        this_month: "This month",
+        this_year: "This year",
+        all_time: "All time",
+    };
+    const periodLabel = periodLabels[activePreset];
     const paymentBreakdown: Record<string, number> = {};
     filteredOrders.forEach(o => {
         const mode = (o.payment_mode || "unknown").trim().toLowerCase();
@@ -237,11 +250,11 @@ function FinanceContent() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                             <div className="neo-card stat-accent stat-accent-green p-5 animate-fadeIn">
                                 <div className="flex items-center justify-between pb-2">
-                                    <span className="text-sm font-medium text-[var(--muted)]">Revenue</span>
+                                    <span className="text-sm font-medium text-[var(--muted)]">Revenue · {periodLabel}</span>
                                     <TrendingUp className="w-4 h-4 text-[var(--primary)]" />
                                 </div>
-                                <p className="text-3xl font-bold tracking-tight text-[var(--primary)]">{formatCurrency(summary.revenue)}</p>
-                                <p className="text-xs text-[var(--muted)] mt-1">{summary.order_count} orders</p>
+                                <p className="text-3xl font-bold tracking-tight text-[var(--primary)]">{formatCurrency(periodRevenue)}</p>
+                                <p className="text-xs text-[var(--muted)] mt-1">{periodOrderCount} orders</p>
                             </div>
 
                             <div className="neo-card stat-accent stat-accent-gold p-5 animate-fadeIn" style={{ animationDelay: "0.05s" }}>
