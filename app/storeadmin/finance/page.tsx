@@ -71,9 +71,15 @@ function FinanceContent() {
 
     const applyPreset = (preset: DatePreset) => {
         setActivePreset(preset);
-        // "Custom" keeps whatever range is showing and hands control to the inputs.
         if (preset === "custom") return;
         const { from, to } = presetRange(preset);
+        setDateFrom(from);
+        setDateTo(to);
+    };
+
+    /** Typing a date means the range is no longer one of the named periods. */
+    const setCustomRange = (from: string, to: string) => {
+        setActivePreset(from || to ? "custom" : "all_time");
         setDateFrom(from);
         setDateTo(to);
     };
@@ -208,12 +214,12 @@ function FinanceContent() {
         unknown: "bg-zinc-600",
     };
 
+    // "custom" is never a button — it's what the from/to inputs select implicitly.
     const presets: { key: DatePreset; label: string }[] = [
         { key: "this_week", label: "Week" },
         { key: "this_month", label: "Month" },
         { key: "this_year", label: "Year" },
         { key: "all_time", label: "All" },
-        { key: "custom", label: "Custom" },
     ];
 
     return (
@@ -240,7 +246,7 @@ function FinanceContent() {
                     </div>
                 </div>
 
-                {/* Date Presets */}
+                {/* Date range: named presets, plus an explicit from/to */}
                 <div className="mb-6 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
                         {presets.map(p => (
@@ -257,43 +263,40 @@ function FinanceContent() {
                         ))}
                     </div>
 
-                    {activePreset === "custom" && (
-                        <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
-                            <label className="text-xs text-[var(--muted)]" htmlFor="finance-date-from">
-                                From
-                            </label>
-                            <input
-                                id="finance-date-from"
-                                type="date"
-                                value={dateFrom}
-                                max={dateTo || undefined}
-                                onChange={(e) => setDateFrom(e.target.value)}
-                                className="neo-input px-3 py-2 text-sm [color-scheme:dark]"
-                            />
-                            <label className="text-xs text-[var(--muted)]" htmlFor="finance-date-to">
-                                To
-                            </label>
-                            <input
-                                id="finance-date-to"
-                                type="date"
-                                value={dateTo}
-                                min={dateFrom || undefined}
-                                onChange={(e) => setDateTo(e.target.value)}
-                                className="neo-input px-3 py-2 text-sm [color-scheme:dark]"
-                            />
-                            {(dateFrom || dateTo) && (
-                                <button
-                                    onClick={() => {
-                                        setDateFrom("");
-                                        setDateTo("");
-                                    }}
-                                    className="text-xs text-[var(--muted)] hover:text-[var(--danger)] px-2 py-1 cursor-pointer"
-                                >
-                                    Clear
-                                </button>
-                            )}
-                        </div>
-                    )}
+                    {/* Explicit from/to. Editing either drops the preset highlight,
+                        because the range is no longer one of the named periods. */}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <label className="text-xs text-[var(--muted)] w-9" htmlFor="finance-date-from">
+                            From
+                        </label>
+                        <input
+                            id="finance-date-from"
+                            type="date"
+                            value={dateFrom}
+                            max={dateTo || undefined}
+                            onChange={(e) => setCustomRange(e.target.value, dateTo)}
+                            className="neo-input px-3 py-2 text-sm [color-scheme:dark]"
+                        />
+                        <label className="text-xs text-[var(--muted)] w-6 text-center" htmlFor="finance-date-to">
+                            To
+                        </label>
+                        <input
+                            id="finance-date-to"
+                            type="date"
+                            value={dateTo}
+                            min={dateFrom || undefined}
+                            onChange={(e) => setCustomRange(dateFrom, e.target.value)}
+                            className="neo-input px-3 py-2 text-sm [color-scheme:dark]"
+                        />
+                        {(dateFrom || dateTo) && (
+                            <button
+                                onClick={() => applyPreset("all_time")}
+                                className="text-xs text-[var(--muted)] hover:text-[var(--danger)] px-2 py-1 cursor-pointer"
+                            >
+                                Clear dates
+                            </button>
+                        )}
+                    </div>
 
                     {/* Order filters — these narrow the revenue KPI and all three
                         revenue charts together, so the panels stay in agreement. */}
