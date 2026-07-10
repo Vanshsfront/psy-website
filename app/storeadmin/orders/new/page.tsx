@@ -24,7 +24,11 @@ import {
     Trash2,
     Plus,
     Save,
+    ExternalLink,
 } from "lucide-react";
+
+/** Studio consent form, served from /public. Also linked from the public /consent page. */
+const CONSENT_FORM_URL = "/psy-consent-form.pdf";
 
 // Types for the spreadsheet rows
 interface OrderRow {
@@ -404,8 +408,23 @@ function NewOrderContent() {
             <Sidebar />
             <main className="flex-1 ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10">
                 <div className={tab === "ocr" && ocrStep === "review" ? "max-w-[100%]" : "max-w-3xl mx-auto"}>
-                    <h1 className="font-display text-4xl font-bold mb-2">New Order</h1>
-                    <p className="text-[var(--muted)] mb-8">Create orders manually or scan a handwritten note with AI</p>
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
+                        <div>
+                            <h1 className="font-display text-4xl font-bold mb-2">New Order</h1>
+                            <p className="text-[var(--muted)]">Create orders manually or scan a handwritten note with AI</p>
+                        </div>
+                        {/* Available on both tabs — staff need it before either kind of entry. */}
+                        <a
+                            href={CONSENT_FORM_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="neo-btn flex items-center gap-2 px-4 py-2.5 text-sm shrink-0 cursor-pointer text-[var(--foreground)]"
+                        >
+                            <FileText className="w-4 h-4 text-[var(--primary)]" />
+                            Consent form
+                            <ExternalLink className="w-3.5 h-3.5 text-[var(--muted)]" />
+                        </a>
+                    </div>
 
                     {/* Tab Switcher */}
                     <div className="flex gap-2 mb-8">
@@ -542,11 +561,11 @@ function NewOrderContent() {
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-sm text-[var(--muted)] mb-1">Deposit (\u20B9)</label>
+                                            <label className="block text-sm text-[var(--muted)] mb-1">Deposit (₹)</label>
                                             <input type="number" value={manualForm.deposit} onChange={(e) => setManualForm({ ...manualForm, deposit: e.target.value })} className="w-full px-4 py-3 neo-input text-sm" placeholder="0" />
                                         </div>
                                         <div>
-                                            <label className="block text-sm text-[var(--muted)] mb-1">Total (\u20B9)</label>
+                                            <label className="block text-sm text-[var(--muted)] mb-1">Total (₹)</label>
                                             <input type="number" value={manualForm.total} onChange={(e) => setManualForm({ ...manualForm, total: e.target.value })} className="w-full px-4 py-3 neo-input text-sm" placeholder="0" />
                                         </div>
                                         <div className="col-span-2">
@@ -568,7 +587,16 @@ function NewOrderContent() {
                                                 <span className="text-sm">
                                                     <span className="font-medium">Consent form signed</span>
                                                     <span className="block text-xs text-[var(--muted)] mt-0.5">
-                                                        Customer has read and signed the studio consent (aftercare, waivers, photo release).
+                                                        Customer has read and signed the studio consent (aftercare, waivers, photo release).{" "}
+                                                        <a
+                                                            href={CONSENT_FORM_URL}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="text-[var(--primary)] hover:underline"
+                                                        >
+                                                            View consent form (PDF) &rarr;
+                                                        </a>
                                                     </span>
                                                 </span>
                                             </label>
@@ -607,6 +635,21 @@ function NewOrderContent() {
                                             <h3 className="text-lg font-semibold">AI-Powered Order Scan</h3>
                                             <p className="text-sm text-[var(--muted)]">Upload a register page, receipt, or note — AI extracts all orders into a spreadsheet.</p>
                                         </div>
+                                    </div>
+
+                                    {/* Scanned rows carry no consent flag, so say where it gets set. */}
+                                    <div className="mb-6 p-3 rounded border border-[var(--border-color)] bg-[var(--surface-hover)] text-xs text-[var(--muted)]">
+                                        Scanned orders are saved without a consent flag. Tick{" "}
+                                        <span className="text-[var(--foreground)]">Consent</span> on the Orders tab once
+                                        the customer has signed.{" "}
+                                        <a
+                                            href={CONSENT_FORM_URL}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-[var(--primary)] hover:underline"
+                                        >
+                                            View consent form (PDF) &rarr;
+                                        </a>
                                     </div>
 
                                     {/* Camera + File picker buttons */}
@@ -929,10 +972,10 @@ function NewOrderContent() {
                                             <span>{ocrRows.length} row{ocrRows.length !== 1 ? "s" : ""}</span>
                                             <span>{selectedRows.size} selected</span>
                                             <span>
-                                                Total: \u20B9{ocrRows.filter((r) => selectedRows.has(r.id)).reduce((sum, r) => sum + (parseFloat(r.total) || 0), 0).toLocaleString("en-IN")}
+                                                Total: ₹{ocrRows.filter((r) => selectedRows.has(r.id)).reduce((sum, r) => sum + (parseFloat(r.total) || 0), 0).toLocaleString("en-IN")}
                                             </span>
                                             <span>
-                                                Deposits: \u20B9{ocrRows.filter((r) => selectedRows.has(r.id)).reduce((sum, r) => sum + (parseFloat(r.deposit) || 0), 0).toLocaleString("en-IN")}
+                                                Deposits: ₹{ocrRows.filter((r) => selectedRows.has(r.id)).reduce((sum, r) => sum + (parseFloat(r.deposit) || 0), 0).toLocaleString("en-IN")}
                                             </span>
                                         </div>
                                     </div>

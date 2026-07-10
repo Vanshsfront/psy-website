@@ -7,6 +7,7 @@ import Sidebar from "@/components/storeadmin/Sidebar";
 import TemplatesTab from "@/components/storeadmin/TemplatesTab";
 import TemplateViewModal from "@/components/storeadmin/TemplateViewModal";
 import CampaignHistoryTab from "@/components/storeadmin/CampaignHistoryTab";
+import CustomerPicker from "@/components/storeadmin/CustomerPicker";
 import { api } from "@/lib/storeadmin/api";
 import { formatCurrency } from "@/lib/storeadmin/utils";
 import type { WhatsAppTemplate, Customer } from "@/types/storeadmin";
@@ -24,7 +25,12 @@ import {
     LayoutTemplate,
     Eye as EyeIcon,
     History as HistoryIcon,
+    Users,
+    UserPlus,
+    X,
 } from "lucide-react";
+
+type AudienceMode = "ai" | "manual";
 
 function renderPlaceholders(text: string, customer: Customer | undefined): string {
     const fullName = (customer?.name ?? "").trim();
@@ -84,6 +90,20 @@ function CampaignsContent() {
     const [isRestored, setIsRestored] = useState(false);
     const [previewTemplate, setPreviewTemplate] = useState<WhatsAppTemplate | null>(null);
 
+    // Manual audience building — an alternative to the AI filter, and a way to
+    // top up an AI-built list with people the query missed.
+    const [audienceMode, setAudienceMode] = useState<AudienceMode>("ai");
+    // How the audience on the preview step was actually built. Distinct from
+    // `audienceMode`, which is just the toggle's current position.
+    const [audienceOrigin, setAudienceOrigin] = useState<AudienceMode>("ai");
+    const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
+    const [customersLoading, setCustomersLoading] = useState(false);
+    const [customersLoaded, setCustomersLoaded] = useState(false);
+    const [manualSelected, setManualSelected] = useState<Set<string>>(new Set());
+    const [manuallyAddedIds, setManuallyAddedIds] = useState<Set<string>>(new Set());
+    const [addOpen, setAddOpen] = useState(false);
+    const [addSelection, setAddSelection] = useState<Set<string>>(new Set());
+
     useEffect(() => {
         const saved = sessionStorage.getItem("psy_campaigns_state");
         if (saved) {
@@ -94,6 +114,9 @@ function CampaignsContent() {
                 if (parsed.selectedTemplate) setSelectedTemplate(parsed.selectedTemplate);
                 if (parsed.matchedCustomers) setMatchedCustomers(parsed.matchedCustomers);
                 if (parsed.selectedIds) setSelectedIds(new Set(parsed.selectedIds));
+                if (parsed.audienceMode) setAudienceMode(parsed.audienceMode);
+                if (parsed.audienceOrigin) setAudienceOrigin(parsed.audienceOrigin);
+                if (parsed.manuallyAddedIds) setManuallyAddedIds(new Set(parsed.manuallyAddedIds));
             } catch (err) {
                 console.error("Failed to restore campaigns state", err);
             }
@@ -109,9 +132,12 @@ function CampaignsContent() {
             selectedTemplate,
             matchedCustomers,
             selectedIds: Array.from(selectedIds),
+            audienceMode,
+            audienceOrigin,
+            manuallyAddedIds: Array.from(manuallyAddedIds),
         };
         sessionStorage.setItem("psy_campaigns_state", JSON.stringify(stateToSave));
-    }, [isRestored, step, filterText, selectedTemplate, matchedCustomers, selectedIds]);
+    }, [isRestored, step, filterText, selectedTemplate, matchedCustomers, selectedIds, audienceMode, audienceOrigin, manuallyAddedIds]);
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
@@ -133,6 +159,45 @@ function CampaignsContent() {
         }
     };
 
+    /** Load the full customer list once, for manual selection. */
+    const ensureCustomers = async () => {
+        if (customersLoaded || customersLoading) return;
+        setCustomersLoading(true);
+        try {
+            const res = await api.getCustomers();
+            setAllCustomers(res.customers || []);
+            setCustomersLoaded(true);
+        } catch {
+            console.error("Failed to load customers");
+        } finally {
+            setCustomersLoading(false);
+        }
+    };
+
+    /**
+     * Tick everyone reachable and fetch recency badges. Shared by the AI filter
+     * and manual selection so both audiences behave identically downstream.
+     *
+     * `skipRecent` only applies to AI-built audiences: a name the team typed in
+     * by hand is a deliberate choice, so it stays ticked and merely gets badged.
+     */
+    const resolveAudience = async (customers: Customer[], skipRecent: boolean) => {
+        let recents: Record<string, { last_sent_at: string; template_name: string }> = {};
+        if (selectedTemplate) {
+            try {
+                const r = await api.getRecentRecipients(selectedTemplate.name, cooldownDays);
+                recents = r.recipients;
+            } catch {
+                // non-fatal
+            }
+        }
+        setRecentRecipients(recents);
+
+        const valid = customers.filter((c) => (c.phone ?? "").trim().length > 0);
+        const initialSelection = skipRecent ? valid.filter((c) => !recents[c.id]) : valid;
+        setSelectedIds(new Set(initialSelection.map((c) => c.id)));
+    };
+
     const handleFilter = async () => {
         if (!filterText.trim()) return;
         setLoading(true);
@@ -144,25 +209,9 @@ function CampaignsContent() {
             const res = await api.filterCampaign(filterText);
             if (res.success) {
                 setMatchedCustomers(res.customers);
-
-                // Pull recent recipients of this template within cooldown window so we can
-                // auto-exclude / badge them.
-                let recents: Record<string, { last_sent_at: string; template_name: string }> = {};
-                if (selectedTemplate) {
-                    try {
-                        const r = await api.getRecentRecipients(selectedTemplate.name, cooldownDays);
-                        recents = r.recipients;
-                    } catch {
-                        // non-fatal
-                    }
-                }
-                setRecentRecipients(recents);
-
-                const valid = res.customers.filter((c: Customer) => (c.phone ?? "").trim().length > 0);
-                const initialSelection = autoExclude
-                    ? valid.filter((c: Customer) => !recents[c.id])
-                    : valid;
-                setSelectedIds(new Set(initialSelection.map((c: Customer) => c.id)));
+                setManuallyAddedIds(new Set());
+                setAudienceOrigin("ai");
+                await resolveAudience(res.customers, autoExclude);
                 if (res.inference_caution) setInferenceCaution(res.inference_caution);
                 if (res.inferred_fields) setInferredFields(res.inferred_fields);
                 setStep(3);
@@ -170,11 +219,74 @@ function CampaignsContent() {
                 setFilterError(res.error || "Filter failed");
                 setFilterSuggestion(res.suggestion || "");
             }
-        } catch (err) {
+        } catch {
             setFilterError("Failed to process filter");
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleManualContinue = async () => {
+        const chosen = allCustomers.filter((c) => manualSelected.has(c.id));
+        if (chosen.length === 0) return;
+        setLoading(true);
+        setFilterError("");
+        setInferenceCaution("");
+        setInferredFields([]);
+        try {
+            setMatchedCustomers(chosen);
+            setManuallyAddedIds(new Set(chosen.map((c) => c.id)));
+            setAudienceOrigin("manual");
+            await resolveAudience(chosen, false);
+            setStep(3);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    /** Append people to an audience already on the preview step. */
+    const handleAddCustomers = () => {
+        const existing = new Set(matchedCustomers.map((c) => c.id));
+        const additions = allCustomers.filter((c) => addSelection.has(c.id) && !existing.has(c.id));
+        if (additions.length) {
+            setMatchedCustomers((prev) => [...prev, ...additions]);
+            setManuallyAddedIds((prev) => new Set([...prev, ...additions.map((c) => c.id)]));
+            // Someone picked by hand is intentional, so tick them even if the
+            // cooldown would have excluded them. The badge still warns.
+            setSelectedIds((prev) => {
+                const next = new Set(prev);
+                additions.forEach((c) => {
+                    if ((c.phone ?? "").trim()) next.add(c.id);
+                });
+                return next;
+            });
+        }
+        setAddOpen(false);
+        setAddSelection(new Set());
+    };
+
+    /** What gets written to campaign history as the audience's provenance. */
+    const audienceDescription = (): string => {
+        if (audienceOrigin === "manual") {
+            return `Manually selected (${matchedCustomers.length} customers)`;
+        }
+        const manualCount = matchedCustomers.filter((c) => manuallyAddedIds.has(c.id)).length;
+        const ai = filterText.trim();
+        if (manualCount) return `${ai} · +${manualCount} added manually`;
+        return ai;
+    };
+
+    const resetCampaign = () => {
+        setStep(1);
+        setSelectedIds(new Set());
+        setMatchedCustomers([]);
+        setSendResults([]);
+        setFilterText("");
+        setManualSelected(new Set());
+        setManuallyAddedIds(new Set());
+        setAddSelection(new Set());
+        setAudienceMode("ai");
+        setAudienceOrigin("ai");
     };
 
     const handleSend = async () => {
@@ -184,7 +296,7 @@ function CampaignsContent() {
             const res = await api.sendCampaign({
                 template_name: selectedTemplate.name,
                 customer_ids: Array.from(selectedIds),
-                nl_filter_text: filterText,
+                nl_filter_text: audienceDescription(),
             });
             setSendResults(res.results);
             setStep(4);
@@ -251,7 +363,7 @@ function CampaignsContent() {
                     <div className="flex items-center gap-2 mb-8">
                         {[
                             { num: 1, label: "Template" },
-                            { num: 2, label: "Filter" },
+                            { num: 2, label: "Audience" },
                             { num: 3, label: "Preview" },
                             { num: 4, label: "Results" },
                         ].map(({ num, label }) => (
@@ -336,54 +448,106 @@ function CampaignsContent() {
                         </div>
                     )}
 
-                    {/* Step 2: Write NL Filter */}
+                    {/* Step 2: Build the audience — AI query or hand-picked */}
                     {step === 2 && (
                         <div className="glass-panel p-6 animate-fadeIn">
                             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                <Sparkles className="w-5 h-5 text-[var(--accent)]" />
-                                Filter Customers
+                                <Users className="w-5 h-5 text-[var(--primary)]" />
+                                Choose Audience
                             </h3>
-                            <p className="text-sm text-[var(--muted)] mb-4">
-                                Describe your target audience in natural language. AI will find matching customers.
-                            </p>
 
-                            <div className="relative">
-                                <textarea
-                                    value={filterText}
-                                    onChange={(e) => setFilterText(e.target.value)}
-                                    placeholder='e.g. "All customers who spent more than 10k last month"'
-                                    className="w-full px-4 py-3 neo-input text-sm resize-none"
-                                    rows={3}
-                                />
+                            {/* Mode switch */}
+                            <div className="flex gap-2 mb-5">
+                                {[
+                                    { key: "ai" as const, label: "AI filter", icon: Sparkles },
+                                    { key: "manual" as const, label: "Pick manually", icon: UserPlus },
+                                ].map(({ key, label, icon: Icon }) => (
+                                    <button
+                                        key={key}
+                                        type="button"
+                                        onClick={() => {
+                                            setAudienceMode(key);
+                                            setFilterError("");
+                                            if (key === "manual") ensureCustomers();
+                                        }}
+                                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded transition-all cursor-pointer ${
+                                            audienceMode === key
+                                                ? "bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/30"
+                                                : "neo-btn text-[var(--muted)]"
+                                        }`}
+                                    >
+                                        <Icon className="w-4 h-4" />
+                                        {label}
+                                    </button>
+                                ))}
                             </div>
 
-                            {/* Cooldown controls */}
-                            <div className="mt-4 p-3 rounded bg-[var(--surface-hover)] border border-[var(--border-color)] space-y-2">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={autoExclude}
-                                        onChange={(e) => setAutoExclude(e.target.checked)}
-                                        className="w-4 h-4 accent-[var(--primary)]"
+                            {audienceMode === "ai" ? (
+                                <>
+                                    <p className="text-sm text-[var(--muted)] mb-4">
+                                        Describe your target audience in natural language. AI will find matching customers.
+                                    </p>
+                                    <div className="relative">
+                                        <textarea
+                                            value={filterText}
+                                            onChange={(e) => setFilterText(e.target.value)}
+                                            placeholder='e.g. "All customers who spent more than 10k last month"'
+                                            className="w-full px-4 py-3 neo-input text-sm resize-none"
+                                            rows={3}
+                                        />
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-sm text-[var(--muted)] mb-4">
+                                        Search the customer list and tick everyone you want to message. You can add more
+                                        people on the next step too.
+                                    </p>
+                                    <CustomerPicker
+                                        customers={allCustomers}
+                                        loading={customersLoading}
+                                        selected={manualSelected}
+                                        onChange={setManualSelected}
                                     />
-                                    <span className="text-sm font-medium">Auto-exclude recently messaged</span>
-                                </label>
-                                <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
-                                    <span>Skip anyone who got</span>
-                                    <span className="font-mono">{selectedTemplate?.name || "this template"}</span>
-                                    <span>in the last</span>
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        max={365}
-                                        value={cooldownDays}
-                                        onChange={(e) => setCooldownDays(Math.max(1, Number(e.target.value) || 1))}
-                                        disabled={!autoExclude}
-                                        className="w-16 px-2 py-1 neo-input text-xs disabled:opacity-50"
-                                    />
-                                    <span>days</span>
+                                </>
+                            )}
+
+                            {/* Cooldown controls. Only meaningful for AI-built lists —
+                                a hand-picked name stays selected, and is badged instead. */}
+                            {audienceMode === "ai" ? (
+                                <div className="mt-4 p-3 rounded bg-[var(--surface-hover)] border border-[var(--border-color)] space-y-2">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={autoExclude}
+                                            onChange={(e) => setAutoExclude(e.target.checked)}
+                                            className="w-4 h-4 accent-[var(--primary)]"
+                                        />
+                                        <span className="text-sm font-medium">Auto-exclude recently messaged</span>
+                                    </label>
+                                    <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
+                                        <span>Skip anyone who got</span>
+                                        <span className="font-mono">{selectedTemplate?.name || "this template"}</span>
+                                        <span>in the last</span>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            max={365}
+                                            value={cooldownDays}
+                                            onChange={(e) => setCooldownDays(Math.max(1, Number(e.target.value) || 1))}
+                                            disabled={!autoExclude}
+                                            className="w-16 px-2 py-1 neo-input text-xs disabled:opacity-50"
+                                        />
+                                        <span>days</span>
+                                    </div>
                                 </div>
-                            </div>
+                            ) : (
+                                <p className="mt-4 text-xs text-[var(--muted)]">
+                                    Everyone you pick stays selected. Anyone messaged with{" "}
+                                    <span className="font-mono">{selectedTemplate?.name || "this template"}</span> in the
+                                    last {cooldownDays} days is flagged on the next step, not dropped.
+                                </p>
+                            )}
 
                             {filterError && (
                                 <div className="mt-4 p-3 bg-[var(--danger)]/10 border border-[var(--danger)]/20 rounded">
@@ -399,10 +563,16 @@ function CampaignsContent() {
                             )}
 
                             <div className="flex gap-3 mt-4">
-                                <button onClick={() => setStep(1)} className="px-6 py-2.5 neo-btn text-sm">Back</button>
-                                <button onClick={handleFilter} disabled={!filterText.trim() || loading} className="flex-1 py-2.5 neo-btn neo-btn-primary text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 transition-colors">
-                                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Filter className="w-4 h-4" /> Find Customers</>}
-                                </button>
+                                <button onClick={() => setStep(1)} className="px-6 py-2.5 neo-btn text-sm cursor-pointer">Back</button>
+                                {audienceMode === "ai" ? (
+                                    <button onClick={handleFilter} disabled={!filterText.trim() || loading} className="flex-1 py-2.5 neo-btn neo-btn-primary text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 transition-colors cursor-pointer">
+                                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Filter className="w-4 h-4" /> Find Customers</>}
+                                    </button>
+                                ) : (
+                                    <button onClick={handleManualContinue} disabled={manualSelected.size === 0 || loading} className="flex-1 py-2.5 neo-btn neo-btn-primary text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 transition-colors cursor-pointer">
+                                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowRight className="w-4 h-4" /> Continue with {manualSelected.size} customer{manualSelected.size === 1 ? "" : "s"}</>}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     )}
@@ -410,15 +580,31 @@ function CampaignsContent() {
                     {/* Step 3: Preview & Confirm */}
                     {step === 3 && (
                         <div className="glass-panel p-6 animate-fadeIn">
-                            <div className="flex items-center justify-between mb-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                                 <h3 className="text-lg font-semibold flex items-center gap-2">
                                     <Eye className="w-5 h-5 text-[var(--primary)]" />
-                                    Preview — {matchedCustomers.length} customers matched
+                                    Preview — {matchedCustomers.length} customer{matchedCustomers.length === 1 ? "" : "s"} in audience
                                 </h3>
-                                <span className="text-sm text-[var(--muted)]">
-                                    {selectedIds.size} selected
-                                </span>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-sm text-[var(--muted)]">{selectedIds.size} selected</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setAddSelection(new Set());
+                                            setAddOpen(true);
+                                            ensureCustomers();
+                                        }}
+                                        className="neo-btn flex items-center gap-2 px-3 py-2 text-xs cursor-pointer"
+                                    >
+                                        <UserPlus className="w-3.5 h-3.5" />
+                                        Add customers
+                                    </button>
+                                </div>
                             </div>
+
+                            <p className="text-xs text-[var(--muted)] -mt-2 mb-4">
+                                Audience: <span className="text-[var(--foreground)]">{audienceDescription()}</span>
+                            </p>
 
                             {inferenceCaution && (
                                 <div className="mb-4 p-3 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded">
@@ -480,6 +666,11 @@ function CampaignsContent() {
                                                             className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--warning)]/20 text-[var(--warning)] font-medium"
                                                         >
                                                             Already messaged
+                                                        </span>
+                                                    )}
+                                                    {audienceOrigin === "ai" && manuallyAddedIds.has(c.id) && (
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/20 text-[var(--primary)] font-medium">
+                                                            Added manually
                                                         </span>
                                                     )}
                                                     {(c as any)._inferred_gender && (
@@ -550,7 +741,7 @@ function CampaignsContent() {
                                     </div>
                                 ))}
                             </div>
-                            <button onClick={() => { setStep(1); setSelectedIds(new Set()); setMatchedCustomers([]); setSendResults([]); setFilterText(""); }} className="w-full mt-6 py-3 neo-btn neo-btn-primary text-sm font-medium">
+                            <button onClick={resetCampaign} className="w-full mt-6 py-3 neo-btn neo-btn-primary text-sm font-medium cursor-pointer">
                                 New Campaign
                             </button>
                         </div>
@@ -565,6 +756,62 @@ function CampaignsContent() {
                 template={previewTemplate}
                 onClose={() => setPreviewTemplate(null)}
             />
+
+            {addOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+                    onClick={() => setAddOpen(false)}
+                >
+                    <div
+                        role="dialog"
+                        aria-label="Add customers to campaign"
+                        onClick={(e) => e.stopPropagation()}
+                        className="glass-panel w-full max-w-2xl p-6 shadow-2xl"
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold flex items-center gap-2">
+                                <UserPlus className="w-5 h-5 text-[var(--primary)]" />
+                                Add customers
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => setAddOpen(false)}
+                                aria-label="Close"
+                                className="p-1.5 rounded text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)] cursor-pointer"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <CustomerPicker
+                            customers={allCustomers}
+                            loading={customersLoading}
+                            selected={addSelection}
+                            onChange={setAddSelection}
+                            alreadyAdded={new Set(matchedCustomers.map((c) => c.id))}
+                        />
+
+                        <div className="flex gap-3 mt-5">
+                            <button
+                                type="button"
+                                onClick={() => setAddOpen(false)}
+                                className="px-6 py-2.5 neo-btn text-sm cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleAddCustomers}
+                                disabled={addSelection.size === 0}
+                                className="flex-1 py-2.5 neo-btn neo-btn-primary text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                            >
+                                <UserPlus className="w-4 h-4" />
+                                Add {addSelection.size} customer{addSelection.size === 1 ? "" : "s"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -18,6 +18,8 @@ import {
     Search,
     X,
 } from "lucide-react";
+import { inDayRange } from "@/lib/storeadmin/date-range";
+import { canonicalKey } from "@/lib/storeadmin/utils";
 
 export type DataTableColType = "text" | "number" | "date" | "enum" | "multi-enum";
 
@@ -52,19 +54,15 @@ interface DataTableProps<Row> {
     emptyState?: React.ReactNode;
     loading?: boolean;
     defaultHiddenColumns?: string[];
+    /**
+     * Every row surviving the filters, in display order — not just the current
+     * page. Lets the parent export what the summary counted. Pass a stable
+     * callback (a `useState` setter, or `useCallback`).
+     */
+    onVisibleRowsChange?: (rows: Row[]) => void;
 }
 
 const EMPTY_LABEL = "(empty)";
-
-// Canonical key for grouping enum values: case-insensitive, with whitespace
-// around hyphens and slashes collapsed so "Walk - in" matches "walk-in".
-function canonicalKey(s: string): string {
-    return s
-        .trim()
-        .toLowerCase()
-        .replace(/\s*([-/])\s*/g, "$1")
-        .replace(/\s+/g, " ");
-}
 
 function defaultFilterFor(type: DataTableColType): FilterValue {
     switch (type) {
@@ -123,20 +121,10 @@ function matchRow<Row>(row: Row, col: DataTableColumn<Row>, f: FilterValue): boo
             if (maxN != null && (n == null || Number.isNaN(n) || n > maxN)) return false;
             return true;
         }
-        case "date-range": {
-            if (!f.from && !f.to) return true;
-            const d = v == null || v === "" ? null : new Date(String(v)).getTime();
-            if (d == null || Number.isNaN(d)) return false;
-            if (f.from) {
-                const fromTs = new Date(f.from).getTime();
-                if (d < fromTs) return false;
-            }
-            if (f.to) {
-                const toTs = new Date(f.to).getTime() + 24 * 60 * 60 * 1000 - 1;
-                if (d > toTs) return false;
-            }
-            return true;
-        }
+        case "date-range":
+            // Same day-string comparison the finance dashboard uses, so an
+            // identical range yields an identical row set on both screens.
+            return inDayRange(v == null ? "" : String(v), f.from, f.to);
         case "set": {
             if (f.selected.length === 0) return true;
             const values = toStringList(v);
@@ -188,6 +176,7 @@ export default function DataTable<Row>({
     emptyState,
     loading,
     defaultHiddenColumns,
+    onVisibleRowsChange,
 }: DataTableProps<Row>) {
     const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
     const [filters, setFilters] = useState<Record<string, FilterValue>>({});
@@ -265,6 +254,10 @@ export default function DataTable<Row>({
         const sorted = [...filtered].sort((a, b) => compareByColumn(a, b, col));
         return sort.dir === "asc" ? sorted : sorted.reverse();
     }, [filtered, sort, columns]);
+
+    useEffect(() => {
+        onVisibleRowsChange?.(sorted);
+    }, [sorted, onVisibleRowsChange]);
 
     const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
     const safePage = Math.min(page, totalPages - 1);

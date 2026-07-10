@@ -61,6 +61,8 @@ function OrdersContent() {
     const [artists, setArtists] = useState<Artist[]>([]);
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState<string | null>(null);
+    // Rows surviving the table's filters — what the tally counts and CSV exports.
+    const [visibleOrders, setVisibleOrders] = useState<Order[]>([]);
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
@@ -406,7 +408,7 @@ function OrdersContent() {
             const s = v === null || v === undefined ? "" : String(v);
             return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
         };
-        const rows = orders.map((o) => [
+        const rows = visibleOrders.map((o) => [
             o.order_number ?? "",
             o.order_date ? o.order_date.split("T")[0] : "",
             o.customers?.name ?? "",
@@ -483,8 +485,8 @@ function OrdersContent() {
                         <button
                             type="button"
                             onClick={exportCsv}
-                            disabled={orders.length === 0}
-                            title="Download visible orders as CSV"
+                            disabled={visibleOrders.length === 0}
+                            title={`Download the ${visibleOrders.length} filtered order(s) as CSV`}
                             className="neo-btn px-4 py-2.5 text-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
                         >
                             <Download className="w-4 h-4" />
@@ -529,9 +531,15 @@ function OrdersContent() {
                                 .filter(Boolean)
                                 .join(" "),
                     }}
+                    onVisibleRowsChange={setVisibleOrders}
                     summary={(rows) => {
                         const total = rows.reduce((s, r) => s + (r.total || 0), 0);
-                        return `${rows.length} shown · ${formatCurrency(total)} total`;
+                        const deposits = rows.reduce((s, r) => s + (r.deposit || 0), 0);
+                        const scope =
+                            rows.length === orders.length
+                                ? `all ${orders.length}`
+                                : `${rows.length} of ${orders.length}`;
+                        return `${scope} orders · ${formatCurrency(deposits)} deposits · ${formatCurrency(total)} total`;
                     }}
                 />
 

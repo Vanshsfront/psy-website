@@ -6,6 +6,7 @@ import { useAuth } from "@/components/storeadmin/AuthProvider";
 import Sidebar from "@/components/storeadmin/Sidebar";
 import { api } from "@/lib/storeadmin/api";
 import { formatCurrency, formatRelativeDate, getSourceColor, getPaymentColor } from "@/lib/storeadmin/utils";
+import { inDayRange, presetRange } from "@/lib/storeadmin/date-range";
 import type { Customer, Order, Artist } from "@/types/storeadmin";
 import {
     Users,
@@ -62,10 +63,12 @@ function DashboardContent() {
     const totalCustomers = customers.length;
     const totalOrders = orders.length;
 
-    // This month's data
+    // This month's data. `order_date` is a calendar day, so it's compared as a
+    // day string — the same window the finance dashboard's "Month" preset uses.
     const now = new Date();
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const ordersThisMonth = orders.filter(o => new Date(o.order_date) >= thisMonthStart);
+    const thisMonth = presetRange("this_month", now);
+    const ordersThisMonth = orders.filter(o => inDayRange(o.order_date, thisMonth.from, thisMonth.to));
     const newCustomersThisMonth = customers.filter(c => new Date(c.created_at) >= thisMonthStart).length;
 
     // Revenue figures mirror the order counts so the dashboard reconciles with

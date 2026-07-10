@@ -5,6 +5,19 @@ export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
+/**
+ * Canonical key for grouping free-text enum values: case-insensitive, with
+ * whitespace around hyphens and slashes collapsed so "Walk - in" buckets with
+ * "walk-in" instead of splitting one figure across two rows.
+ */
+export function canonicalKey(s: string): string {
+    return s
+        .trim()
+        .toLowerCase()
+        .replace(/\s*([-/])\s*/g, "$1")
+        .replace(/\s+/g, " ");
+}
+
 export function formatCurrency(amount: number): string {
     return new Intl.NumberFormat("en-IN", {
         style: "currency",

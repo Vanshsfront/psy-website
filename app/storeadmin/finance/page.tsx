@@ -6,7 +6,13 @@ import { useAuth } from "@/components/storeadmin/AuthProvider";
 import Sidebar from "@/components/storeadmin/Sidebar";
 import DailyNotesPanel from "@/components/storeadmin/DailyNotesPanel";
 import { api } from "@/lib/storeadmin/api";
-import { formatCurrency } from "@/lib/storeadmin/utils";
+import { canonicalKey, formatCurrency } from "@/lib/storeadmin/utils";
+import {
+    type DatePreset,
+    describeRange,
+    inDayRange,
+    presetRange,
+} from "@/lib/storeadmin/date-range";
 import type { FinancialSummary, Order } from "@/types/storeadmin";
 import {
     TrendingUp,
@@ -19,7 +25,15 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-type DatePreset = "this_month" | "this_week" | "this_year" | "all_time";
+/** Footer that lets a reader check a panel's rows against the headline figure. */
+function PanelTotal({ label, amount }: { label: string; amount: number }) {
+    return (
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--border-color)]">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">{label}</span>
+            <span className="text-sm font-bold tabular-nums">{formatCurrency(amount)}</span>
+        </div>
+    );
+}
 
 function FinanceContent() {
     const { isAuthenticated, loading: authLoading } = useAuth();
@@ -28,57 +42,51 @@ function FinanceContent() {
     const [summary, setSummary] = useState<FinancialSummary | null>(null);
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [dateFrom, setDateFrom] = useState("");
     const [dateTo, setDateTo] = useState("");
     const [activePreset, setActivePreset] = useState<DatePreset>("this_month");
+    // Presets read the browser's clock, so they can only be resolved after mount.
+    const [rangeReady, setRangeReady] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const [artistFilter, setArtistFilter] = useState("");
+    const [paymentFilter, setPaymentFilter] = useState("");
+    const [sourceFilter, setSourceFilter] = useState("");
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
     }, [authLoading, isAuthenticated, router]);
 
     useEffect(() => {
-        applyPreset("this_month");
+        const { from, to } = presetRange("this_month");
+        setDateFrom(from);
+        setDateTo(to);
+        setRangeReady(true);
     }, []);
 
     useEffect(() => {
-        if (isAuthenticated) loadData();
-    }, [isAuthenticated, dateFrom, dateTo]);
+        if (isAuthenticated && rangeReady) loadData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isAuthenticated, rangeReady, dateFrom, dateTo]);
 
     const applyPreset = (preset: DatePreset) => {
         setActivePreset(preset);
-        const now = new Date();
-        const today = now.toISOString().split("T")[0];
-        switch (preset) {
-            case "this_week": {
-                const start = new Date(now);
-                start.setDate(now.getDate() - now.getDay());
-                setDateFrom(start.toISOString().split("T")[0]);
-                setDateTo(today);
-                break;
-            }
-            case "this_month": {
-                const start = new Date(now.getFullYear(), now.getMonth(), 1);
-                setDateFrom(start.toISOString().split("T")[0]);
-                setDateTo(today);
-                break;
-            }
-            case "this_year": {
-                const start = new Date(now.getFullYear(), 0, 1);
-                setDateFrom(start.toISOString().split("T")[0]);
-                setDateTo(today);
-                break;
-            }
-            case "all_time": {
-                setDateFrom("");
-                setDateTo("");
-                break;
-            }
-        }
+        if (preset === "custom") return;
+        const { from, to } = presetRange(preset);
+        setDateFrom(from);
+        setDateTo(to);
+    };
+
+    /** Typing a date means the range is no longer one of the named periods. */
+    const setCustomRange = (from: string, to: string) => {
+        setActivePreset(from || to ? "custom" : "all_time");
+        setDateFrom(from);
+        setDateTo(to);
     };
 
     const loadData = async () => {
         setLoading(true);
+        setError(null);
         try {
             const [sumRes, orderRes] = await Promise.all([
                 api.getFinanceSummary(dateFrom, dateTo),
@@ -88,6 +96,8 @@ function FinanceContent() {
             setOrders(orderRes.orders);
         } catch (err) {
             console.error(err);
+            setError("Could not load finance data. Refresh to try again.");
+            setSummary(null);
         } finally {
             setLoading(false);
         }
@@ -120,7 +130,9 @@ function FinanceContent() {
 
     const categories = summary?.category_breakdown || {};
     const catEntries = Object.entries(categories).sort((a, b) => b[1] - a[1]);
-    const totalExpenses = catEntries.reduce((s, [, v]) => s + v, 0) || 1;
+    const expenseTotal = catEntries.reduce((s, [, v]) => s + v, 0);
+    // Guard the percentage maths only; never show `1` as a total.
+    const expenseDivisor = expenseTotal || 1;
 
     const catColors: Record<string, { bar: string; dot: string }> = {
         supplies: { bar: "bg-[var(--muted)]", dot: "bg-[var(--muted)]" },
@@ -133,31 +145,50 @@ function FinanceContent() {
         other: { bar: "bg-zinc-600", dot: "bg-zinc-600" },
     };
 
-    const filteredOrders = orders.filter(o => {
-        if (!dateFrom) return true;
-        const d = new Date(o.order_date);
-        return d >= new Date(dateFrom) && (!dateTo || d <= new Date(dateTo));
-    });
-    // Headline revenue + order count are derived from the same filtered order set
-    // that powers the breakdowns below, so the card always reconciles with them
-    // (and with the Orders table for "All time"). Avoids divergence from a
-    // separately-queried summary.
-    const periodRevenue = filteredOrders.reduce((s, o) => s + (o.total || 0), 0);
-    const periodOrderCount = filteredOrders.length;
+    const artistKey = (o: Order) => o.artist_id || "unassigned";
+    const paymentKey = (o: Order) => canonicalKey(o.payment_mode || "unknown");
+    const sourceKey = (o: Order) => canonicalKey(o.source || "unknown");
+
+    const inRange = orders.filter(o => inDayRange(o.order_date, dateFrom, dateTo));
+
+    // Single source of truth: the revenue KPI and every breakdown below are
+    // summed from this one array, so the cards and the charts cannot disagree.
+    const filteredOrders = inRange.filter(
+        o =>
+            (!artistFilter || artistKey(o) === artistFilter) &&
+            (!paymentFilter || paymentKey(o) === paymentFilter) &&
+            (!sourceFilter || sourceKey(o) === sourceFilter)
+    );
+    const revenue = filteredOrders.reduce((s, o) => s + (o.total || 0), 0);
+    const orderCount = filteredOrders.length;
+    const filtersActive = Boolean(artistFilter || paymentFilter || sourceFilter);
+
+    // Option lists come from the date range, not the narrowed set, so choosing
+    // one value doesn't make the others vanish from their dropdowns.
+    const artistOptions = Array.from(
+        new Map(inRange.map(o => [artistKey(o), o.artists?.name || "Unassigned"])).entries()
+    ).sort((a, b) => a[1].localeCompare(b[1]));
+    const paymentOptions = Array.from(new Set(inRange.map(paymentKey))).sort();
+    const sourceOptions = Array.from(new Set(inRange.map(sourceKey))).sort();
+
+    // Each breakdown partitions `filteredOrders`, so all three sum to `revenue`.
+    const revenueDivisor = revenue || 1;
+
     const periodLabels: Record<DatePreset, string> = {
         this_week: "This week",
         this_month: "This month",
         this_year: "This year",
         all_time: "All time",
+        custom: "Custom range",
     };
     const periodLabel = periodLabels[activePreset];
+
     const paymentBreakdown: Record<string, number> = {};
     filteredOrders.forEach(o => {
-        const mode = (o.payment_mode || "unknown").trim().toLowerCase();
+        const mode = canonicalKey(o.payment_mode || "unknown");
         paymentBreakdown[mode] = (paymentBreakdown[mode] || 0) + (o.total || 0);
     });
     const paymentEntries = Object.entries(paymentBreakdown).sort((a, b) => b[1] - a[1]);
-    const totalByPayment = paymentEntries.reduce((s, [, v]) => s + v, 0) || 1;
 
     const paymentColors: Record<string, string> = {
         cash: "bg-[var(--primary)]",
@@ -179,11 +210,10 @@ function FinanceContent() {
 
     const sourceBreakdown: Record<string, number> = {};
     filteredOrders.forEach(o => {
-        const src = o.source || "unknown";
+        const src = canonicalKey(o.source || "unknown");
         sourceBreakdown[src] = (sourceBreakdown[src] || 0) + (o.total || 0);
     });
     const sourceEntries = Object.entries(sourceBreakdown).sort((a, b) => b[1] - a[1]);
-    const totalBySource = sourceEntries.reduce((s, [, v]) => s + v, 0) || 1;
 
     const sourceColors: Record<string, string> = {
         instagram: "bg-[var(--primary)]",
@@ -193,6 +223,7 @@ function FinanceContent() {
         unknown: "bg-zinc-600",
     };
 
+    // "custom" is never a button — it's what the from/to inputs select implicitly.
     const presets: { key: DatePreset; label: string }[] = [
         { key: "this_week", label: "Week" },
         { key: "this_month", label: "Month" },
@@ -224,26 +255,124 @@ function FinanceContent() {
                     </div>
                 </div>
 
-                {/* Date Presets */}
-                <div className="flex items-center gap-2 mb-6">
-                    {presets.map(p => (
-                        <button
-                            key={p.key}
-                            onClick={() => applyPreset(p.key)}
-                            className={`px-4 py-2 text-xs font-semibold rounded transition-all cursor-pointer ${activePreset === p.key
-                                ? "bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/30"
-                                : "neo-btn text-[var(--muted)]"
-                                }`}
+                {/* Date range: named presets, plus an explicit from/to */}
+                <div className="mb-6 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        {presets.map(p => (
+                            <button
+                                key={p.key}
+                                onClick={() => applyPreset(p.key)}
+                                className={`px-4 py-2 text-xs font-semibold rounded transition-all cursor-pointer ${activePreset === p.key
+                                    ? "bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/30"
+                                    : "neo-btn text-[var(--muted)]"
+                                    }`}
+                            >
+                                {p.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Explicit from/to. Editing either drops the preset highlight,
+                        because the range is no longer one of the named periods. */}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <label className="text-xs text-[var(--muted)] w-9" htmlFor="finance-date-from">
+                            From
+                        </label>
+                        <input
+                            id="finance-date-from"
+                            type="date"
+                            value={dateFrom}
+                            max={dateTo || undefined}
+                            onChange={(e) => setCustomRange(e.target.value, dateTo)}
+                            className="neo-input px-3 py-2 text-sm [color-scheme:dark]"
+                        />
+                        <label className="text-xs text-[var(--muted)] w-6 text-center" htmlFor="finance-date-to">
+                            To
+                        </label>
+                        <input
+                            id="finance-date-to"
+                            type="date"
+                            value={dateTo}
+                            min={dateFrom || undefined}
+                            onChange={(e) => setCustomRange(dateFrom, e.target.value)}
+                            className="neo-input px-3 py-2 text-sm [color-scheme:dark]"
+                        />
+                        {(dateFrom || dateTo) && (
+                            <button
+                                onClick={() => applyPreset("all_time")}
+                                className="text-xs text-[var(--muted)] hover:text-[var(--danger)] px-2 py-1 cursor-pointer"
+                            >
+                                Clear dates
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Order filters — these narrow the revenue KPI and all three
+                        revenue charts together, so the panels stay in agreement. */}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <select
+                            aria-label="Filter by artist"
+                            value={artistFilter}
+                            onChange={(e) => setArtistFilter(e.target.value)}
+                            className="neo-input px-3 py-2 text-sm cursor-pointer"
                         >
-                            {p.label}
-                        </button>
-                    ))}
+                            <option value="">All artists</option>
+                            {artistOptions.map(([id, name]) => (
+                                <option key={id} value={id}>{name}</option>
+                            ))}
+                        </select>
+                        <select
+                            aria-label="Filter by payment mode"
+                            value={paymentFilter}
+                            onChange={(e) => setPaymentFilter(e.target.value)}
+                            className="neo-input px-3 py-2 text-sm cursor-pointer capitalize"
+                        >
+                            <option value="">All payment modes</option>
+                            {paymentOptions.map(m => (
+                                <option key={m} value={m}>{m.replace(/_/g, " ")}</option>
+                            ))}
+                        </select>
+                        <select
+                            aria-label="Filter by source"
+                            value={sourceFilter}
+                            onChange={(e) => setSourceFilter(e.target.value)}
+                            className="neo-input px-3 py-2 text-sm cursor-pointer capitalize"
+                        >
+                            <option value="">All sources</option>
+                            {sourceOptions.map(s => (
+                                <option key={s} value={s}>{s}</option>
+                            ))}
+                        </select>
+                        {filtersActive && (
+                            <button
+                                onClick={() => {
+                                    setArtistFilter("");
+                                    setPaymentFilter("");
+                                    setSourceFilter("");
+                                }}
+                                className="text-xs text-[var(--muted)] hover:text-[var(--danger)] px-2 py-1 cursor-pointer"
+                            >
+                                Clear filters
+                            </button>
+                        )}
+                    </div>
+
+                    {rangeReady && (
+                        <p className="text-xs text-[var(--muted)]">
+                            Showing <span className="text-[var(--foreground)]">{describeRange(dateFrom, dateTo)}</span>
+                            {filtersActive && (
+                                <> · <span className="text-[var(--foreground)]">{orderCount}</span> of {inRange.length} orders in range</>
+                            )}
+                        </p>
+                    )}
                 </div>
 
                 {loading ? (
                     <div className="flex items-center justify-center py-20">
                         <Loader2 className="w-6 h-6 animate-spin text-[var(--primary)]" />
                     </div>
+                ) : error ? (
+                    <div className="glass-panel p-6 text-sm text-[var(--danger)]">{error}</div>
                 ) : summary ? (
                     <>
                         {/* KPI Cards */}
@@ -253,8 +382,8 @@ function FinanceContent() {
                                     <span className="text-sm font-medium text-[var(--muted)]">Revenue · {periodLabel}</span>
                                     <TrendingUp className="w-4 h-4 text-[var(--primary)]" />
                                 </div>
-                                <p className="text-3xl font-bold tracking-tight text-[var(--primary)]">{formatCurrency(periodRevenue)}</p>
-                                <p className="text-xs text-[var(--muted)] mt-1">{periodOrderCount} orders</p>
+                                <p className="text-3xl font-bold tracking-tight text-[var(--primary)]">{formatCurrency(revenue)}</p>
+                                <p className="text-xs text-[var(--muted)] mt-1">{orderCount} orders</p>
                             </div>
 
                             <div className="neo-card stat-accent stat-accent-gold p-5 animate-fadeIn" style={{ animationDelay: "0.05s" }}>
@@ -265,7 +394,7 @@ function FinanceContent() {
                                 <p className={`text-3xl font-bold tracking-tight ${summary.petty_cash_balance >= 0 ? "text-[var(--accent)]" : "text-[var(--danger)]"}`}>
                                     {formatCurrency(summary.petty_cash_balance)}
                                 </p>
-                                <p className="text-xs text-[var(--muted)] mt-1">{summary.expense_count} expenses logged</p>
+                                <p className="text-xs text-[var(--muted)] mt-1">All-time, top-ups minus expenses</p>
                             </div>
 
                             <div className="neo-card stat-accent stat-accent-taupe p-5 animate-fadeIn" style={{ animationDelay: "0.1s" }}>
@@ -277,7 +406,7 @@ function FinanceContent() {
                                     {formatCurrency(summary.expenses)}
                                 </p>
                                 <p className="text-xs text-[var(--muted)] mt-1">
-                                    Not deducted from revenue
+                                    {summary.expense_count} in range · not deducted from revenue
                                 </p>
                             </div>
                         </div>
@@ -308,16 +437,20 @@ function FinanceContent() {
                                                 </div>
                                             </div>
                                         ))}
+                                        <PanelTotal label="Total revenue" amount={revenue} />
                                     </div>
                                 )}
                             </div>
 
                             {/* Expense Breakdown */}
                             <div className="glass-panel p-5 animate-fadeIn" style={{ animationDelay: "0.2s" }}>
-                                <h3 className="text-sm font-semibold text-[var(--muted)] uppercase tracking-wider mb-4 flex items-center gap-2">
+                                <h3 className="text-sm font-semibold text-[var(--muted)] uppercase tracking-wider mb-1 flex items-center gap-2">
                                     <PieChart className="w-4 h-4" />
                                     Expense Breakdown
                                 </h3>
+                                <p className="text-xs text-[var(--muted)] mb-4 normal-case tracking-normal">
+                                    Date range only{filtersActive ? " — order filters don't apply to expenses" : ""}
+                                </p>
                                 {catEntries.length === 0 ? (
                                     <p className="text-sm text-[var(--muted)]">No expenses</p>
                                 ) : (
@@ -327,7 +460,7 @@ function FinanceContent() {
                                                 <div
                                                     key={cat}
                                                     className={`${catColors[cat]?.bar || "bg-zinc-600"} transition-all duration-500`}
-                                                    style={{ width: `${(amount / totalExpenses) * 100}%` }}
+                                                    style={{ width: `${(amount / expenseDivisor) * 100}%` }}
                                                     title={`${cat}: ${formatCurrency(amount)}`}
                                                 />
                                             ))}
@@ -341,11 +474,12 @@ function FinanceContent() {
                                                     </div>
                                                     <div className="flex items-center gap-3">
                                                         <span className="text-sm font-medium">{formatCurrency(amount)}</span>
-                                                        <span className="text-xs text-[var(--muted)] w-10 text-right">{Math.round((amount / totalExpenses) * 100)}%</span>
+                                                        <span className="text-xs text-[var(--muted)] w-10 text-right">{Math.round((amount / expenseDivisor) * 100)}%</span>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
+                                        <PanelTotal label="Total expenses" amount={expenseTotal} />
                                     </>
                                 )}
                             </div>
@@ -372,7 +506,7 @@ function FinanceContent() {
                                                 <div
                                                     key={mode}
                                                     className={`${paymentColors[mode] || "bg-zinc-600"} transition-all duration-500`}
-                                                    style={{ width: `${(amount / totalByPayment) * 100}%` }}
+                                                    style={{ width: `${(amount / revenueDivisor) * 100}%` }}
                                                 />
                                             ))}
                                         </div>
@@ -381,15 +515,16 @@ function FinanceContent() {
                                                 <div key={mode} className="flex items-center justify-between">
                                                     <div className="flex items-center gap-2">
                                                         <div className={`w-2.5 h-2.5 rounded-full ${paymentColors[mode] || "bg-zinc-600"}`} />
-                                                        <span className="text-sm capitalize">{mode}</span>
+                                                        <span className="text-sm capitalize">{mode.replace(/_/g, " ")}</span>
                                                     </div>
                                                     <div className="flex items-center gap-3">
                                                         <span className="text-sm font-medium">{formatCurrency(amount)}</span>
-                                                        <span className="text-xs text-[var(--muted)] w-10 text-right">{Math.round((amount / totalByPayment) * 100)}%</span>
+                                                        <span className="text-xs text-[var(--muted)] w-10 text-right">{Math.round((amount / revenueDivisor) * 100)}%</span>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
+                                        <PanelTotal label="Total revenue" amount={revenue} />
                                     </>
                                 )}
                             </div>
@@ -408,7 +543,7 @@ function FinanceContent() {
                                                 <div
                                                     key={src}
                                                     className={`${sourceColors[src] || "bg-zinc-600"} transition-all duration-500`}
-                                                    style={{ width: `${(amount / totalBySource) * 100}%` }}
+                                                    style={{ width: `${(amount / revenueDivisor) * 100}%` }}
                                                 />
                                             ))}
                                         </div>
@@ -421,11 +556,12 @@ function FinanceContent() {
                                                     </div>
                                                     <div className="flex items-center gap-3">
                                                         <span className="text-sm font-medium">{formatCurrency(amount)}</span>
-                                                        <span className="text-xs text-[var(--muted)] w-10 text-right">{Math.round((amount / totalBySource) * 100)}%</span>
+                                                        <span className="text-xs text-[var(--muted)] w-10 text-right">{Math.round((amount / revenueDivisor) * 100)}%</span>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
+                                        <PanelTotal label="Total revenue" amount={revenue} />
                                     </>
                                 )}
                             </div>
