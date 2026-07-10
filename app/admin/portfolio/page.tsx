@@ -1,25 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Upload, Search } from "lucide-react";
+import { Upload, Search, Tag, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePortfolio } from "@/hooks/usePortfolio";
+import { usePortfolioStyles } from "@/hooks/usePortfolioStyles";
 import { useToast } from "@/hooks/useToast";
 import PortfolioCard from "@/components/admin/PortfolioCard";
 import PortfolioUploadPanel from "@/components/admin/PortfolioUploadPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase";
-
-const STYLE_TAGS = [
-  "All",
-  "Traditional",
-  "Neo-trad",
-  "Blackwork",
-  "Fine-line",
-  "Geometric",
-  "Custom",
-];
 
 interface Artist {
   id: string;
@@ -39,12 +30,56 @@ export default function AdminPortfolioPage() {
     style_tag: string;
     description: string;
   } | null>(null);
+  const [stylesOpen, setStylesOpen] = useState(false);
+  const [newStyle, setNewStyle] = useState("");
   const { toast } = useToast();
+
+  const {
+    styles: portfolioStyles,
+    names: styleNames,
+    mutate: mutateStyles,
+  } = usePortfolioStyles();
+  const filterStyleTags = ["All", ...styleNames];
 
   const { items, isLoading, mutate } = usePortfolio({
     artist: artistFilter || undefined,
     style: styleFilter === "All" ? undefined : styleFilter,
   });
+
+  // Add / delete portfolio styles
+  const addStyle = async () => {
+    const name = newStyle.trim();
+    if (!name) return;
+    try {
+      const res = await fetch("/api/admin/portfolio-styles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to add style");
+      }
+      setNewStyle("");
+      mutateStyles();
+      toast.success("Style added");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to add style");
+    }
+  };
+
+  const deleteStyle = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/portfolio-styles/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete style");
+      mutateStyles();
+      toast.success("Style removed");
+    } catch {
+      toast.error("Failed to remove style");
+    }
+  };
 
   // Fetch artists for filter
   useEffect(() => {
@@ -154,9 +189,14 @@ export default function AdminPortfolioPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <h1 className="font-display text-3xl font-bold">Portfolio</h1>
-        <Button variant="neon" onClick={() => setUploadOpen(true)}>
-          <Upload className="w-4 h-4 mr-2" /> Upload Photos
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" onClick={() => setStylesOpen(true)}>
+            <Tag className="w-4 h-4 mr-2" /> Manage Styles
+          </Button>
+          <Button variant="neon" onClick={() => setUploadOpen(true)}>
+            <Upload className="w-4 h-4 mr-2" /> Upload Photos
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -189,7 +229,7 @@ export default function AdminPortfolioPage() {
           onChange={(e) => setStyleFilter(e.target.value)}
           className="h-10 rounded border border-borderDark bg-background px-3 text-sm text-primaryText focus:ring-1 focus:ring-neon-cyan outline-none"
         >
-          {STYLE_TAGS.map((s) => (
+          {filterStyleTags.map((s) => (
             <option key={s}>{s}</option>
           ))}
         </select>
@@ -346,7 +386,7 @@ export default function AdminPortfolioPage() {
                   className="w-full h-10 rounded border border-borderDark bg-background px-3 text-sm text-primaryText outline-none focus:ring-1 focus:ring-neon-cyan"
                 >
                   <option value="">Select Style</option>
-                  {STYLE_TAGS.filter((s) => s !== "All").map((s) => (
+                  {styleNames.map((s) => (
                     <option key={s}>{s}</option>
                   ))}
                 </select>
@@ -377,6 +417,78 @@ export default function AdminPortfolioPage() {
                 </Button>
                 <Button variant="neon" onClick={saveEdit}>
                   Save
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Manage styles modal */}
+      <AnimatePresence>
+        {stylesOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-hidden"
+            onClick={() => setStylesOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-surface border border-borderDark rounded-lg p-6 max-w-md w-full space-y-4"
+            >
+              <h3 className="font-display text-lg font-bold">Tattoo Styles</h3>
+              <p className="text-sm text-mutedText">
+                These appear as style tags when uploading or editing portfolio
+                photos, and as filters on the public gallery.
+              </p>
+
+              <div className="flex gap-2">
+                <Input
+                  value={newStyle}
+                  onChange={(e) => setNewStyle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addStyle();
+                    }
+                  }}
+                  placeholder="Add a style (e.g. Realism)"
+                />
+                <Button variant="neon" onClick={addStyle}>
+                  Add
+                </Button>
+              </div>
+
+              <div className="max-h-64 overflow-y-auto divide-y divide-borderDark">
+                {portfolioStyles.length === 0 ? (
+                  <p className="text-sm text-mutedText py-3">No styles yet.</p>
+                ) : (
+                  portfolioStyles.map((s) => (
+                    <div
+                      key={s.id}
+                      className="flex items-center justify-between py-2"
+                    >
+                      <span className="text-sm text-primaryText">{s.name}</span>
+                      <button
+                        onClick={() => deleteStyle(s.id)}
+                        className="text-mutedText hover:text-danger transition-colors"
+                        aria-label={`Delete ${s.name}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button variant="ghost" onClick={() => setStylesOpen(false)}>
+                  Done
                 </Button>
               </div>
             </motion.div>

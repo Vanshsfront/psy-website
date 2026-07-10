@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { useToast } from "@/hooks/useToast";
+import { usePortfolioStyles } from "@/hooks/usePortfolioStyles";
 import { createClient } from "@/lib/supabase";
 
 interface UploadRow {
@@ -27,15 +28,6 @@ interface Artist {
   name: string;
 }
 
-const STYLE_TAGS = [
-  "Traditional",
-  "Neo-trad",
-  "Blackwork",
-  "Fine-line",
-  "Geometric",
-  "Custom",
-];
-
 interface PortfolioUploadPanelProps {
   isOpen: boolean;
   onClose: () => void;
@@ -52,6 +44,7 @@ export default function PortfolioUploadPanel({
   const [isSaving, setIsSaving] = useState(false);
   const { upload } = useImageUpload();
   const { toast } = useToast();
+  const { names: STYLE_TAGS } = usePortfolioStyles();
 
   // Fetch artists
   useEffect(() => {
@@ -324,7 +317,7 @@ export default function PortfolioUploadPanel({
                             className="h-8 text-xs rounded border border-borderDark bg-background px-2 text-primaryText outline-none focus:ring-1 focus:ring-neon-cyan"
                           >
                             <option value="">Style Tag</option>
-                            {STYLE_TAGS.map((s) => (
+                            {STYLE_TAGS.map((s: string) => (
                               <option key={s}>{s}</option>
                             ))}
                           </select>

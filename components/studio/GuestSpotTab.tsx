@@ -2,9 +2,31 @@
 
 import { useState } from "react"
 import Image from "next/image"
+import Link from "next/link"
 import { Instagram } from "lucide-react"
 import FadeInOnScroll from "@/components/animations/FadeInOnScroll"
 import type { GuestSpot } from "@/types"
+
+function ApplyCta() {
+  return (
+    <div className="border border-psy-green/30 bg-psy-green/5 p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h3 className="font-display text-display-md text-bone leading-tight">
+          Are you an artist?
+        </h3>
+        <p className="font-sans text-body text-taupe mt-1">
+          Apply to guest with us at the PSY studio.
+        </p>
+      </div>
+      <Link
+        href="/studio/guest-spot/apply"
+        className="shrink-0 border border-psy-green bg-transparent text-psy-green uppercase tracking-widest text-caption py-2.5 px-8 hover:bg-psy-green hover:text-ink transition-all duration-[400ms]"
+      >
+        Apply to Guest With Us
+      </Link>
+    </div>
+  )
+}
 
 function LeadForm({ guestSpotId }: { guestSpotId: string }) {
   const [form, setForm] = useState({ name: "", email: "", phone: "", message: "" })
@@ -97,10 +119,11 @@ export default function GuestSpotTab({
   if (guestSpots.length === 0) {
     return (
       <section className="py-32 px-6">
-        <div className="max-w-5xl mx-auto text-center">
-          <p className="font-display italic text-taupe text-body-lg">
+        <div className="max-w-3xl mx-auto">
+          <p className="font-display italic text-taupe text-body-lg text-center mb-10">
             No guest spots at the moment. Check back soon.
           </p>
+          <ApplyCta />
         </div>
       </section>
     )
@@ -117,6 +140,10 @@ export default function GuestSpotTab({
             <div className="flex-1 mx-6 h-[1px] bg-taupe/20" />
           </div>
         </FadeInOnScroll>
+
+        <div className="mb-16">
+          <ApplyCta />
+        </div>
 
         <div className="space-y-16">
           {guestSpots.map((spot, i) => (

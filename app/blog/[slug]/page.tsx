@@ -35,11 +35,11 @@ export default async function BlogPostPage({
     <main className="w-full bg-ink min-h-screen pt-24 pb-32">
       <article className="max-w-3xl mx-auto px-6">
         <Link
-          href="/studio"
+          href="/blog"
           className="inline-flex items-center gap-2 text-taupe hover:text-bone transition-colors text-caption font-sans uppercase tracking-widest mb-12"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Studio
+          Back to Journal
         </Link>
 
         <div className="mb-10">

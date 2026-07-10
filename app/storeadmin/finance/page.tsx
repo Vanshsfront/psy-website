@@ -174,6 +174,15 @@ function FinanceContent() {
     // Each breakdown partitions `filteredOrders`, so all three sum to `revenue`.
     const revenueDivisor = revenue || 1;
 
+    const periodLabels: Record<DatePreset, string> = {
+        this_week: "This week",
+        this_month: "This month",
+        this_year: "This year",
+        all_time: "All time",
+        custom: "Custom range",
+    };
+    const periodLabel = periodLabels[activePreset];
+
     const paymentBreakdown: Record<string, number> = {};
     filteredOrders.forEach(o => {
         const mode = canonicalKey(o.payment_mode || "unknown");
@@ -370,7 +379,7 @@ function FinanceContent() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                             <div className="neo-card stat-accent stat-accent-green p-5 animate-fadeIn">
                                 <div className="flex items-center justify-between pb-2">
-                                    <span className="text-sm font-medium text-[var(--muted)]">Revenue</span>
+                                    <span className="text-sm font-medium text-[var(--muted)]">Revenue · {periodLabel}</span>
                                     <TrendingUp className="w-4 h-4 text-[var(--primary)]" />
                                 </div>
                                 <p className="text-3xl font-bold tracking-tight text-[var(--primary)]">{formatCurrency(revenue)}</p>

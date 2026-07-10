@@ -37,7 +37,7 @@ export default function BlogTab({ posts }: { posts: BlogPost[] }) {
             {posts.map((post, i) => (
               <FadeInOnScroll key={post.id} direction="up" delay={i * 0.05}>
                 <Link
-                  href={`/studio/blog/${post.slug}`}
+                  href={`/blog/${post.slug}`}
                   className="group block"
                 >
                   {post.cover_image_url && (

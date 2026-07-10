@@ -66,7 +66,7 @@ export default function HomeClient({ leftImageUrl, rightImageUrl }: HomeClientPr
         <div className="relative z-10 flex flex-col items-center text-center px-8">
           <FadeInOnScroll direction="none" delay={0.3}>
             <span className="font-sans uppercase tracking-[0.3em] text-taupe text-micro mb-8 block">
-              PSY Tattoos — Mumbai
+              PSY Tattoos, Mumbai
             </span>
           </FadeInOnScroll>
 
@@ -87,7 +87,7 @@ export default function HomeClient({ leftImageUrl, rightImageUrl }: HomeClientPr
 
           <FadeInOnScroll direction="none" delay={0.7}>
             <p className="font-display italic text-taupe text-body-lg mb-10">
-              — where the mind meets the skin
+              where the mind meets the skin
             </p>
           </FadeInOnScroll>
 
@@ -135,7 +135,7 @@ export default function HomeClient({ leftImageUrl, rightImageUrl }: HomeClientPr
         <div className="relative z-10 flex flex-col items-center text-center px-8">
           <FadeInOnScroll direction="none" delay={0.5}>
             <span className="font-sans uppercase tracking-[0.3em] text-taupe text-micro mb-8 block">
-              Jewelry — PSY Shop
+              Jewelry, PSY Shop
             </span>
           </FadeInOnScroll>
 
@@ -156,7 +156,7 @@ export default function HomeClient({ leftImageUrl, rightImageUrl }: HomeClientPr
 
           <FadeInOnScroll direction="none" delay={0.9}>
             <p className="font-display italic text-gold text-body-lg mb-10">
-              — wear the ritual
+              wear the ritual
             </p>
           </FadeInOnScroll>
 

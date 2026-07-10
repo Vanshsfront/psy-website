@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useCallback } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { motion } from "framer-motion"
@@ -15,7 +15,6 @@ import HeroBackground from "@/components/animations/HeroBackground"
 import CommunityTab from "@/components/studio/CommunityTab"
 import GuestSpotTab from "@/components/studio/GuestSpotTab"
 import CustomersTab from "@/components/studio/CustomersTab"
-import BlogTab from "@/components/studio/BlogTab"
 import { scrollToSection } from "@/lib/smoothScroll"
 import type {
   Artist,
@@ -24,39 +23,44 @@ import type {
   CommunityPost,
   GuestSpot,
   CustomerTestimonial,
-  BlogPost,
 } from "@/types"
 
-type StudioTab = "studio" | "community" | "guest-spot" | "customers" | "blog"
+export type StudioTab = "studio" | "community" | "guest-spot" | "customers"
 
 const TABS: { id: StudioTab; label: string }[] = [
   { id: "studio", label: "Portfolio" },
   { id: "community", label: "Community" },
   { id: "guest-spot", label: "Guest Spot" },
   { id: "customers", label: "Customers" },
-  { id: "blog", label: "Blog" },
 ]
 
+// Each tab is its own shareable route.
+const TAB_HREF: Record<StudioTab, string> = {
+  studio: "/studio",
+  community: "/studio/community",
+  "guest-spot": "/studio/guest-spot",
+  customers: "/studio/customers",
+}
+
 interface StudioClientProps {
-  artists: Artist[]
-  styles: CustomStyle[]
-  portfolio: (PortfolioItem & { artists?: { name: string } | null })[]
-  communityPosts: CommunityPost[]
-  guestSpots: GuestSpot[]
-  testimonials: CustomerTestimonial[]
-  blogPosts: BlogPost[]
+  activeTab: StudioTab
+  artists?: Artist[]
+  styles?: CustomStyle[]
+  portfolio?: (PortfolioItem & { artists?: { name: string } | null })[]
+  communityPosts?: CommunityPost[]
+  guestSpots?: GuestSpot[]
+  testimonials?: CustomerTestimonial[]
 }
 
 export default function StudioClient({
-  artists,
-  styles,
-  portfolio,
-  communityPosts,
-  guestSpots,
-  testimonials,
-  blogPosts,
+  activeTab,
+  artists = [],
+  styles = [],
+  portfolio = [],
+  communityPosts = [],
+  guestSpots = [],
+  testimonials = [],
 }: StudioClientProps) {
-  const [activeTab, setActiveTab] = useState<StudioTab>("studio")
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: "start", slidesToScroll: 1 })
 
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi])
@@ -70,7 +74,7 @@ export default function StudioClient({
 
         <FadeInOnScroll direction="none" delay={0.2} className="relative z-10 w-full flex justify-center">
           <span className="font-sans uppercase tracking-[0.3em] text-taupe text-micro mb-10 block text-center">
-            PSY Tattoos — Mumbai
+            PSY Tattoos, Mumbai
           </span>
         </FadeInOnScroll>
 
@@ -133,9 +137,9 @@ export default function StudioClient({
         <div className="max-w-7xl mx-auto px-6">
           <nav className="flex items-center gap-8 overflow-x-auto scrollbar-hide">
             {TABS.map((tab) => (
-              <button
+              <Link
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                href={TAB_HREF[tab.id]}
                 className={`relative font-sans uppercase tracking-widest text-caption py-4 whitespace-nowrap transition-colors duration-[400ms] ${
                   activeTab === tab.id
                     ? "text-bone"
@@ -150,7 +154,7 @@ export default function StudioClient({
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}
-              </button>
+              </Link>
             ))}
           </nav>
         </div>
@@ -312,7 +316,7 @@ export default function StudioClient({
                 {[
                   {
                     title: "Tattoos",
-                    description: "Custom tattoo artistry across all styles — fine-line, blackwork, traditional, geometric, and more. Every piece is designed with intention.",
+                    description: "Custom tattoo artistry across all styles: fine-line, blackwork, traditional, geometric, and more. Every piece is designed with intention.",
                     cta: "Book a Tattoo",
                   },
                   {
@@ -322,7 +326,7 @@ export default function StudioClient({
                   },
                   {
                     title: "Custom Art",
-                    description: "Bespoke artwork and illustrations — on skin or on paper. Commissions, collaborations, and creative projects.",
+                    description: "Bespoke artwork and illustrations, on skin or on paper. Commissions, collaborations, and creative projects.",
                     cta: "Inquire",
                   },
                 ].map((service, i) => (
@@ -364,7 +368,7 @@ export default function StudioClient({
                   Start Your Journey
                 </h2>
                 <p className="font-display italic text-taupe text-xl mt-2 mb-12">
-                  — every tattoo begins with a conversation.
+                  Every tattoo begins with a conversation.
                 </p>
               </FadeInOnScroll>
 
@@ -386,10 +390,6 @@ export default function StudioClient({
 
       {activeTab === "customers" && (
         <CustomersTab testimonials={testimonials} />
-      )}
-
-      {activeTab === "blog" && (
-        <BlogTab posts={blogPosts} />
       )}
     </main>
   )
