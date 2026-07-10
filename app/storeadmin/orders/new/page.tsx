@@ -561,11 +561,11 @@ function NewOrderContent() {
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-sm text-[var(--muted)] mb-1">Deposit (\u20B9)</label>
+                                            <label className="block text-sm text-[var(--muted)] mb-1">Deposit (₹)</label>
                                             <input type="number" value={manualForm.deposit} onChange={(e) => setManualForm({ ...manualForm, deposit: e.target.value })} className="w-full px-4 py-3 neo-input text-sm" placeholder="0" />
                                         </div>
                                         <div>
-                                            <label className="block text-sm text-[var(--muted)] mb-1">Total (\u20B9)</label>
+                                            <label className="block text-sm text-[var(--muted)] mb-1">Total (₹)</label>
                                             <input type="number" value={manualForm.total} onChange={(e) => setManualForm({ ...manualForm, total: e.target.value })} className="w-full px-4 py-3 neo-input text-sm" placeholder="0" />
                                         </div>
                                         <div className="col-span-2">
@@ -972,10 +972,10 @@ function NewOrderContent() {
                                             <span>{ocrRows.length} row{ocrRows.length !== 1 ? "s" : ""}</span>
                                             <span>{selectedRows.size} selected</span>
                                             <span>
-                                                Total: \u20B9{ocrRows.filter((r) => selectedRows.has(r.id)).reduce((sum, r) => sum + (parseFloat(r.total) || 0), 0).toLocaleString("en-IN")}
+                                                Total: ₹{ocrRows.filter((r) => selectedRows.has(r.id)).reduce((sum, r) => sum + (parseFloat(r.total) || 0), 0).toLocaleString("en-IN")}
                                             </span>
                                             <span>
-                                                Deposits: \u20B9{ocrRows.filter((r) => selectedRows.has(r.id)).reduce((sum, r) => sum + (parseFloat(r.deposit) || 0), 0).toLocaleString("en-IN")}
+                                                Deposits: ₹{ocrRows.filter((r) => selectedRows.has(r.id)).reduce((sum, r) => sum + (parseFloat(r.deposit) || 0), 0).toLocaleString("en-IN")}
                                             </span>
                                         </div>
                                     </div>
