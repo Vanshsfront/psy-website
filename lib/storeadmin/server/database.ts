@@ -1,6 +1,43 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { endExclusive } from "@/lib/storeadmin/date-range";
 
 let _db: SupabaseClient | null = null;
+
+/** Supabase caps every response at this many rows, so aggregates must page. */
+const PAGE_SIZE = 1000;
+
+/**
+ * Read every row of `table` in a day window, paging past the 1000-row cap.
+ *
+ * Aggregates must never use a bare `.select()`: it silently returns only the
+ * first page, so a studio with >1000 orders sees a revenue figure summed from
+ * an arbitrary subset. Rows are ordered by `id` so paging can't skip or repeat.
+ *
+ * The upper bound is exclusive (`< to + 1 day`) rather than `.lte(to)`, which
+ * would drop rows recorded on `to` itself if the column is a timestamp.
+ */
+async function selectRowsInRange<T>(
+  table: string,
+  columns: string,
+  dateColumn: string,
+  dateFrom = "",
+  dateTo = ""
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    let q = getDb().from(table).select(columns);
+    if (dateFrom) q = q.gte(dateColumn, dateFrom);
+    if (dateTo) q = q.lt(dateColumn, endExclusive(dateTo));
+    const { data, error } = await q
+      .order("id", { ascending: true })
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw new Error(`Failed to read ${table}: ${error.message}`);
+    if (!data?.length) break;
+    rows.push(...(data as unknown as T[]));
+    if (data.length < PAGE_SIZE) break;
+  }
+  return rows;
+}
 
 export function getDb(): SupabaseClient {
   if (_db) return _db;
@@ -110,6 +147,7 @@ async function batchCustomerMetrics(customerIds: string[]): Promise<Record<strin
         .select("customer_id, total, order_date, artist_id, payment_mode")
         .in("customer_id", idChunk)
         .order("order_date", { ascending: false })
+        .order("id", { ascending: true })
         .range(from, from + PAGE - 1);
       if (!data?.length) break;
       allOrders.push(...(data as OrderRow[]));
@@ -448,7 +486,12 @@ export async function getOrders(customerId = "", limit = 50000) {
     const pageEnd = Math.min(fetched + PAGE, limit) - 1;
     let q = getDb().from("orders").select("*, customers(name, phone), artists(name)");
     if (customerId) q = q.eq("customer_id", customerId);
-    const { data } = await q.order("order_date", { ascending: false }).range(fetched, pageEnd);
+    // `order_date` alone is not unique, so paging on it can skip or repeat rows
+    // across pages; `id` breaks ties into a total order.
+    const { data } = await q
+      .order("order_date", { ascending: false })
+      .order("id", { ascending: true })
+      .range(fetched, pageEnd);
     if (!data?.length) break;
     rows.push(...(data as OrderRow[]));
     if (data.length < pageEnd - fetched + 1) break;
@@ -560,8 +603,11 @@ export async function createExpense(inputData: Record<string, unknown>) {
 // ── Petty Cash ──
 
 export async function getPettyCashBalance() {
-  const { data: allExpenses } = await getDb().from("expenses").select("amount, category");
-  const list = allExpenses ?? [];
+  const list = await selectRowsInRange<{ amount: number | null; category: string | null }>(
+    "expenses",
+    "amount, category",
+    "expense_date"
+  );
   const totalTopups = list.filter(e => e.category === "topup").reduce((s, e) => s + Number(e.amount ?? 0), 0);
   const totalExpenses = list.filter(e => e.category !== "topup").reduce((s, e) => s + Number(e.amount ?? 0), 0);
   return {
@@ -704,18 +750,24 @@ export async function updateOcrSession(sessionId: string, updateData: Record<str
 // ── Financial Aggregation ──
 
 export async function getFinancialSummary(dateFrom = "", dateTo = "") {
-  let oq = getDb().from("orders").select("total");
-  if (dateFrom) oq = oq.gte("order_date", dateFrom);
-  if (dateTo) oq = oq.lte("order_date", dateTo);
-  const { data: ordersData } = await oq;
-  const revenue = (ordersData ?? []).reduce((sum, o) => sum + Number(o.total ?? 0), 0);
+  const ordersData = await selectRowsInRange<{ total: number | null }>(
+    "orders",
+    "total",
+    "order_date",
+    dateFrom,
+    dateTo
+  );
+  const revenue = ordersData.reduce((sum, o) => sum + Number(o.total ?? 0), 0);
 
-  let eq = getDb().from("expenses").select("amount, category");
-  if (dateFrom) eq = eq.gte("expense_date", dateFrom);
-  if (dateTo) eq = eq.lte("expense_date", dateTo);
-  const { data: expensesData } = await eq;
+  const expensesData = await selectRowsInRange<{ amount: number | null; category: string | null }>(
+    "expenses",
+    "amount, category",
+    "expense_date",
+    dateFrom,
+    dateTo
+  );
   // Exclude topup entries from expense calculations
-  const expensesList = (expensesData ?? []).filter(e => e.category !== "topup");
+  const expensesList = expensesData.filter(e => e.category !== "topup");
   const totalExpenses = expensesList.reduce((sum, e) => sum + Number(e.amount ?? 0), 0);
 
   const categoryTotals: Record<string, number> = {};
@@ -733,7 +785,7 @@ export async function getFinancialSummary(dateFrom = "", dateTo = "") {
     profit: revenue, // petty cash has no connection to revenue
     petty_cash_balance: pettyCash.balance,
     category_breakdown: categoryTotals,
-    order_count: (ordersData ?? []).length,
+    order_count: ordersData.length,
     expense_count: expensesList.length,
   };
 }
