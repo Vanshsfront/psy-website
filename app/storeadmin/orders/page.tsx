@@ -52,6 +52,7 @@ const SOURCE_OPTIONS = [
     { value: "walk-in", label: "Walk-in" },
     { value: "referral", label: "Referral" },
     { value: "google", label: "Google" },
+    { value: "existing-client", label: "Existing Client" },
 ];
 
 function OrdersContent() {

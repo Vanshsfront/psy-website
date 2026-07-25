@@ -16,6 +16,7 @@ import {
     AlertTriangle,
     Loader2,
     ArrowRight,
+    ArrowLeft,
     UserPlus,
     ImageIcon,
     ScanLine,
@@ -81,13 +82,15 @@ function NewOrderContent() {
 
     // Manual form state
     const [manualForm, setManualForm] = useState({
-        customer_name: "", phone: "", instagram: "", artist_id: "",
+        customer_name: "", phone: "", instagram: "", email: "", artist_id: "",
         order_date: new Date().toISOString().split("T")[0],
         appointment_type: "", service_description: "", payment_mode: "cash", deposit: "",
         total: "", comments: "", source: "", address: "", consent_signed: false,
     });
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [step, setStep] = useState<"form" | "success">("form");
+    // The manual form is split across two pages: customer-facing fields, then artist-facing fields.
+    const [manualPage, setManualPage] = useState<"customer" | "artist">("customer");
 
     // OCR state
     const [ocrFile, setOcrFile] = useState<File | null>(null);
@@ -110,7 +113,8 @@ function NewOrderContent() {
             try {
                 const parsed = JSON.parse(saved);
                 if (parsed.tab) setTab(parsed.tab);
-                if (parsed.manualForm) setManualForm(parsed.manualForm);
+                if (parsed.manualForm) setManualForm((prev) => ({ ...prev, ...parsed.manualForm }));
+                if (parsed.manualPage) setManualPage(parsed.manualPage);
                 if (parsed.step) setStep(parsed.step);
                 if (parsed.ocrRows) setOcrRows(parsed.ocrRows);
                 if (parsed.ocrResult) setOcrResult(parsed.ocrResult);
@@ -128,6 +132,7 @@ function NewOrderContent() {
         const stateToSave = {
             tab,
             manualForm,
+            manualPage,
             step,
             ocrRows,
             ocrResult,
@@ -135,7 +140,7 @@ function NewOrderContent() {
             selectedRows: Array.from(selectedRows)
         };
         sessionStorage.setItem("psy_new_order_state", JSON.stringify(stateToSave));
-    }, [isRestored, tab, manualForm, step, ocrRows, ocrResult, ocrStep, selectedRows]);
+    }, [isRestored, tab, manualForm, manualPage, step, ocrRows, ocrResult, ocrStep, selectedRows]);
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
@@ -158,9 +163,23 @@ function NewOrderContent() {
         }
     }, [ocrFile]);
 
+    // Advance from the customer page to the artist page (guarding the one required field).
+    const goToArtistPage = () => {
+        if (!manualForm.customer_name.trim()) {
+            alert("Customer name is required.");
+            return;
+        }
+        setManualPage("artist");
+    };
+
     // Manual Order
     const handleManualSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        // Page 1 (customer) never saves — Enter/submit there just advances to the artist page.
+        if (manualPage === "customer") {
+            goToArtistPage();
+            return;
+        }
         setLoading(true);
         try {
             let custId = selectedCustomer?.id;
@@ -169,6 +188,7 @@ function NewOrderContent() {
                     name: capitalizeWords(manualForm.customer_name),
                     phone: manualForm.phone || null,
                     instagram: manualForm.instagram ? stripAtSign(manualForm.instagram) : null,
+                    email: manualForm.email || null,
                     source: manualForm.source || null,
                     address: manualForm.address || null,
                 });
@@ -434,7 +454,7 @@ function NewOrderContent() {
                         ].map(({ key, label, icon: Icon }) => (
                             <button
                                 key={key}
-                                onClick={() => { setTab(key as "manual" | "ocr"); setStep("form"); resetOCR(); }}
+                                onClick={() => { setTab(key as "manual" | "ocr"); setStep("form"); setManualPage("customer"); resetOCR(); }}
                                 className={`flex items-center gap-2 px-6 py-3 rounded text-sm font-medium transition-all ${tab === key
                                     ? "bg-[var(--primary-muted)] text-[var(--primary)] border border-[var(--primary)]/20"
                                     : "bg-[var(--surface)] text-[var(--muted)] hover:bg-[var(--surface-hover)]"
@@ -451,7 +471,22 @@ function NewOrderContent() {
                         <>
                             {step === "form" && (
                                 <form onSubmit={handleManualSubmit} className="neo-card p-6 space-y-6 animate-fadeIn">
-                                    <div className="grid grid-cols-2 gap-4">
+                                    {/* Two-page stepper: customer-facing fields, then artist-facing fields */}
+                                    <div className="flex items-center gap-3 text-xs">
+                                        <span className={`flex items-center gap-2 ${manualPage === "customer" ? "text-[var(--primary)] font-medium" : "text-[var(--muted)]"}`}>
+                                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${manualPage === "customer" ? "bg-[var(--primary)] text-white" : "bg-[var(--surface-hover)] text-[var(--muted)]"}`}>1</span>
+                                            Customer
+                                        </span>
+                                        <span className="flex-1 h-px bg-[var(--border-color)]" />
+                                        <span className={`flex items-center gap-2 ${manualPage === "artist" ? "text-[var(--primary)] font-medium" : "text-[var(--muted)]"}`}>
+                                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${manualPage === "artist" ? "bg-[var(--primary)] text-white" : "bg-[var(--surface-hover)] text-[var(--muted)]"}`}>2</span>
+                                            Artist
+                                        </span>
+                                    </div>
+
+                                    {/* PAGE 1 — Customer-facing fields */}
+                                    {manualPage === "customer" && (
+                                    <div className="grid grid-cols-2 gap-4 animate-fadeIn">
                                         <div className="col-span-2">
                                             <label className="block text-sm text-[var(--muted)] mb-1">Customer Name *</label>
                                             <CustomerAutofill
@@ -465,6 +500,7 @@ function NewOrderContent() {
                                                         customer_name: c.name,
                                                         phone: c.phone ?? "",
                                                         instagram: c.instagram ?? "",
+                                                        email: c.email ?? "",
                                                         address: c.address ?? prev.address,
                                                         source: c.source ?? prev.source,
                                                         artist_id: c.last_artist_id ?? prev.artist_id,
@@ -503,13 +539,53 @@ function NewOrderContent() {
                                             )}
                                         </div>
                                         <div>
-                                            <label className="block text-sm text-[var(--muted)] mb-1">Phone</label>
-                                            <input value={manualForm.phone} onChange={(e) => { setManualForm({ ...manualForm, phone: e.target.value }); if (selectedCustomer) setSelectedCustomer(null); }} className="w-full px-4 py-3 neo-input text-sm" placeholder="+91..." />
-                                        </div>
-                                        <div>
                                             <label className="block text-sm text-[var(--muted)] mb-1">Instagram</label>
                                             <input value={manualForm.instagram} onChange={(e) => { setManualForm({ ...manualForm, instagram: e.target.value }); if (selectedCustomer) setSelectedCustomer(null); }} className="w-full px-4 py-3 neo-input text-sm" placeholder="@handle" />
                                         </div>
+                                        <div>
+                                            <label className="block text-sm text-[var(--muted)] mb-1">Email <span className="text-xs opacity-50">(optional)</span></label>
+                                            <input type="email" value={manualForm.email} onChange={(e) => { setManualForm({ ...manualForm, email: e.target.value }); if (selectedCustomer) setSelectedCustomer(null); }} className="w-full px-4 py-3 neo-input text-sm" placeholder="name@email.com" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm text-[var(--muted)] mb-1">Phone</label>
+                                            <input value={manualForm.phone} onChange={(e) => { setManualForm({ ...manualForm, phone: e.target.value }); if (selectedCustomer) setSelectedCustomer(null); }} className="w-full px-4 py-3 neo-input text-sm" placeholder="+91..." />
+                                        </div>
+                                        <div className="col-span-2">
+                                            <label className="block text-sm text-[var(--muted)] mb-1">Address <span className="text-xs opacity-50">(optional)</span></label>
+                                            <input value={manualForm.address} onChange={(e) => setManualForm({ ...manualForm, address: e.target.value })} className="w-full px-4 py-3 neo-input text-sm" placeholder="Customer address" />
+                                        </div>
+                                        <div className="col-span-2">
+                                            <label className="flex items-start gap-3 p-3 rounded border border-[var(--border-color)] bg-[var(--surface-hover)] cursor-pointer hover:border-[var(--primary)]/40 transition-colors">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={manualForm.consent_signed}
+                                                    onChange={(e) => setManualForm({ ...manualForm, consent_signed: e.target.checked })}
+                                                    className="mt-0.5 w-4 h-4 accent-[var(--primary)]"
+                                                />
+                                                <span className="text-sm">
+                                                    <span className="font-medium">Consent form signed</span>
+                                                    <span className="block text-xs text-[var(--foreground)] mt-0.5">I assure that I have read the consent form.</span>
+                                                    <span className="block text-xs text-[var(--muted)] mt-0.5">
+                                                        Customer has read and signed the studio consent (aftercare, waivers, photo release).{" "}
+                                                        <a
+                                                            href={CONSENT_FORM_URL}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="text-[var(--primary)] hover:underline"
+                                                        >
+                                                            View consent form (PDF) &rarr;
+                                                        </a>
+                                                    </span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    )}
+
+                                    {/* PAGE 2 — Artist-facing fields */}
+                                    {manualPage === "artist" && (
+                                    <div className="grid grid-cols-2 gap-4 animate-fadeIn">
                                         <div>
                                             <label className="block text-sm text-[var(--muted)] mb-1">Artist <span className="text-xs opacity-50">(optional)</span></label>
                                             <select value={manualForm.artist_id} onChange={(e) => setManualForm({ ...manualForm, artist_id: e.target.value })} className="w-full px-4 py-3 neo-input text-sm">
@@ -558,6 +634,7 @@ function NewOrderContent() {
                                                 <option value="walk-in">Walk-in</option>
                                                 <option value="referral">Referral</option>
                                                 <option value="google">Google</option>
+                                                <option value="existing-client">Existing Client</option>
                                             </select>
                                         </div>
                                         <div>
@@ -569,42 +646,27 @@ function NewOrderContent() {
                                             <input type="number" value={manualForm.total} onChange={(e) => setManualForm({ ...manualForm, total: e.target.value })} className="w-full px-4 py-3 neo-input text-sm" placeholder="0" />
                                         </div>
                                         <div className="col-span-2">
-                                            <label className="block text-sm text-[var(--muted)] mb-1">Address <span className="text-xs opacity-50">(optional)</span></label>
-                                            <input value={manualForm.address} onChange={(e) => setManualForm({ ...manualForm, address: e.target.value })} className="w-full px-4 py-3 neo-input text-sm" placeholder="Customer address" />
-                                        </div>
-                                        <div className="col-span-2">
                                             <label className="block text-sm text-[var(--muted)] mb-1">Comments</label>
                                             <textarea value={manualForm.comments} onChange={(e) => setManualForm({ ...manualForm, comments: e.target.value })} className="w-full px-4 py-3 neo-input text-sm resize-none" rows={2} />
                                         </div>
-                                        <div className="col-span-2">
-                                            <label className="flex items-start gap-3 p-3 rounded border border-[var(--border-color)] bg-[var(--surface-hover)] cursor-pointer hover:border-[var(--primary)]/40 transition-colors">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={manualForm.consent_signed}
-                                                    onChange={(e) => setManualForm({ ...manualForm, consent_signed: e.target.checked })}
-                                                    className="mt-0.5 w-4 h-4 accent-[var(--primary)]"
-                                                />
-                                                <span className="text-sm">
-                                                    <span className="font-medium">Consent form signed</span>
-                                                    <span className="block text-xs text-[var(--muted)] mt-0.5">
-                                                        Customer has read and signed the studio consent (aftercare, waivers, photo release).{" "}
-                                                        <a
-                                                            href={CONSENT_FORM_URL}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="text-[var(--primary)] hover:underline"
-                                                        >
-                                                            View consent form (PDF) &rarr;
-                                                        </a>
-                                                    </span>
-                                                </span>
-                                            </label>
-                                        </div>
                                     </div>
-                                    <button type="submit" disabled={loading} className="w-full py-3 neo-btn neo-btn-primary font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all border-none">
-                                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><ArrowRight className="w-5 h-5" /> Create Order</>}
-                                    </button>
+                                    )}
+
+                                    {/* Navigation */}
+                                    {manualPage === "customer" ? (
+                                        <button type="button" onClick={goToArtistPage} className="w-full py-3 neo-btn neo-btn-primary font-bold flex items-center justify-center gap-2 transition-all border-none">
+                                            Next <ArrowRight className="w-5 h-5" />
+                                        </button>
+                                    ) : (
+                                        <div className="flex gap-3">
+                                            <button type="button" onClick={() => setManualPage("customer")} className="px-6 py-3 neo-btn text-sm font-medium flex items-center justify-center gap-2">
+                                                <ArrowLeft className="w-4 h-4" /> Back
+                                            </button>
+                                            <button type="submit" disabled={loading} className="flex-1 py-3 neo-btn neo-btn-primary font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all border-none">
+                                                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><ArrowRight className="w-5 h-5" /> Create Order</>}
+                                            </button>
+                                        </div>
+                                    )}
                                 </form>
                             )}
                             {step === "success" && (
@@ -614,7 +676,7 @@ function NewOrderContent() {
                                     <p className="text-[var(--muted)] mb-6">The order has been saved successfully.</p>
                                     <div className="flex gap-3 justify-center">
                                         <button onClick={() => router.push("/storeadmin")} className="px-6 py-3 neo-btn text-sm">Go to Dashboard</button>
-                                        <button onClick={() => { setStep("form"); setSelectedCustomer(null); setManualForm({ customer_name: "", phone: "", instagram: "", artist_id: "", order_date: new Date().toISOString().split("T")[0], appointment_type: "", service_description: "", payment_mode: "cash", deposit: "", total: "", comments: "", source: "", address: "", consent_signed: false }); }} className="px-6 py-3 neo-btn neo-btn-primary text-sm border-none">New Order</button>
+                                        <button onClick={() => { setStep("form"); setManualPage("customer"); setSelectedCustomer(null); setManualForm({ customer_name: "", phone: "", instagram: "", email: "", artist_id: "", order_date: new Date().toISOString().split("T")[0], appointment_type: "", service_description: "", payment_mode: "cash", deposit: "", total: "", comments: "", source: "", address: "", consent_signed: false }); }} className="px-6 py-3 neo-btn neo-btn-primary text-sm border-none">New Order</button>
                                     </div>
                                 </div>
                             )}

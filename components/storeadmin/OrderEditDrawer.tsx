@@ -345,8 +345,9 @@ export default function OrderEditDrawer({
                                 <option value="walk-in">Walk-in</option>
                                 <option value="referral">Referral</option>
                                 <option value="google">Google</option>
+                                <option value="existing-client">Existing Client</option>
                                 {form.source &&
-                                    !["instagram", "walk-in", "referral", "google"].includes(form.source) && (
+                                    !["instagram", "walk-in", "referral", "google", "existing-client"].includes(form.source) && (
                                         <option value={form.source}>{form.source}</option>
                                     )}
                             </select>
