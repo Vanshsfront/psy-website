@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/storeadmin/server/auth";
+import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { getOrderById, updateOrder, deleteOrder } from "@/lib/storeadmin/server/database";
 
 const ALLOWED_FIELDS = new Set([
@@ -21,23 +21,25 @@ const ALLOWED_FIELDS = new Set([
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await authenticateRequest(request);
+    await requireRole(request, "superadmin", "admin");
     const { id } = params;
     const order = await getOrderById(id);
     if (!order) {
       return NextResponse.json({ detail: "Order not found" }, { status: 404 });
     }
     return NextResponse.json(order);
-  } catch {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+  } catch (e) {
+    const { detail, status } = authErrorResponse(e);
+    return NextResponse.json({ detail }, { status });
   }
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await authenticateRequest(request);
-  } catch {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+    await requireRole(request, "superadmin", "admin");
+  } catch (e) {
+    const { detail, status } = authErrorResponse(e);
+    return NextResponse.json({ detail }, { status });
   }
 
   const { id } = params;
@@ -80,9 +82,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await authenticateRequest(request);
-  } catch {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+    await requireRole(request, "superadmin", "admin");
+  } catch (e) {
+    const { detail, status } = authErrorResponse(e);
+    return NextResponse.json({ detail }, { status });
   }
 
   const { id } = params;

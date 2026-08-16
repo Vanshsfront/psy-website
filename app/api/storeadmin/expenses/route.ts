@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/storeadmin/server/auth";
+import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { getExpenses } from "@/lib/storeadmin/server/database";
 
 export async function GET(request: NextRequest) {
   try {
-    await authenticateRequest(request);
+    await requireRole(request, "superadmin", "admin");
     const params = request.nextUrl.searchParams;
     const expenses = await getExpenses({
       date_from: params.get("date_from") || "",
@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
       limit: Number(params.get("limit")) || 5000,
     });
     return NextResponse.json({ expenses });
-  } catch {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+  } catch (e) {
+    const { detail, status } = authErrorResponse(e);
+    return NextResponse.json({ detail }, { status });
   }
 }

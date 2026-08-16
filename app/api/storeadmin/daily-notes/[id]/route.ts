@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/storeadmin/server/auth";
+import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { deleteDailyNote } from "@/lib/storeadmin/server/database";
 
 export async function DELETE(
@@ -7,9 +7,10 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    await authenticateRequest(request);
-  } catch {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+    await requireRole(request, "superadmin", "admin");
+  } catch (e) {
+    const { detail, status } = authErrorResponse(e);
+    return NextResponse.json({ detail }, { status });
   }
 
   const ok = await deleteDailyNote(params.id);

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/storeadmin/server/auth";
+import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { searchCustomersByConditions } from "@/lib/storeadmin/server/database";
 import { parseNlFilter, buildSupabaseQueryFromConditions, runInference } from "@/lib/storeadmin/server/nl-filter";
 
 export async function POST(request: NextRequest) {
   try {
-    await authenticateRequest(request);
+    await requireRole(request, "superadmin", "admin");
     const { filter_text } = await request.json();
 
     const filterResult = await parseNlFilter(filter_text);
@@ -45,7 +45,8 @@ export async function POST(request: NextRequest) {
       inference_caution: filterResult.inference_caution,
       inferred_fields: inferredFields,
     });
-  } catch {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+  } catch (e) {
+    const { detail, status } = authErrorResponse(e);
+    return NextResponse.json({ detail }, { status });
   }
 }

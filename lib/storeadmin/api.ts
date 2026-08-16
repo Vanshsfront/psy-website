@@ -341,6 +341,25 @@ export const api = {
             method: "DELETE",
         }),
 
+    // Users (superadmin only)
+    getUsers: () =>
+        apiFetch<{ users: import("@/types/storeadmin").StoreUser[] }>("/api/storeadmin/users"),
+
+    createUser: (body: { username: string; password: string; role: string; artist_id?: string | null }) =>
+        apiFetch<{ created: boolean }>("/api/storeadmin/users", {
+            method: "POST",
+            body: JSON.stringify(body),
+        }),
+
+    updateUser: (id: string, body: Record<string, unknown>) =>
+        apiFetch<{ updated: boolean }>(`/api/storeadmin/users/${id}`, {
+            method: "PATCH",
+            body: JSON.stringify(body),
+        }),
+
+    deleteUser: (id: string) =>
+        apiFetch<{ deleted: boolean }>(`/api/storeadmin/users/${id}`, { method: "DELETE" }),
+
     // Petty Cash
     getPettyCashBalance: () =>
         apiFetch<{ balance: number; total_topups: number; total_expenses: number }>("/api/storeadmin/petty-cash/balance"),

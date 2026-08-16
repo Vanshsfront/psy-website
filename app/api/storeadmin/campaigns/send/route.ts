@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/storeadmin/server/auth";
+import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { getDb } from "@/lib/storeadmin/server/database";
 import { createCampaign, updateCampaignStatus, createMessageLog } from "@/lib/storeadmin/server/database";
 import { sendBatchTemplate, fetchTemplates } from "@/lib/storeadmin/server/whatsapp-utils";
 
 export async function POST(request: NextRequest) {
   try {
-    await authenticateRequest(request);
+    await requireRole(request, "superadmin", "admin");
     const body = await request.json();
     const { template_name, language_code = "en", customer_ids, nl_filter_text = "", resolved_query = "" } = body;
 
@@ -58,7 +58,8 @@ export async function POST(request: NextRequest) {
       failed: results.length - successCount,
       results,
     });
-  } catch {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+  } catch (e) {
+    const { detail, status } = authErrorResponse(e);
+    return NextResponse.json({ detail }, { status });
   }
 }

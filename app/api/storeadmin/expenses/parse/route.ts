@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/storeadmin/server/auth";
+import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { parseExpense } from "@/lib/storeadmin/server/expense-parser";
 
 export async function POST(request: NextRequest) {
   try {
-    await authenticateRequest(request);
+    await requireRole(request, "superadmin", "admin");
     const { text } = await request.json();
     const result = await parseExpense(text);
     return NextResponse.json(result);
-  } catch {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+  } catch (e) {
+    const { detail, status } = authErrorResponse(e);
+    return NextResponse.json({ detail }, { status });
   }
 }

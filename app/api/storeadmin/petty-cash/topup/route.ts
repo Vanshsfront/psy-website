@@ -1,21 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest, getRoleForUser } from "@/lib/storeadmin/server/auth";
+import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { createPettyCashTopup } from "@/lib/storeadmin/server/database";
 
 export async function POST(request: NextRequest) {
   try {
-    const username = await authenticateRequest(request);
-    const role = getRoleForUser(username);
-    if (role !== "superadmin") {
-      return NextResponse.json({ detail: "Forbidden" }, { status: 403 });
-    }
+    await requireRole(request, "superadmin");
     const { amount, note } = await request.json();
     if (!amount || amount <= 0) {
       return NextResponse.json({ detail: "Amount must be positive" }, { status: 400 });
     }
     const expense = await createPettyCashTopup(amount, note);
     return NextResponse.json({ success: true, expense });
-  } catch {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+  } catch (e) {
+    const { detail, status } = authErrorResponse(e);
+    return NextResponse.json({ detail }, { status });
   }
 }

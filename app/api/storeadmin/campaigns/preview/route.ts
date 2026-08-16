@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/storeadmin/server/auth";
+import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { getCustomerById } from "@/lib/storeadmin/server/database";
 import { fetchTemplates, renderTemplatePreview } from "@/lib/storeadmin/server/whatsapp-utils";
 
 export async function POST(request: NextRequest) {
   try {
-    await authenticateRequest(request);
+    await requireRole(request, "superadmin", "admin");
 
     const formData = await request.formData();
     const templateName = formData.get("template_name") as string || "";
@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, previews });
-  } catch {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+  } catch (e) {
+    const { detail, status } = authErrorResponse(e);
+    return NextResponse.json({ detail }, { status });
   }
 }

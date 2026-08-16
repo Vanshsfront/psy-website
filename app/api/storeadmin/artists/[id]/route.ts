@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/storeadmin/server/auth";
+import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { updateArtist } from "@/lib/storeadmin/server/database";
 
 export async function PATCH(
@@ -7,9 +7,10 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    await authenticateRequest(request);
-  } catch {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+    await requireRole(request, "superadmin", "admin");
+  } catch (e) {
+    const { detail, status } = authErrorResponse(e);
+    return NextResponse.json({ detail }, { status });
   }
 
   let body: Record<string, unknown>;

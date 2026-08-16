@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/storeadmin/server/auth";
+import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { getDb } from "@/lib/storeadmin/server/database";
 import ExcelJS from "exceljs";
 
 export async function GET(request: NextRequest) {
   try {
-    await authenticateRequest(request);
+    await requireRole(request, "superadmin");
 
     const db = getDb();
 
@@ -64,7 +64,8 @@ export async function GET(request: NextRequest) {
         "Content-Disposition": "attachment; filename=PsyShot_Mastersheet.xlsx",
       },
     });
-  } catch {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+  } catch (e) {
+    const { detail, status } = authErrorResponse(e);
+    return NextResponse.json({ detail }, { status });
   }
 }

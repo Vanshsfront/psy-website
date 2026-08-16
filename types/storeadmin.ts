@@ -1,3 +1,15 @@
+/** A /storeadmin login. Roles are enforced server-side, not just in the sidebar. */
+export interface StoreUser {
+    id: string;
+    username: string;
+    role: "superadmin" | "admin" | "artist";
+    /** Set only on artist logins — the studio.artists row they speak for. */
+    artist_id: string | null;
+    is_active: boolean;
+    created_at: string;
+    artists?: { name: string } | null;
+}
+
 export interface Customer {
     id: string;
     name: string;

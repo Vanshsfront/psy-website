@@ -7,11 +7,14 @@ const JWT_SECRET = new TextEncoder().encode(
 );
 const JWT_EXPIRE_HOURS = 24;
 
-export type UserRole = "admin" | "superadmin";
+export type UserRole = "superadmin" | "admin" | "artist";
 
-export function getRoleForUser(username: string): UserRole {
-  if (username === "yogesh") return "superadmin";
-  return "admin";
+/** Who the caller is, resolved from the database rather than from the token. */
+export interface AuthedUser {
+  username: string;
+  role: UserRole;
+  /** Set only for `artist` logins: the studio.artists row they speak for. */
+  artistId: string | null;
 }
 
 export function hashPassword(password: string): string {
@@ -23,33 +26,73 @@ export function verifyPassword(plain: string, hashed: string): boolean {
 }
 
 export async function createToken(username: string): Promise<string> {
-  const role = getRoleForUser(username);
-  return new SignJWT({ sub: username, role })
+  // Deliberately carries no role. Roles live in the database, so revoking or
+  // demoting someone takes effect immediately instead of waiting out a token
+  // that still asserts the old privileges.
+  return new SignJWT({ sub: username })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime(`${JWT_EXPIRE_HOURS}h`)
     .sign(JWT_SECRET);
 }
 
-export async function decodeToken(token: string): Promise<{ sub: string; role?: string } | null> {
+export async function decodeToken(token: string): Promise<{ sub: string } | null> {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET, { algorithms: ["HS256"] });
-    return payload as { sub: string; role?: string };
+    return payload as { sub: string };
   } catch {
     return null;
   }
 }
 
-export async function authenticateRequest(request: NextRequest): Promise<string> {
+/** Look the caller up. Throws "Unauthorized" for a bad token or disabled account. */
+export async function getAuthedUser(request: NextRequest): Promise<AuthedUser> {
   const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    throw new Error("Unauthorized");
+  if (!authHeader?.startsWith("Bearer ")) throw new Error("Unauthorized");
+
+  const payload = await decodeToken(authHeader.slice(7));
+  if (!payload?.sub) throw new Error("Unauthorized");
+
+  const { getUserByUsername } = await import("./database");
+  const user = await getUserByUsername(payload.sub);
+  if (!user || user.is_active === false) throw new Error("Unauthorized");
+
+  return {
+    username: user.username,
+    role: (user.role as UserRole) || "admin",
+    artistId: (user.artist_id as string) ?? null,
+  };
+}
+
+/**
+ * Gate a route on one or more roles.
+ *
+ * Every /api/storeadmin route should call this rather than merely authenticating:
+ * hiding a sidebar item stops nobody from calling the endpoint directly, which
+ * is exactly how an artist login would otherwise read the whole studio's
+ * customer list and finances.
+ */
+export async function requireRole(
+  request: NextRequest,
+  ...allowed: UserRole[]
+): Promise<AuthedUser> {
+  const user = await getAuthedUser(request);
+  if (!allowed.includes(user.role)) throw new Error("Forbidden");
+  return user;
+}
+
+/** Back-compat shim: existing routes call this and only need the username. */
+export async function authenticateRequest(request: NextRequest): Promise<string> {
+  const user = await getAuthedUser(request);
+  return user.username;
+}
+
+/** Maps a thrown auth error to the right status, so 403 stops reading as 401. */
+export function authErrorResponse(e: unknown): { detail: string; status: number } {
+  const message = e instanceof Error ? e.message : "Unauthorized";
+  if (message === "Forbidden") {
+    return { detail: "You do not have access to this", status: 403 };
   }
-  const token = authHeader.slice(7);
-  const payload = await decodeToken(token);
-  if (!payload?.sub) {
-    throw new Error("Unauthorized");
-  }
-  return payload.sub;
+  return { detail: "Unauthorized", status: 401 };
 }
 
 export async function ensureDefaultUsers() {
@@ -57,14 +100,12 @@ export async function ensureDefaultUsers() {
 
   const adminUser = process.env.ADMIN_USERNAME || "admin";
   const adminPass = process.env.ADMIN_PASSWORD || "admin123";
-  const existingAdmin = await getUserByUsername(adminUser);
-  if (!existingAdmin) {
+  if (!(await getUserByUsername(adminUser))) {
     await createUser(adminUser, hashPassword(adminPass));
   }
 
-  const existingYogesh = await getUserByUsername("yogesh");
-  if (!existingYogesh) {
-    await createUser("yogesh", hashPassword("yogesh@admin"));
+  if (!(await getUserByUsername("yogesh"))) {
+    await createUser("yogesh", hashPassword("yogesh@admin"), "superadmin");
   }
 }
 

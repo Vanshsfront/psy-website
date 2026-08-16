@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/storeadmin/server/auth";
+import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { getCustomerById, updateCustomer, deleteCustomer, getOrders } from "@/lib/storeadmin/server/database";
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await authenticateRequest(request);
+    await requireRole(request, "superadmin", "admin");
     const { id } = params;
     const customer = await getCustomerById(id);
     if (!customer) {
@@ -12,14 +12,15 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
     const orders = await getOrders(id);
     return NextResponse.json({ ...customer, orders });
-  } catch {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+  } catch (e) {
+    const { detail, status } = authErrorResponse(e);
+    return NextResponse.json({ detail }, { status });
   }
 }
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await authenticateRequest(request);
+    await requireRole(request, "superadmin", "admin");
     const { id } = params;
     const body = await request.json();
     const data: Record<string, unknown> = {};
@@ -31,21 +32,23 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
     const customer = await updateCustomer(id, data);
     return NextResponse.json({ updated: true, customer });
-  } catch {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+  } catch (e) {
+    const { detail, status } = authErrorResponse(e);
+    return NextResponse.json({ detail }, { status });
   }
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await authenticateRequest(request);
+    await requireRole(request, "superadmin", "admin");
     const { id } = params;
     const success = await deleteCustomer(id);
     if (!success) {
       return NextResponse.json({ detail: "Failed to delete customer" }, { status: 500 });
     }
     return NextResponse.json({ deleted: true });
-  } catch {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+  } catch (e) {
+    const { detail, status } = authErrorResponse(e);
+    return NextResponse.json({ detail }, { status });
   }
 }

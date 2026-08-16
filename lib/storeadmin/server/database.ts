@@ -86,9 +86,51 @@ export async function getUserByUsername(username: string) {
   return data?.[0] ?? null;
 }
 
-export async function createUser(username: string, passwordHash: string) {
-  const { data } = await getDb().from("users").insert({ username, password_hash: passwordHash }).select();
+export async function createUser(
+  username: string,
+  passwordHash: string,
+  role: string = "admin",
+  artistId: string | null = null
+) {
+  // artist_id is only permitted on artist rows — the users_artist_link_check
+  // constraint enforces the pairing in both directions.
+  const { data, error } = await getDb()
+    .from("users")
+    .insert({
+      username,
+      password_hash: passwordHash,
+      role,
+      artist_id: role === "artist" ? artistId : null,
+    })
+    .select();
+  if (error) throw new Error(error.message);
   return data?.[0] ?? {};
+}
+
+export async function listUsers() {
+  const { data } = await getDb()
+    .from("users")
+    .select("id, username, role, artist_id, is_active, created_at, artists(name)")
+    .order("role")
+    .order("username");
+  return data ?? [];
+}
+
+export async function updateUser(userId: string, patch: Record<string, unknown>) {
+  const allowed = new Set(["role", "artist_id", "is_active", "password_hash"]);
+  const payload: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(patch)) if (allowed.has(k)) payload[k] = v;
+  if (payload.role && payload.role !== "artist") payload.artist_id = null;
+
+  const { data, error } = await getDb().from("users").update(payload).eq("id", userId).select();
+  if (error) throw new Error(error.message);
+  return data?.[0] ?? {};
+}
+
+export async function deleteUser(userId: string) {
+  const { error } = await getDb().from("users").delete().eq("id", userId);
+  if (error) throw new Error(error.message);
+  return true;
 }
 
 // ── Daily Notes ──

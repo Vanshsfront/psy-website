@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateRequest } from "@/lib/storeadmin/server/auth";
+import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { createCustomer, createOrder, getArtistByName, createArtist, updateOcrSession } from "@/lib/storeadmin/server/database";
 
 export async function POST(request: NextRequest) {
   try {
-    await authenticateRequest(request);
+    await requireRole(request, "superadmin", "admin");
     const body = await request.json();
     const { session_id, fields, create_new_customer, customer_data } = body;
     let customerId = body.customer_id;
@@ -46,7 +46,8 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true, order, customer_id: customerId });
-  } catch {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+  } catch (e) {
+    const { detail, status } = authErrorResponse(e);
+    return NextResponse.json({ detail }, { status });
   }
 }
