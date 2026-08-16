@@ -76,9 +76,21 @@ function DashboardContent() {
     const revenueThisMonth = ordersThisMonth.reduce((s, o) => s + (o.total || 0), 0);
     const totalRevenue = orders.reduce((s, o) => s + (o.total || 0), 0);
 
-    // Recent orders (last 5)
+    // Most recently ENTERED orders, which is what "recent" means on a dashboard.
+    //
+    // Sorting on `order_date` alone put arbitrary rows here: it is a calendar day,
+    // so every order booked today ties, and Array.sort is stable — ties therefore
+    // kept the order they arrived in from getOrders(), which sorts `id ASC`. Since
+    // ids are random UUIDs, "Recent Orders" was really "today's orders with the
+    // lowest random id". `created_at` is a timestamp and breaks the tie properly;
+    // `order_date` stays as the primary key so a backdated entry still sorts by
+    // when the service happened.
     const recentOrders = [...orders]
-        .sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime())
+        .sort((a, b) => {
+            const day = new Date(b.order_date).getTime() - new Date(a.order_date).getTime();
+            if (day !== 0) return day;
+            return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
+        })
         .slice(0, 6);
 
     // Top artists by revenue

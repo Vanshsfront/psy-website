@@ -803,7 +803,11 @@ export async function getFinancialSummary(dateFrom = "", dateTo = "") {
   return {
     revenue,
     expenses: totalExpenses,
-    profit: revenue, // petty cash has no connection to revenue
+    // Profit is revenue minus expenses over the same window. This previously
+    // returned `revenue` unchanged, so the Finance page reported gross takings
+    // under a "profit" heading. Petty-cash top-ups are already excluded above —
+    // moving cash between float and till is not an expense.
+    profit: revenue - totalExpenses,
     petty_cash_balance: pettyCash.balance,
     category_breakdown: categoryTotals,
     order_count: ordersData.length,

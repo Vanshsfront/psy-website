@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import typography from "@tailwindcss/typography";
 
 const config: Config = {
   content: [
@@ -65,7 +66,11 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  // Blog posts and community posts render TipTap's HTML through `prose`. Without
+  // this plugin those class names resolve to nothing while Preflight still
+  // strips the margins off every <p>, so a multi-paragraph post rendered as one
+  // unbroken wall of text.
+  plugins: [typography],
 };
 
 export default config;

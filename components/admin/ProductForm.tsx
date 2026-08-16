@@ -11,8 +11,8 @@ import { useRouter } from "next/navigation"
 import { useProductCategories } from "@/hooks/useProductCategories"
 
 import { useEditor, EditorContent } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import Placeholder from '@tiptap/extension-placeholder'
+import RichTextToolbar from '@/components/admin/RichTextToolbar'
+import { richTextExtensions } from '@/lib/tiptap'
 import { stripDashes } from '@/lib/sanitizeText'
 
 const productSchema = z.object({
@@ -70,10 +70,7 @@ export default function ProductForm({ initialData }: { initialData?: any }) {
 
   // TipTap setup
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Placeholder.configure({ placeholder: 'Write a full rich description...' })
-    ],
+    extensions: richTextExtensions('Write a full rich description...'),
     content: initialData?.description_full || '',
     editorProps: {
       attributes: {
@@ -225,6 +222,7 @@ export default function ProductForm({ initialData }: { initialData?: any }) {
             <button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`px-2 py-1 text-xs italic rounded ${editor?.isActive('italic') ? 'bg-borderDark text-white' : 'text-mutedText hover:bg-borderDark'}`}>I</button>
             <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`px-2 py-1 text-xs rounded ${editor?.isActive('heading') ? 'bg-borderDark text-white' : 'text-mutedText hover:bg-borderDark'}`}>H2</button>
           </div>
+          <RichTextToolbar editor={editor} />
           <EditorContent editor={editor} />
         </div>
       </div>

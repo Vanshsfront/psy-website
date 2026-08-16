@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Trash2, Upload } from "lucide-react";
 import Image from "next/image";
 import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
+import RichTextToolbar from "@/components/admin/RichTextToolbar";
+import { richTextExtensions } from "@/lib/tiptap";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useImageUpload } from "@/hooks/useImageUpload";
@@ -46,17 +46,12 @@ export default function CommunityPostSlideOver({
   // Rich text editor for content
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: [
-      StarterKit,
-      Placeholder.configure({
-        placeholder: "Write full post content here...",
-      }),
-    ],
+    extensions: richTextExtensions("Write full post content here..."),
     content: "",
     editorProps: {
       attributes: {
         class:
-          "prose prose-invert prose-sm focus:outline-none min-h-[120px] p-3",
+          "prose prose-invert prose-sm max-w-none focus:outline-none min-h-[120px] p-3",
       },
     },
   });
@@ -309,6 +304,7 @@ export default function CommunityPostSlideOver({
                   Full Content
                 </label>
                 <div className="rounded border border-[#2a2a2a] bg-ink overflow-hidden">
+                  <RichTextToolbar editor={editor} />
                   <EditorContent editor={editor} />
                 </div>
                 <p className="text-xs text-taupe/60 mt-1">

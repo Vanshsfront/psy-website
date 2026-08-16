@@ -288,7 +288,7 @@ function ExpensesContent() {
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                     <div>
-                        <h1 className="font-display text-4xl font-bold">Petty Cash</h1>
+                        <h1 className="font-display text-4xl font-bold">Expenses</h1>
                         <p className="text-[var(--muted)] mt-1 text-sm">
                             {filtered.length} entries &middot; {formatCurrency(totalAmount)} total
                         </p>
