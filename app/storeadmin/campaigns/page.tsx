@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/storeadmin/AuthProvider";
 import Sidebar from "@/components/storeadmin/Sidebar";
@@ -8,6 +8,11 @@ import TemplatesTab from "@/components/storeadmin/TemplatesTab";
 import TemplateViewModal from "@/components/storeadmin/TemplateViewModal";
 import CampaignHistoryTab from "@/components/storeadmin/CampaignHistoryTab";
 import CustomerPicker from "@/components/storeadmin/CustomerPicker";
+import CustomerFilterPanel, {
+    emptyFilters,
+    applyCustomerFilters,
+    type CustomerFilters,
+} from "@/components/storeadmin/CustomerFilterPanel";
 import { api } from "@/lib/storeadmin/api";
 import { formatCurrency } from "@/lib/storeadmin/utils";
 import type { WhatsAppTemplate, Customer } from "@/types/storeadmin";
@@ -97,9 +102,20 @@ function CampaignsContent() {
     // `audienceMode`, which is just the toggle's current position.
     const [audienceOrigin, setAudienceOrigin] = useState<AudienceMode>("ai");
     const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
+    // Rich attribute filters for hand-built audiences. Kept beside the picker
+    // rather than inside it, because the picker is a dumb tick-list and the
+    // filtering is what actually needs to be reusable.
+    const [manualFilters, setManualFilters] = useState<CustomerFilters>(emptyFilters);
     const [customersLoading, setCustomersLoading] = useState(false);
     const [customersLoaded, setCustomersLoaded] = useState(false);
     const [manualSelected, setManualSelected] = useState<Set<string>>(new Set());
+
+    // Derived, not stored: the filters and the list are the source of truth, so
+    // a stale selection can never disagree with what is on screen.
+    const filteredManualCustomers = useMemo(
+        () => applyCustomerFilters(allCustomers, manualFilters),
+        [allCustomers, manualFilters]
+    );
     const [manuallyAddedIds, setManuallyAddedIds] = useState<Set<string>>(new Set());
     const [addOpen, setAddOpen] = useState(false);
     const [addSelection, setAddSelection] = useState<Set<string>>(new Set());
@@ -500,11 +516,44 @@ function CampaignsContent() {
                             ) : (
                                 <>
                                     <p className="text-sm text-[var(--muted)] mb-4">
-                                        Search the customer list and tick everyone you want to message. You can add more
-                                        people on the next step too.
+                                        Filter on anything the CRM knows — spend, visits, source, artist,
+                                        payment method, when they last came in — then tick who to message.
                                     </p>
-                                    <CustomerPicker
+                                    <CustomerFilterPanel
                                         customers={allCustomers}
+                                        filters={manualFilters}
+                                        onChange={setManualFilters}
+                                        matchCount={filteredManualCustomers.length}
+                                    />
+                                    <div className="flex gap-2 mb-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                // Tick everyone currently matching, on top of any
+                                                // existing picks rather than replacing them.
+                                                const next = new Set(manualSelected);
+                                                for (const c of filteredManualCustomers) {
+                                                    if ((c.phone ?? "").trim()) next.add(c.id);
+                                                }
+                                                setManualSelected(next);
+                                            }}
+                                            disabled={filteredManualCustomers.length === 0}
+                                            className="px-3 py-1.5 text-xs neo-btn rounded disabled:opacity-40"
+                                        >
+                                            Select all {filteredManualCustomers.length} matching
+                                        </button>
+                                        {manualSelected.size > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setManualSelected(new Set())}
+                                                className="px-3 py-1.5 text-xs text-[var(--muted)]"
+                                            >
+                                                Clear {manualSelected.size} selected
+                                            </button>
+                                        )}
+                                    </div>
+                                    <CustomerPicker
+                                        customers={filteredManualCustomers}
                                         loading={customersLoading}
                                         selected={manualSelected}
                                         onChange={setManualSelected}

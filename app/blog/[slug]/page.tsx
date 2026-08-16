@@ -47,7 +47,10 @@ export default async function BlogPostPage({
             {formatDate(p.published_at ?? p.created_at)}
             {p.author ? ` · ${p.author}` : ""}
           </span>
-          <h1 className="font-display text-display-2xl text-bone mt-3 leading-tight">
+          {/* display-lg, not display-2xl. The 2xl step is a hero size — up to
+              144px — which set an eight-to-one ratio against the 18px body text
+              and pushed the article itself below the fold on a laptop. */}
+          <h1 className="font-display text-display-lg text-bone mt-3 leading-tight max-w-3xl">
             {p.title}
           </h1>
           {p.excerpt && (

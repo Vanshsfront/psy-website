@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/storeadmin/AuthProvider";
 import Sidebar from "@/components/storeadmin/Sidebar";
-import AppointmentCalendar from "@/components/storeadmin/AppointmentCalendar";
+import AppointmentCalendar, { type CalendarView } from "@/components/storeadmin/AppointmentCalendar";
 import { api, clearApiCache } from "@/lib/storeadmin/api";
 import { formatCurrency } from "@/lib/storeadmin/utils";
 import type { Appointment, Artist, Customer } from "@/types/storeadmin";
@@ -28,6 +28,7 @@ export default function AppointmentsPage() {
     const router = useRouter();
 
     const [day, setDay] = useState(() => new Date());
+    const [view, setView] = useState<CalendarView>("day");
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [artists, setArtists] = useState<Artist[]>([]);
     const [loading, setLoading] = useState(true);
@@ -56,8 +57,20 @@ export default function AppointmentsPage() {
         setLoading(true);
         try {
             clearApiCache();
-            const from = `${dayKey(day)}T00:00:00`;
-            const to = `${dayKey(addDays(day, 1))}T00:00:00`;
+            // Fetch exactly the window the view renders, so switching to month
+            // does not quietly show a single day's bookings in a month grid.
+            let start = day;
+            let end = addDays(day, 1);
+            if (view === "week") {
+                start = addDays(day, -day.getDay());
+                end = addDays(start, 7);
+            } else if (view === "month") {
+                const first = new Date(day.getFullYear(), day.getMonth(), 1);
+                start = addDays(first, -first.getDay());
+                end = addDays(start, 42); // six weeks covers any month layout
+            }
+            const from = `${dayKey(start)}T00:00:00`;
+            const to = `${dayKey(end)}T00:00:00`;
             const [a, ar] = await Promise.all([
                 api.getAppointments({ from, to }),
                 api.getArtists(),
@@ -70,7 +83,7 @@ export default function AppointmentsPage() {
         } finally {
             setLoading(false);
         }
-    }, [day]);
+    }, [day, view]);
 
     useEffect(() => {
         if (isAuthenticated) load();
@@ -151,6 +164,31 @@ export default function AppointmentsPage() {
         );
     }
 
+    // Arrows move by whatever unit is on screen — a day, a week, or a month.
+    const step = (n: number) => {
+        if (view === "day") return setDay(addDays(day, n));
+        if (view === "week") return setDay(addDays(day, n * 7));
+        const d = new Date(day);
+        d.setMonth(d.getMonth() + n);
+        setDay(d);
+    };
+
+    const rangeLabel = () => {
+        if (view === "day") {
+            return day.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+        }
+        if (view === "week") {
+            const start = addDays(day, -day.getDay());
+            const end = addDays(start, 6);
+            const sameMonth = start.getMonth() === end.getMonth();
+            return `${start.toLocaleDateString(undefined, { day: "numeric", month: "short" })} – ${end.toLocaleDateString(
+                undefined,
+                sameMonth ? { day: "numeric", month: "short" } : { day: "numeric", month: "short" }
+            )}`;
+        }
+        return day.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    };
+
     const isToday = dayKey(day) === dayKey(new Date());
     const counts = {
         booked: appointments.filter((a) => a.status === "booked").length,
@@ -179,16 +217,14 @@ export default function AppointmentsPage() {
                 </div>
 
                 <div className="flex items-center gap-3 mb-4 flex-wrap">
-                    <button onClick={() => setDay(addDays(day, -1))} className="p-2 neo-btn rounded">
+                    <button onClick={() => step(-1)} className="p-2 neo-btn rounded">
                         <ChevronLeft className="w-4 h-4" />
                     </button>
                     <div className="min-w-[220px] text-center">
-                        <div className="font-display text-xl">
-                            {day.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}
-                        </div>
+                        <div className="font-display text-xl">{rangeLabel()}</div>
                         {isToday && <div className="text-[10px] uppercase tracking-widest text-[var(--primary)]">Today</div>}
                     </div>
-                    <button onClick={() => setDay(addDays(day, 1))} className="p-2 neo-btn rounded">
+                    <button onClick={() => step(1)} className="p-2 neo-btn rounded">
                         <ChevronRight className="w-4 h-4" />
                     </button>
                     <button onClick={() => setDay(new Date())} className="px-3 py-2 text-xs neo-btn rounded">Today</button>
@@ -199,6 +235,22 @@ export default function AppointmentsPage() {
                         onChange={(e) => e.target.value && setDay(new Date(`${e.target.value}T12:00:00`))}
                         className="px-3 py-2 neo-input text-sm [color-scheme:dark]"
                     />
+
+                    <div className="flex rounded overflow-hidden border border-[var(--border-color)] ml-auto">
+                        {(["day", "week", "month"] as CalendarView[]).map((v) => (
+                            <button
+                                key={v}
+                                onClick={() => setView(v)}
+                                className={`px-3 py-2 text-xs capitalize transition-colors ${
+                                    view === v
+                                        ? "bg-[var(--primary)] text-ink"
+                                        : "text-[var(--muted)] hover:bg-[var(--surface-hover)]"
+                                }`}
+                            >
+                                {v}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {error && (
@@ -290,7 +342,13 @@ export default function AppointmentsPage() {
                 {loading ? (
                     <Loader2 className="w-6 h-6 animate-spin text-[var(--primary)]" />
                 ) : (
-                    <AppointmentCalendar appointments={appointments} onSelect={setSelected} />
+                    <AppointmentCalendar
+                        appointments={appointments}
+                        view={view}
+                        anchor={day}
+                        onSelect={setSelected}
+                        onPickDay={(d) => { setDay(d); setView("day"); }}
+                    />
                 )}
 
                 {selected && (
