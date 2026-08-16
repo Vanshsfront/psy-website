@@ -593,14 +593,50 @@ export async function deleteOrder(orderId: string): Promise<boolean> {
 
 // ── Expenses ──
 
-export async function getExpenses(params: { date_from?: string; date_to?: string; category?: string; limit?: number } = {}) {
-  const { date_from = "", date_to = "", category = "", limit = 200 } = params;
-  let q = getDb().from("expenses").select("*").neq("category", "topup");
-  if (date_from) q = q.gte("expense_date", date_from);
-  if (date_to) q = q.lte("expense_date", date_to);
-  if (category) q = q.eq("category", category);
-  const { data } = await q.order("expense_date", { ascending: false }).limit(limit);
-  return data ?? [];
+export async function getExpenses(
+  params: {
+    date_from?: string;
+    date_to?: string;
+    category?: string;
+    expense_type?: string;
+    payment_mode?: string;
+    limit?: number;
+  } = {}
+) {
+  const {
+    date_from = "",
+    date_to = "",
+    category = "",
+    expense_type = "",
+    payment_mode = "",
+    limit = 5000,
+  } = params;
+
+  // Paged rather than a bare `.limit()`: Supabase caps each response at 1000
+  // rows, so the old default of 200 quietly hid everything past the 200th
+  // expense and any total computed from this list was short.
+  const PAGE = 1000;
+  const rows: Record<string, unknown>[] = [];
+  for (let fetched = 0; fetched < limit; fetched += PAGE) {
+    let q = getDb().from("expenses").select("*").neq("category", "topup");
+    if (date_from) q = q.gte("expense_date", date_from);
+    if (date_to) q = q.lte("expense_date", date_to);
+    if (category) q = q.eq("category", category);
+    if (expense_type) q = q.eq("expense_type", expense_type);
+    // Stored inconsistently ("cash" vs "Cash"), so match case-insensitively
+    // rather than silently returning nothing for the wrong casing.
+    if (payment_mode) q = q.ilike("payment_mode", payment_mode);
+
+    const pageEnd = Math.min(fetched + PAGE, limit) - 1;
+    const { data } = await q
+      .order("expense_date", { ascending: false })
+      .order("id", { ascending: true })
+      .range(fetched, pageEnd);
+    if (!data?.length) break;
+    rows.push(...data);
+    if (data.length < pageEnd - fetched + 1) break;
+  }
+  return rows;
 }
 
 export async function createExpense(inputData: Record<string, unknown>) {
@@ -613,6 +649,8 @@ export async function createExpense(inputData: Record<string, unknown>) {
     vendor: inputData.vendor,
     payment_mode: inputData.payment_mode,
     raw_input: inputData.raw_input,
+    expense_type: inputData.expense_type,
+    receipt_url: inputData.receipt_url,
   };
   for (const k of Object.keys(payload)) {
     if (payload[k] == null) delete payload[k];

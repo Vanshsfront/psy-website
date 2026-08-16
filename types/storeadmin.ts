@@ -68,6 +68,10 @@ export interface Expense {
     vendor: string | null;
     payment_mode: string | null;
     raw_input: string | null;
+    /** 'petty' (paid from the studio float) or 'business'. */
+    expense_type?: string | null;
+    /** Photo of the bill, replacing the receipts kept in the WhatsApp group. */
+    receipt_url?: string | null;
     created_at: string;
 }
 

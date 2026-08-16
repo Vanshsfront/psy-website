@@ -47,6 +47,8 @@ function ExpensesContent() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("");
+    const [typeFilter, setTypeFilter] = useState("");
+    const [paymentFilter, setPaymentFilter] = useState("");
     const [dateFrom, setDateFrom] = useState("");
     const [dateTo, setDateTo] = useState("");
     const [page, setPage] = useState(0);
@@ -125,6 +127,10 @@ function ExpensesContent() {
                     payment_mode: String(f.payment_mode || "cash"),
                     date: String(f.date || new Date().toISOString().split("T")[0]),
                     raw_input: String(f.raw_input || expenseText),
+                    // The parser has no notion of petty vs business and cannot see
+                    // a receipt, so both stay at their defaults for the user to set.
+                    expense_type: "business",
+                    receipt_url: null,
                 });
             }
         } catch (e) {
@@ -208,6 +214,16 @@ function ExpensesContent() {
     if (categoryFilter) {
         filtered = filtered.filter(e => canonCat(e.category) === categoryFilter);
     }
+    if (typeFilter) {
+        // Rows predating the expense_type column read as business, matching the
+        // column default the migration applied.
+        filtered = filtered.filter(e => (e.expense_type || "business") === typeFilter);
+    }
+    if (paymentFilter) {
+        // payment_mode holds both "cash" and "Cash", so compare canonically or
+        // half the matching rows go missing.
+        filtered = filtered.filter(e => canonCat(e.payment_mode) === paymentFilter);
+    }
     if (dateFrom) {
         filtered = filtered.filter(e => (e.expense_date || "").slice(0, 10) >= dateFrom);
     }
@@ -221,6 +237,7 @@ function ExpensesContent() {
     const totalAmount = filtered.reduce((s, e) => s + e.amount, 0);
 
     const categories = [...new Set(expenses.map(e => canonCat(e.category)))].filter(Boolean).sort();
+    const paymentModes = [...new Set(expenses.map(e => canonCat(e.payment_mode)))].filter(Boolean).sort();
 
     const catTotals: Record<string, number> = {};
     filtered.forEach(e => {
@@ -440,6 +457,25 @@ function ExpensesContent() {
                             <option value="">All Categories</option>
                             {categories.map(c => (
                                 <option key={c} value={c}>{c}</option>
+                            ))}
+                        </select>
+                        <select
+                            value={typeFilter}
+                            onChange={(e) => { setTypeFilter(e.target.value); setPage(0); }}
+                            className="px-3 py-2.5 neo-input text-sm capitalize"
+                        >
+                            <option value="">All Types</option>
+                            <option value="business">Business</option>
+                            <option value="petty">Petty</option>
+                        </select>
+                        <select
+                            value={paymentFilter}
+                            onChange={(e) => { setPaymentFilter(e.target.value); setPage(0); }}
+                            className="px-3 py-2.5 neo-input text-sm capitalize"
+                        >
+                            <option value="">All Payment Modes</option>
+                            {paymentModes.map(m => (
+                                <option key={m} value={m}>{m}</option>
                             ))}
                         </select>
                         <div className="flex items-center gap-2">
