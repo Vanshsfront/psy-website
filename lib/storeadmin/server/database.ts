@@ -3,6 +3,14 @@ import { endExclusive } from "@/lib/storeadmin/date-range";
 
 let _db: SupabaseClient | null = null;
 
+/**
+ * Postgres schema holding the CRM tables.
+ *
+ * `studio` on the consolidated self-hosted database; override to `public` to
+ * point back at the old standalone Supabase project during a rollback.
+ */
+const STOREADMIN_SCHEMA = process.env.STOREADMIN_DB_SCHEMA || "studio";
+
 /** Supabase caps every response at this many rows, so aggregates must page. */
 const PAGE_SIZE = 1000;
 
@@ -54,7 +62,20 @@ export function getDb(): SupabaseClient {
       "SUPABASE_URL and STOREADMIN_SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY) must be set"
     );
   }
-  _db = createClient(url, key);
+  // The CRM lives in the `studio` schema, not `public`. Both were once separate
+  // Supabase projects; consolidating them into one database meant `orders` and
+  // `artists` collided — the shop's `orders` are Razorpay jewellery purchases,
+  // the studio's are tattoo appointments. Separate schemas keep them apart
+  // without renaming a table. Drop this option and every CRM query silently
+  // reads the shop's tables instead.
+  // The cast is needed because `SupabaseClient` defaults its schema type
+  // parameter to "public", so a client built for another schema isn't assignable
+  // to it. This project has no generated database types — every row is `any` —
+  // so the schema parameter carries no type safety to lose here, and casting
+  // beats pinning the exact generic arity of the installed supabase-js.
+  _db = createClient(url, key, {
+    db: { schema: STOREADMIN_SCHEMA },
+  }) as unknown as SupabaseClient;
   return _db;
 }
 
