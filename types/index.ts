@@ -151,6 +151,8 @@ export type CommunityPost = {
   image_url: string | null;
   /** Full gallery, cover included. */
   images: string[];
+  /** Shows this post in the "What's New" strip above the portfolio. */
+  feature_on_homepage: boolean;
   event_date: string | null;
   is_published: boolean;
   created_at: string;

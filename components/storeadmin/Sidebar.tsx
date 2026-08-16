@@ -17,6 +17,8 @@ import {
     Palette,
     Wallet,
     ShieldCheck,
+    CalendarDays,
+    Scale,
 } from "lucide-react";
 import type { UserRole } from "@/components/storeadmin/AuthProvider";
 
@@ -29,6 +31,8 @@ const allNavItems = [
     { label: "Campaigns", href: "/storeadmin/campaigns", icon: Send, roles: ["admin", "superadmin"] as UserRole[] },
     { label: "Finance", href: "/storeadmin/finance", icon: DollarSign, roles: ["superadmin"] as UserRole[] },
     { label: "Expenses", href: "/storeadmin/expenses", icon: Wallet, roles: ["admin", "superadmin"] as UserRole[] },
+    { label: "Balance Sheet", href: "/storeadmin/balance-sheet", icon: Scale, roles: ["superadmin"] as UserRole[] },
+    { label: "Appointments", href: "/storeadmin/appointments", icon: CalendarDays, roles: ["admin", "superadmin", "artist"] as UserRole[] },
     { label: "Logins", href: "/storeadmin/users", icon: ShieldCheck, roles: ["superadmin"] as UserRole[] },
 ];
 

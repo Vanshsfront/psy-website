@@ -894,3 +894,235 @@ export async function getFinancialSummary(dateFrom = "", dateTo = "") {
     expense_count: expensesList.length,
   };
 }
+
+// ── Appointments ──
+//
+// An appointment is a promise; an order is money taken. They are separate tables
+// so that bookings never leak into revenue aggregates. Completing an appointment
+// creates the order and links the two.
+
+/**
+ * @param artistScope when set, only that artist's appointments are returned.
+ *   Applied in the query rather than filtered afterwards, so an artist login
+ *   cannot widen its own view by passing different parameters.
+ */
+export async function getAppointments(params: {
+  from?: string;
+  to?: string;
+  status?: string;
+  artistScope?: string | null;
+} = {}) {
+  const { from = "", to = "", status = "", artistScope = null } = params;
+  let q = getDb()
+    .from("appointments")
+    .select("*, customers(name, phone, instagram), artists(name)")
+    .eq("is_deleted", false);
+
+  if (from) q = q.gte("starts_at", from);
+  if (to) q = q.lt("starts_at", to);
+  if (status) q = q.eq("status", status);
+  if (artistScope) q = q.eq("artist_id", artistScope);
+
+  const { data, error } = await q.order("starts_at", { ascending: true });
+  if (error) throw new Error(`Failed to read appointments: ${error.message}`);
+  return data ?? [];
+}
+
+export async function getAppointmentById(id: string, artistScope: string | null = null) {
+  let q = getDb()
+    .from("appointments")
+    .select("*, customers(name, phone, instagram), artists(name)")
+    .eq("id", id)
+    .eq("is_deleted", false);
+  if (artistScope) q = q.eq("artist_id", artistScope);
+  const { data } = await q;
+  return data?.[0] ?? null;
+}
+
+export async function createAppointment(input: Record<string, unknown>, createdBy: string) {
+  const payload: Record<string, unknown> = {
+    customer_id: input.customer_id,
+    artist_id: input.artist_id ?? null,
+    starts_at: input.starts_at,
+    ends_at: input.ends_at ?? null,
+    status: input.status ?? "booked",
+    service_description: input.service_description ?? null,
+    deposit: input.deposit ?? 0,
+    estimated_total: input.estimated_total ?? 0,
+    notes: input.notes ?? null,
+    source: input.source ?? null,
+    created_by: createdBy,
+  };
+  const { data, error } = await getDb().from("appointments").insert(payload).select();
+  if (error) throw new Error(error.message);
+  return data?.[0] ?? {};
+}
+
+export async function updateAppointment(
+  id: string,
+  input: Record<string, unknown>,
+  artistScope: string | null = null
+) {
+  // `status` is deliberately absent: moving to completed has to go through
+  // completeAppointment so an order is always created alongside it.
+  const allowed = new Set([
+    "customer_id", "artist_id", "starts_at", "ends_at",
+    "service_description", "deposit", "estimated_total", "notes", "source",
+  ]);
+  const payload: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(input)) if (allowed.has(k)) payload[k] = v;
+
+  // Confirming and cancelling are plain status moves and stay here.
+  if (input.status === "confirmed" || input.status === "booked" ||
+      input.status === "no_show" || input.status === "cancelled") {
+    payload.status = input.status;
+  }
+
+  let q = getDb().from("appointments").update(payload).eq("id", id).eq("is_deleted", false);
+  if (artistScope) q = q.eq("artist_id", artistScope);
+  const { data, error } = await q.select();
+  if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error("Appointment not found");
+  return data[0];
+}
+
+/**
+ * Mark an appointment done and record the revenue.
+ *
+ * The order is created first: if it fails, the appointment stays as it was
+ * rather than being marked completed with nothing to show for it. The
+ * appointments_completed_has_order constraint enforces the same rule in the
+ * database.
+ */
+export async function completeAppointment(
+  id: string,
+  input: { total?: number; payment_mode?: string; consent_signed?: boolean } = {},
+  artistScope: string | null = null
+) {
+  const appt = await getAppointmentById(id, artistScope);
+  if (!appt) throw new Error("Appointment not found");
+  if (appt.status === "completed") throw new Error("This appointment is already completed");
+
+  const order = await createOrder({
+    customer_id: appt.customer_id,
+    artist_id: appt.artist_id,
+    // The day it actually happened, not the day it was booked.
+    order_date: String(appt.starts_at).slice(0, 10),
+    service_description: appt.service_description,
+    payment_mode: input.payment_mode,
+    deposit: appt.deposit,
+    total: input.total ?? appt.estimated_total ?? 0,
+    comments: appt.notes,
+    source: appt.source,
+    consent_signed: input.consent_signed ?? false,
+  });
+
+  if (!order?.id) throw new Error("Could not create the order for this appointment");
+
+  const { data, error } = await getDb()
+    .from("appointments")
+    .update({ status: "completed", order_id: order.id })
+    .eq("id", id)
+    .select();
+  if (error) throw new Error(error.message);
+  return { appointment: data?.[0] ?? null, order };
+}
+
+/** Soft delete — artists may remove their own bookings without losing history. */
+export async function deleteAppointment(
+  id: string,
+  deletedBy: string,
+  artistScope: string | null = null
+) {
+  let q = getDb()
+    .from("appointments")
+    .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: deletedBy })
+    .eq("id", id)
+    .eq("is_deleted", false);
+  if (artistScope) q = q.eq("artist_id", artistScope);
+  const { data, error } = await q.select();
+  if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error("Appointment not found");
+  return true;
+}
+
+// ── Balance sheet ──
+
+/**
+ * Monthly P&L: receivables split by how the money arrived, against expenses
+ * rolled up by category and expandable to individual entries.
+ *
+ * Both sides page past the 1000-row response cap via selectRowsInRange, so the
+ * totals are the real ones rather than the first page's.
+ */
+export async function getBalanceSheet(dateFrom: string, dateTo: string) {
+  const orders = await selectRowsInRange<{ total: number | null; payment_mode: string | null }>(
+    "orders",
+    "total, payment_mode",
+    "order_date",
+    dateFrom,
+    dateTo
+  );
+
+  const receivables: Record<string, number> = {};
+  for (const o of orders) {
+    // payment_mode is normalised in the database now, but a NULL still means
+    // "not recorded" and deserves its own line rather than being dropped.
+    const mode = o.payment_mode ?? "unrecorded";
+    receivables[mode] = (receivables[mode] ?? 0) + Number(o.total ?? 0);
+  }
+  const totalReceivables = Object.values(receivables).reduce((s, n) => s + n, 0);
+
+  const expenseRows = await selectRowsInRange<{
+    amount: number | null;
+    category: string | null;
+    description: string | null;
+    vendor: string | null;
+    expense_date: string;
+    expense_type: string | null;
+    payment_mode: string | null;
+  }>(
+    "expenses",
+    "amount, category, description, vendor, expense_date, expense_type, payment_mode",
+    "expense_date",
+    dateFrom,
+    dateTo
+  );
+
+  // Top-ups move cash between the float and the till; they are not a cost.
+  const expenses = expenseRows.filter((e) => e.category !== "topup");
+
+  const byCategory: Record<
+    string,
+    { total: number; items: Array<{ label: string; amount: number; date: string; type: string | null }> }
+  > = {};
+  for (const e of expenses) {
+    const cat = (e.category ?? "other").trim().toLowerCase();
+    byCategory[cat] ??= { total: 0, items: [] };
+    byCategory[cat].total += Number(e.amount ?? 0);
+    byCategory[cat].items.push({
+      // The June sheet itemises by what was bought, so the description leads and
+      // the vendor is the fallback when nobody wrote one.
+      label: (e.description || e.vendor || "Unlabelled").trim(),
+      amount: Number(e.amount ?? 0),
+      date: e.expense_date,
+      type: e.expense_type ?? null,
+    });
+  }
+  for (const cat of Object.values(byCategory)) {
+    cat.items.sort((a, b) => b.amount - a.amount);
+  }
+
+  const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount ?? 0), 0);
+
+  return {
+    period: { from: dateFrom, to: dateTo },
+    receivables,
+    total_receivables: totalReceivables,
+    expenses_by_category: byCategory,
+    total_expenses: totalExpenses,
+    net_profit: totalReceivables - totalExpenses,
+    order_count: orders.length,
+    expense_count: expenses.length,
+  };
+}

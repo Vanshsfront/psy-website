@@ -95,18 +95,29 @@ export function authErrorResponse(e: unknown): { detail: string; status: number 
   return { detail: "Unauthorized", status: 401 };
 }
 
+/**
+ * Create the owner account on a fresh install — and only then.
+ *
+ * This used to seed two accounts with passwords written directly in this file
+ * ("admin123" and one for yogesh). Those literals sit in a public repository and
+ * /storeadmin is reachable from the open internet, so anyone who read the source
+ * could sign in as superadmin. Seeding now requires STOREADMIN_BOOTSTRAP_PASSWORD
+ * to be set explicitly; with no value there is simply no account to guess.
+ */
 export async function ensureDefaultUsers() {
   const { getUserByUsername, createUser } = await import("./database");
 
-  const adminUser = process.env.ADMIN_USERNAME || "admin";
-  const adminPass = process.env.ADMIN_PASSWORD || "admin123";
-  if (!(await getUserByUsername(adminUser))) {
-    await createUser(adminUser, hashPassword(adminPass));
-  }
+  const owner = process.env.ADMIN_USERNAME || "yogesh";
+  const bootstrap = process.env.STOREADMIN_BOOTSTRAP_PASSWORD;
 
-  if (!(await getUserByUsername("yogesh"))) {
-    await createUser("yogesh", hashPassword("yogesh@admin"), "superadmin");
+  if (await getUserByUsername(owner)) return;
+  if (!bootstrap || bootstrap.length < 12) {
+    // Silent no-op rather than a throw: login must still return "invalid
+    // credentials" for an unknown user instead of leaking that the studio has
+    // not been set up yet.
+    return;
   }
+  await createUser(owner, hashPassword(bootstrap), "superadmin");
 }
 
 /** @deprecated Use ensureDefaultUsers instead */

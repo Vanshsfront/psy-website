@@ -41,6 +41,7 @@ export default function CommunityPostSlideOver({
   // written back to the legacy `image_url` column.
   const [images, setImages] = useState<string[]>([]);
   const [isPublished, setIsPublished] = useState(false);
+  const [featureOnHomepage, setFeatureOnHomepage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -66,6 +67,7 @@ export default function CommunityPostSlideOver({
       setEventDate(post.event_date ? post.event_date.split("T")[0] : "");
       setImages(post.images?.length ? post.images : post.image_url ? [post.image_url] : []);
       setIsPublished(post.is_published);
+      setFeatureOnHomepage(post.feature_on_homepage ?? false);
       editor?.commands.setContent(post.content || "");
     } else if (!post && isOpen) {
       setTitle("");
@@ -74,6 +76,7 @@ export default function CommunityPostSlideOver({
       setEventDate("");
       setImages([]);
       setIsPublished(false);
+      setFeatureOnHomepage(false);
       editor?.commands.setContent("");
     }
   }, [post, isOpen, editor]);
@@ -135,6 +138,7 @@ export default function CommunityPostSlideOver({
         image_url: images[0] ?? null,
         images,
         is_published: isPublished,
+        feature_on_homepage: featureOnHomepage,
       };
 
       const url = isEditing
@@ -178,6 +182,7 @@ export default function CommunityPostSlideOver({
     eventDate,
     images,
     isPublished,
+    featureOnHomepage,
     isEditing,
     post,
     onSaved,
@@ -416,6 +421,22 @@ export default function CommunityPostSlideOver({
                     Published
                   </span>
                 </label>
+
+                <label className="flex items-center gap-3 cursor-pointer mt-3">
+                  <input
+                    type="checkbox"
+                    checked={featureOnHomepage}
+                    onChange={(e) => setFeatureOnHomepage(e.target.checked)}
+                    className="w-5 h-5 accent-psy-green bg-ink border-[#2a2a2a] rounded"
+                  />
+                  <span className="text-sm font-medium text-bone">
+                    Feature in &ldquo;What&rsquo;s New&rdquo;
+                  </span>
+                </label>
+                <p className="text-xs text-taupe/60 mt-1 ml-8">
+                  Shows this post above the portfolio on the studio homepage. The
+                  three most recent featured posts appear; it must be published too.
+                </p>
               </div>
             </div>
 

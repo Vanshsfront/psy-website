@@ -341,6 +341,38 @@ export const api = {
             method: "DELETE",
         }),
 
+    getBalanceSheet: (from: string, to: string) =>
+        apiFetch<import("@/types/storeadmin").BalanceSheet>(
+            `/api/storeadmin/finance/balance-sheet?from=${from}&to=${to}`
+        ),
+
+    // Appointments
+    getAppointments: (params: { from?: string; to?: string; status?: string } = {}) => {
+        const q = new URLSearchParams();
+        if (params.from) q.set("from", params.from);
+        if (params.to) q.set("to", params.to);
+        if (params.status) q.set("status", params.status);
+        const qs = q.toString();
+        return apiFetch<{ appointments: import("@/types/storeadmin").Appointment[] }>(
+            `/api/storeadmin/appointments${qs ? `?${qs}` : ""}`
+        );
+    },
+
+    createAppointment: (body: Record<string, unknown>) =>
+        apiFetch<{ created: boolean }>("/api/storeadmin/appointments", {
+            method: "POST",
+            body: JSON.stringify(body),
+        }),
+
+    updateAppointment: (id: string, body: Record<string, unknown>) =>
+        apiFetch<{ updated: boolean }>(`/api/storeadmin/appointments/${id}`, {
+            method: "PATCH",
+            body: JSON.stringify(body),
+        }),
+
+    deleteAppointment: (id: string) =>
+        apiFetch<{ deleted: boolean }>(`/api/storeadmin/appointments/${id}`, { method: "DELETE" }),
+
     // Users (superadmin only)
     getUsers: () =>
         apiFetch<{ users: import("@/types/storeadmin").StoreUser[] }>("/api/storeadmin/users"),

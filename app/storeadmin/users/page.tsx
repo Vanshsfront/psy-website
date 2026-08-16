@@ -6,7 +6,7 @@ import { useAuth } from "@/components/storeadmin/AuthProvider";
 import Sidebar from "@/components/storeadmin/Sidebar";
 import { api, clearApiCache } from "@/lib/storeadmin/api";
 import type { StoreUser, Artist } from "@/types/storeadmin";
-import { Loader2, Plus, Trash2, ShieldCheck, UserCog, Palette } from "lucide-react";
+import { Loader2, Plus, Trash2, ShieldCheck, UserCog, Palette, KeyRound } from "lucide-react";
 
 const ROLE_LABEL: Record<string, string> = {
     superadmin: "Owner — full access including finance",
@@ -30,6 +30,10 @@ export default function UsersPage() {
     const [error, setError] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
 
+    // Which row is having its password set, and to what. Kept per-row so the
+    // owner can reset someone without a modal stealing the whole screen.
+    const [pwTarget, setPwTarget] = useState<string | null>(null);
+    const [pwValue, setPwValue] = useState("");
     const [showNew, setShowNew] = useState(false);
     const [form, setForm] = useState({ username: "", password: "", role: "artist", artist_id: "" });
     const [saving, setSaving] = useState(false);
@@ -91,6 +95,28 @@ export default function UsersPage() {
         } catch (e) {
             setError(e instanceof Error ? e.message : "Could not update the login");
         }
+    };
+
+    const setPassword = async (u: StoreUser) => {
+        setError(null);
+        try {
+            await api.updateUser(u.id, { password: pwValue });
+            setNotice(
+                `Password updated for ${u.username}. Give it to them directly — it cannot be read back from here.`
+            );
+            setPwTarget(null);
+            setPwValue("");
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Could not set the password");
+        }
+    };
+
+    const suggest = () => {
+        // Three short words plus digits: long enough to be safe, still possible
+        // to read down the phone to an artist.
+        const words = ["ink", "needle", "studio", "linework", "shade", "stencil", "onyx", "amber", "cobalt", "ember"];
+        const pick = () => words[Math.floor(Math.random() * words.length)];
+        setPwValue(`${pick()}-${pick()}-${Math.floor(1000 + Math.random() * 9000)}`);
     };
 
     const remove = async (u: StoreUser) => {
@@ -223,9 +249,9 @@ export default function UsersPage() {
                             const Icon = ROLE_ICON[u.role] ?? UserCog;
                             const isMe = u.username === username;
                             return (
+                                <div key={u.id} className="border-b border-[var(--border-color)] last:border-0">
                                 <div
-                                    key={u.id}
-                                    className="flex items-center gap-4 px-5 py-4 border-b border-[var(--border-color)] last:border-0"
+                                    className="flex items-center gap-4 px-5 py-4 flex-wrap"
                                 >
                                     <Icon className="w-5 h-5 text-[var(--muted)] shrink-0" />
                                     <div className="flex-1 min-w-0">
@@ -241,6 +267,13 @@ export default function UsersPage() {
                                             {u.artists?.name ? ` · ${u.artists.name}` : ""}
                                         </p>
                                     </div>
+                                    <button
+                                        onClick={() => { setPwTarget(pwTarget === u.id ? null : u.id); setPwValue(""); }}
+                                        className="px-3 py-1.5 text-xs neo-btn rounded"
+                                    >
+                                        <KeyRound className="w-3.5 h-3.5 inline mr-1" />
+                                        Password
+                                    </button>
                                     {!isMe && (
                                         <>
                                             <button
@@ -258,6 +291,44 @@ export default function UsersPage() {
                                             </button>
                                         </>
                                     )}
+                                </div>
+
+                                {pwTarget === u.id && (
+                                    <div className="px-5 pb-4 flex flex-wrap items-center gap-2">
+                                        <input
+                                            autoFocus
+                                            value={pwValue}
+                                            onChange={(e) => setPwValue(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter" && pwValue.length >= 8) setPassword(u);
+                                                if (e.key === "Escape") setPwTarget(null);
+                                            }}
+                                            placeholder="New password (min 8 characters)"
+                                            className="flex-1 min-w-[220px] px-3 py-2 neo-input text-sm"
+                                        />
+                                        <button onClick={suggest} className="px-3 py-2 text-xs neo-btn rounded">
+                                            Suggest
+                                        </button>
+                                        <button
+                                            onClick={() => setPassword(u)}
+                                            disabled={pwValue.length < 8}
+                                            className="px-3 py-2 text-xs neo-btn rounded disabled:opacity-40"
+                                        >
+                                            Set password
+                                        </button>
+                                        <button
+                                            onClick={() => setPwTarget(null)}
+                                            className="px-3 py-2 text-xs text-[var(--muted)]"
+                                        >
+                                            Cancel
+                                        </button>
+                                        {isMe && (
+                                            <span className="w-full text-[11px] text-[var(--muted)]">
+                                                Changing your own password will not sign you out of this session.
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
                                 </div>
                             );
                         })}

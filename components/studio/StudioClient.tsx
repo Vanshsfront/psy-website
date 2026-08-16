@@ -49,6 +49,7 @@ interface StudioClientProps {
   portfolio?: (PortfolioItem & { artists?: { name: string } | null })[]
   communityPosts?: CommunityPost[]
   guestSpots?: GuestSpot[]
+  featuredPosts?: CommunityPost[]
   testimonials?: CustomerTestimonial[]
 }
 
@@ -59,6 +60,7 @@ export default function StudioClient({
   portfolio = [],
   communityPosts = [],
   guestSpots = [],
+  featuredPosts = [],
   testimonials = [],
 }: StudioClientProps) {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: "start", slidesToScroll: 1 })
@@ -163,6 +165,72 @@ export default function StudioClient({
       {/* ━━━ TAB CONTENT ━━━ */}
       {activeTab === "studio" && (
         <>
+          {/* ━━━ 2b. WHAT'S NEW ━━━
+              Sits above the portfolio so collabs and guest spots lead the page.
+              One image and a line of text each, as asked — it is a teaser, not a
+              second feed, so it renders nothing at all when nothing is flagged. */}
+          {featuredPosts.length > 0 && (
+            <section className="pt-24 px-6">
+              <div className="max-w-7xl mx-auto">
+                <FadeInOnScroll direction="none">
+                  <div className="flex items-center mb-12">
+                    <span className="font-sans uppercase tracking-[0.2em] text-taupe text-micro shrink-0">
+                      What&rsquo;s New
+                    </span>
+                    <div className="flex-1 mx-6 h-[1px] bg-taupe/20" />
+                    <Link
+                      href="/studio/community"
+                      className="text-cta font-sans uppercase tracking-widest text-micro text-bone shrink-0"
+                    >
+                      All Updates →
+                    </Link>
+                  </div>
+                </FadeInOnScroll>
+
+                <StaggeredGrid className={`grid gap-8 ${
+                  featuredPosts.length === 1
+                    ? "grid-cols-1 max-w-3xl"
+                    : featuredPosts.length === 2
+                      ? "grid-cols-1 md:grid-cols-2"
+                      : "grid-cols-1 md:grid-cols-3"
+                }`}>
+                  {featuredPosts.map((post) => {
+                    const cover = post.images?.[0] || post.image_url
+                    return (
+                      <Link key={post.id} href="/studio/community" className="group block">
+                        <div className="relative overflow-hidden bg-[#1a1a1a] aspect-[4/3] mb-4">
+                          {cover ? (
+                            <Image
+                              src={cover}
+                              alt={post.title}
+                              fill
+                              className="object-cover transition-transform duration-[600ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03]"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-taupe font-sans text-caption">
+                              PSY
+                            </div>
+                          )}
+                        </div>
+                        <span className="font-sans uppercase tracking-widest text-micro text-psy-green">
+                          {post.type}
+                        </span>
+                        <h3 className="font-display text-xl text-bone mt-1 leading-tight">
+                          {post.title}
+                        </h3>
+                        {post.description && (
+                          <p className="font-sans text-caption text-taupe mt-2 line-clamp-2">
+                            {post.description}
+                          </p>
+                        )}
+                      </Link>
+                    )
+                  })}
+                </StaggeredGrid>
+              </div>
+            </section>
+          )}
+
           {/* ━━━ 3. PORTFOLIO SLIDER ━━━ */}
           <section className="py-24 px-6" id="gallery">
             <div className="max-w-7xl mx-auto">

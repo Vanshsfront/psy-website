@@ -63,6 +63,45 @@ export interface Order {
     artists?: { name: string };
 }
 
+export interface BalanceSheet {
+    period: { from: string; to: string };
+    /** Keyed by payment mode: upi / cash / card / unrecorded. */
+    receivables: Record<string, number>;
+    total_receivables: number;
+    expenses_by_category: Record<string, {
+        total: number;
+        items: Array<{ label: string; amount: number; date: string; type: string | null }>;
+    }>;
+    total_expenses: number;
+    net_profit: number;
+    order_count: number;
+    expense_count: number;
+}
+
+/** A booking. Distinct from Order: an appointment is a promise, an order is money taken. */
+export interface Appointment {
+    id: string;
+    customer_id: string;
+    artist_id: string | null;
+    starts_at: string;
+    /** Null when the studio booked a start time but no finish. */
+    ends_at: string | null;
+    status: "booked" | "confirmed" | "completed" | "no_show" | "cancelled";
+    service_description: string | null;
+    deposit: number;
+    estimated_total: number;
+    notes: string | null;
+    source: string | null;
+    /** Set on completion — the revenue row this produced. */
+    order_id: string | null;
+    is_deleted: boolean;
+    created_at: string;
+    updated_at: string;
+    created_by: string | null;
+    customers?: { name: string; phone: string | null; instagram: string | null };
+    artists?: { name: string };
+}
+
 export interface DailyNote {
     id: string;
     note_date: string; // YYYY-MM-DD

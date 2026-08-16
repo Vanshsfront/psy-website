@@ -16,6 +16,7 @@ export default async function StudioHome() {
     { data: styles },
     { data: portfolio },
     { data: guestSpots },
+    { data: featured },
   ] = await Promise.all([
     supabase.from("artists").select("*"),
     supabase.from("styles").select("*"),
@@ -35,6 +36,16 @@ export default async function StudioHome() {
       .eq("is_published", true)
       .or(`date_end.is.null,date_end.gte.${today}`)
       .order("date_start", { ascending: true }),
+    // "What's New" — whatever the studio has flagged, newest first. Capped at
+    // three so the strip stays a teaser rather than a second feed.
+    supabase
+      .from("community_posts")
+      .select("*")
+      .eq("is_published", true)
+      .eq("feature_on_homepage", true)
+      .order("event_date", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(3),
   ])
 
   return (
@@ -44,6 +55,7 @@ export default async function StudioHome() {
       styles={styles || []}
       portfolio={portfolio || []}
       guestSpots={guestSpots || []}
+      featuredPosts={featured || []}
     />
   )
 }
