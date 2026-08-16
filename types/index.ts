@@ -159,6 +159,8 @@ export type GuestSpot = {
   artist_name: string;
   bio: string | null;
   instagram: string | null;
+  /** Single portrait shown up front; the portfolio sits behind a button. */
+  display_image_url: string | null;
   portfolio_images: string[];
   dates_available: string | null;
   date_start: string | null;

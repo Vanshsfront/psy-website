@@ -36,6 +36,9 @@ export default function GuestSpotSlideOver({
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
   const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
+  // Which uploaded image leads the public card. Kept as a url rather than an
+  // index so reordering or deleting other images can't silently repoint it.
+  const [displayImage, setDisplayImage] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -50,6 +53,7 @@ export default function GuestSpotSlideOver({
       setDateStart(guestSpot.date_start || "");
       setDateEnd(guestSpot.date_end || "");
       setPortfolioImages(guestSpot.portfolio_images || []);
+      setDisplayImage(guestSpot.display_image_url || guestSpot.portfolio_images?.[0] || null);
       setIsPublished(guestSpot.is_published);
     } else if (!guestSpot && isOpen) {
       setArtistName("");
@@ -59,6 +63,7 @@ export default function GuestSpotSlideOver({
       setDateStart("");
       setDateEnd("");
       setPortfolioImages([]);
+      setDisplayImage(null);
       setIsPublished(false);
     }
   }, [guestSpot, isOpen]);
@@ -74,7 +79,9 @@ export default function GuestSpotSlideOver({
         upload(file, "guest-spot-images", "spots")
       );
       const results = await Promise.all(uploadPromises);
-      setPortfolioImages((prev) => [...prev, ...results.map((r) => r.url)]);
+      const urls = results.map((r) => r.url);
+      setPortfolioImages((prev) => [...prev, ...urls]);
+      setDisplayImage((prev) => prev ?? urls[0] ?? null);
       toast.success(`${results.length} image${results.length > 1 ? "s" : ""} uploaded`);
     } catch (err) {
       toast.error(
@@ -87,7 +94,13 @@ export default function GuestSpotSlideOver({
   };
 
   const removeImage = (index: number) => {
-    setPortfolioImages((prev) => prev.filter((_, i) => i !== index));
+    setPortfolioImages((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      // Deleting the display picture would otherwise leave the public card
+      // pointing at a URL that no longer exists on the record.
+      setDisplayImage((cur) => (cur === prev[index] ? next[0] ?? null : cur));
+      return next;
+    });
   };
 
   // Save
@@ -107,6 +120,7 @@ export default function GuestSpotSlideOver({
         date_start: dateStart || null,
         date_end: dateEnd || null,
         portfolio_images: portfolioImages,
+        display_image_url: displayImage,
         is_published: isPublished,
       };
 
@@ -309,31 +323,55 @@ export default function GuestSpotSlideOver({
               {/* Portfolio Images */}
               <div>
                 <label className="block text-sm font-medium mb-1.5 text-mutedText">
-                  Portfolio Images
+                  Images
                 </label>
+                <p className="text-xs text-mutedText/70 mb-2">
+                  Click an image to make it the display picture. That one shows on
+                  the website; the rest sit behind a “View Portfolio” button.
+                </p>
 
                 {portfolioImages.length > 0 && (
                   <div className="grid grid-cols-3 gap-3 mb-3">
-                    {portfolioImages.map((url, i) => (
-                      <div
-                        key={i}
-                        className="relative aspect-square bg-[#1a1a1a] rounded overflow-hidden group"
-                      >
-                        <Image
-                          src={url}
-                          alt={`Portfolio ${i + 1}`}
-                          fill
-                          className="object-cover"
-                        />
+                    {portfolioImages.map((url, i) => {
+                      const isDisplay = url === displayImage;
+                      return (
                         <button
+                          key={i}
                           type="button"
-                          onClick={() => removeImage(i)}
-                          className="absolute top-1 right-1 p-1 bg-black/60 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => setDisplayImage(url)}
+                          aria-pressed={isDisplay}
+                          title={isDisplay ? "Display picture" : "Set as display picture"}
+                          className={`relative aspect-square bg-[#1a1a1a] rounded overflow-hidden group block w-full ring-offset-2 ring-offset-surface ${
+                            isDisplay ? "ring-2 ring-psy-green" : "ring-0"
+                          }`}
                         >
-                          <Trash2 className="w-3.5 h-3.5 text-terracotta" />
+                          <Image
+                            src={url}
+                            alt={`Portfolio ${i + 1}`}
+                            fill
+                            className="object-cover"
+                          />
+                          {isDisplay && (
+                            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-psy-green text-ink text-[10px] uppercase tracking-wider font-medium">
+                              Display
+                            </span>
+                          )}
+                          <span
+                            role="button"
+                            tabIndex={-1}
+                            onClick={(e) => {
+                              // Sits inside the select button, so stop the click
+                              // from also promoting this image before deleting it.
+                              e.stopPropagation();
+                              removeImage(i);
+                            }}
+                            className="absolute top-1 right-1 p-1 bg-black/60 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-terracotta" />
+                          </span>
                         </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 

@@ -13,11 +13,16 @@ export default async function StudioHome() {
   ] = await Promise.all([
     supabase.from("artists").select("*"),
     supabase.from("styles").select("*"),
+    // Eight tiles, with the ones flagged `featured` in /admin/portfolio first, so
+    // the studio chooses what leads the homepage instead of it always being the
+    // eight most recent uploads. Unflagged items still fill any remaining slots,
+    // so the row is never short.
     supabase
       .from("portfolio_items")
       .select("*, artists(name)")
+      .order("featured", { ascending: false })
       .order("created_at", { ascending: false })
-      .limit(4),
+      .limit(8),
   ])
 
   return (
