@@ -3,6 +3,14 @@ import { endExclusive } from "@/lib/storeadmin/date-range";
 
 let _db: SupabaseClient | null = null;
 
+/**
+ * Postgres schema holding the CRM tables.
+ *
+ * `studio` on the consolidated self-hosted database; override to `public` to
+ * point back at the old standalone Supabase project during a rollback.
+ */
+const STOREADMIN_SCHEMA = process.env.STOREADMIN_DB_SCHEMA || "studio";
+
 /** Supabase caps every response at this many rows, so aggregates must page. */
 const PAGE_SIZE = 1000;
 
@@ -54,7 +62,20 @@ export function getDb(): SupabaseClient {
       "SUPABASE_URL and STOREADMIN_SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY) must be set"
     );
   }
-  _db = createClient(url, key);
+  // The CRM lives in the `studio` schema, not `public`. Both were once separate
+  // Supabase projects; consolidating them into one database meant `orders` and
+  // `artists` collided — the shop's `orders` are Razorpay jewellery purchases,
+  // the studio's are tattoo appointments. Separate schemas keep them apart
+  // without renaming a table. Drop this option and every CRM query silently
+  // reads the shop's tables instead.
+  // The cast is needed because `SupabaseClient` defaults its schema type
+  // parameter to "public", so a client built for another schema isn't assignable
+  // to it. This project has no generated database types — every row is `any` —
+  // so the schema parameter carries no type safety to lose here, and casting
+  // beats pinning the exact generic arity of the installed supabase-js.
+  _db = createClient(url, key, {
+    db: { schema: STOREADMIN_SCHEMA },
+  }) as unknown as SupabaseClient;
   return _db;
 }
 
@@ -572,14 +593,50 @@ export async function deleteOrder(orderId: string): Promise<boolean> {
 
 // ── Expenses ──
 
-export async function getExpenses(params: { date_from?: string; date_to?: string; category?: string; limit?: number } = {}) {
-  const { date_from = "", date_to = "", category = "", limit = 200 } = params;
-  let q = getDb().from("expenses").select("*").neq("category", "topup");
-  if (date_from) q = q.gte("expense_date", date_from);
-  if (date_to) q = q.lte("expense_date", date_to);
-  if (category) q = q.eq("category", category);
-  const { data } = await q.order("expense_date", { ascending: false }).limit(limit);
-  return data ?? [];
+export async function getExpenses(
+  params: {
+    date_from?: string;
+    date_to?: string;
+    category?: string;
+    expense_type?: string;
+    payment_mode?: string;
+    limit?: number;
+  } = {}
+) {
+  const {
+    date_from = "",
+    date_to = "",
+    category = "",
+    expense_type = "",
+    payment_mode = "",
+    limit = 5000,
+  } = params;
+
+  // Paged rather than a bare `.limit()`: Supabase caps each response at 1000
+  // rows, so the old default of 200 quietly hid everything past the 200th
+  // expense and any total computed from this list was short.
+  const PAGE = 1000;
+  const rows: Record<string, unknown>[] = [];
+  for (let fetched = 0; fetched < limit; fetched += PAGE) {
+    let q = getDb().from("expenses").select("*").neq("category", "topup");
+    if (date_from) q = q.gte("expense_date", date_from);
+    if (date_to) q = q.lte("expense_date", date_to);
+    if (category) q = q.eq("category", category);
+    if (expense_type) q = q.eq("expense_type", expense_type);
+    // Stored inconsistently ("cash" vs "Cash"), so match case-insensitively
+    // rather than silently returning nothing for the wrong casing.
+    if (payment_mode) q = q.ilike("payment_mode", payment_mode);
+
+    const pageEnd = Math.min(fetched + PAGE, limit) - 1;
+    const { data } = await q
+      .order("expense_date", { ascending: false })
+      .order("id", { ascending: true })
+      .range(fetched, pageEnd);
+    if (!data?.length) break;
+    rows.push(...data);
+    if (data.length < pageEnd - fetched + 1) break;
+  }
+  return rows;
 }
 
 export async function createExpense(inputData: Record<string, unknown>) {
@@ -592,6 +649,8 @@ export async function createExpense(inputData: Record<string, unknown>) {
     vendor: inputData.vendor,
     payment_mode: inputData.payment_mode,
     raw_input: inputData.raw_input,
+    expense_type: inputData.expense_type,
+    receipt_url: inputData.receipt_url,
   };
   for (const k of Object.keys(payload)) {
     if (payload[k] == null) delete payload[k];
@@ -782,7 +841,11 @@ export async function getFinancialSummary(dateFrom = "", dateTo = "") {
   return {
     revenue,
     expenses: totalExpenses,
-    profit: revenue, // petty cash has no connection to revenue
+    // Profit is revenue minus expenses over the same window. This previously
+    // returned `revenue` unchanged, so the Finance page reported gross takings
+    // under a "profit" heading. Petty-cash top-ups are already excluded above —
+    // moving cash between float and till is not an expense.
+    profit: revenue - totalExpenses,
     petty_cash_balance: pettyCash.balance,
     category_breakdown: categoryTotals,
     order_count: ordersData.length,

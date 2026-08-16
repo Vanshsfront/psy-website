@@ -115,6 +115,9 @@ export default function GuestSpotTab({
   guestSpots: GuestSpot[]
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  // Only one artist's portfolio is open at a time, so the page never turns into
+  // the wall of thumbnails this change was meant to remove.
+  const [openPortfolioId, setOpenPortfolioId] = useState<string | null>(null)
 
   if (guestSpots.length === 0) {
     return (
@@ -149,28 +152,67 @@ export default function GuestSpotTab({
           {guestSpots.map((spot, i) => (
             <FadeInOnScroll key={spot.id} direction="up" delay={i * 0.1}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-                {/* Portfolio images */}
-                <div className="grid grid-cols-2 gap-2">
-                  {spot.portfolio_images.slice(0, 4).map((img, j) => (
-                    <div
-                      key={j}
-                      className={`relative overflow-hidden bg-[#1a1a1a] ${
-                        j === 0 ? "col-span-2 aspect-[4/3]" : "aspect-square"
-                      }`}
-                    >
-                      <Image
-                        src={img}
-                        alt={`${spot.artist_name} work ${j + 1}`}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  ))}
-                  {spot.portfolio_images.length === 0 && (
-                    <div className="col-span-2 aspect-[4/3] bg-[#1a1a1a] flex items-center justify-center text-taupe font-sans text-caption">
-                      No images yet
-                    </div>
-                  )}
+                {/* One portrait up front; the portfolio stays behind a button so
+                    the section reads as a profile rather than a contact sheet.
+                    Falls back to the first portfolio image for rows saved before
+                    display_image_url existed. */}
+                <div>
+                  {(() => {
+                    const display = spot.display_image_url || spot.portfolio_images[0];
+                    const isOpen = openPortfolioId === spot.id;
+                    // The display picture is shown on its own above, so exclude it
+                    // from the grid rather than repeating it.
+                    const gallery = spot.portfolio_images.filter((img) => img !== display);
+
+                    return (
+                      <>
+                        <div className="relative overflow-hidden bg-[#1a1a1a] aspect-[4/5]">
+                          {display ? (
+                            <Image
+                              src={display}
+                              alt={spot.artist_name}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-taupe font-sans text-caption">
+                              No images yet
+                            </div>
+                          )}
+                        </div>
+
+                        {gallery.length > 0 && (
+                          <>
+                            <button
+                              onClick={() => setOpenPortfolioId(isOpen ? null : spot.id)}
+                              aria-expanded={isOpen}
+                              className="mt-3 w-full border border-taupe/30 text-taupe uppercase tracking-widest text-micro py-2.5 hover:border-bone hover:text-bone transition-colors duration-300"
+                            >
+                              {isOpen ? "Hide Portfolio" : `View Portfolio (${gallery.length})`}
+                            </button>
+
+                            {isOpen && (
+                              <div className="grid grid-cols-2 gap-2 mt-3">
+                                {gallery.map((img, j) => (
+                                  <div
+                                    key={j}
+                                    className="relative overflow-hidden bg-[#1a1a1a] aspect-square"
+                                  >
+                                    <Image
+                                      src={img}
+                                      alt={`${spot.artist_name} work ${j + 1}`}
+                                      fill
+                                      className="object-cover"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Info */}

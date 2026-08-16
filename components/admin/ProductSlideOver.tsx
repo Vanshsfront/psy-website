@@ -7,8 +7,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
+import RichTextToolbar from "@/components/admin/RichTextToolbar";
+import { richTextExtensions } from "@/lib/tiptap";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import ImageManager from "@/components/admin/ImageManager";
@@ -85,12 +85,7 @@ export default function ProductSlideOver({
   // TipTap editor
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: [
-      StarterKit,
-      Placeholder.configure({
-        placeholder: "Write a full rich description...",
-      }),
-    ],
+    extensions: richTextExtensions("Write a full rich description..."),
     content: "",
     editorProps: {
       attributes: {
@@ -470,64 +465,7 @@ export default function ProductSlideOver({
                     Full Description
                   </label>
                   <div className="border border-borderDark rounded overflow-hidden">
-                    <div className="bg-surfaceLighter p-2 border-b border-borderDark flex gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          editor?.chain().focus().toggleBold().run()
-                        }
-                        className={`px-2 py-1 text-xs font-bold rounded ${
-                          editor?.isActive("bold")
-                            ? "bg-borderDark text-white"
-                            : "text-mutedText hover:bg-borderDark"
-                        }`}
-                      >
-                        B
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          editor?.chain().focus().toggleItalic().run()
-                        }
-                        className={`px-2 py-1 text-xs italic rounded ${
-                          editor?.isActive("italic")
-                            ? "bg-borderDark text-white"
-                            : "text-mutedText hover:bg-borderDark"
-                        }`}
-                      >
-                        I
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          editor
-                            ?.chain()
-                            .focus()
-                            .toggleHeading({ level: 2 })
-                            .run()
-                        }
-                        className={`px-2 py-1 text-xs rounded ${
-                          editor?.isActive("heading")
-                            ? "bg-borderDark text-white"
-                            : "text-mutedText hover:bg-borderDark"
-                        }`}
-                      >
-                        H2
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          editor?.chain().focus().toggleBulletList().run()
-                        }
-                        className={`px-2 py-1 text-xs rounded ${
-                          editor?.isActive("bulletList")
-                            ? "bg-borderDark text-white"
-                            : "text-mutedText hover:bg-borderDark"
-                        }`}
-                      >
-                        • List
-                      </button>
-                    </div>
+                    <RichTextToolbar editor={editor} />
                     <EditorContent editor={editor} />
                   </div>
                 </div>

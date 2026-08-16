@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Upload } from "lucide-react";
 import Image from "next/image";
 import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
+import RichTextToolbar from "@/components/admin/RichTextToolbar";
+import { richTextExtensions, RICH_TEXT_EDITOR_CLASS } from "@/lib/tiptap";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useImageUpload } from "@/hooks/useImageUpload";
@@ -54,15 +54,10 @@ export default function BlogPostSlideOver({
 
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: [
-      StarterKit,
-      Placeholder.configure({ placeholder: "Write the full post here…" }),
-    ],
+    extensions: richTextExtensions("Write the full post here…"),
     content: "",
     editorProps: {
-      attributes: {
-        class: "prose prose-invert prose-sm focus:outline-none min-h-[280px] p-3",
-      },
+      attributes: { class: RICH_TEXT_EDITOR_CLASS },
     },
   });
 
@@ -314,7 +309,8 @@ export default function BlogPostSlideOver({
                 <label className="block text-sm font-medium mb-1.5 text-taupe">
                   Content *
                 </label>
-                <div className="border border-[#2a2a2a] rounded bg-ink">
+                <div className="border border-[#2a2a2a] rounded bg-ink overflow-hidden">
+                  <RichTextToolbar editor={editor} />
                   <EditorContent editor={editor} />
                 </div>
               </div>

@@ -147,7 +147,10 @@ export type CommunityPost = {
   description: string | null;
   content: string | null;
   type: "event" | "collab" | "announcement";
+  /** Cover image — kept in sync with `images[0]`; used by the grid cards. */
   image_url: string | null;
+  /** Full gallery, cover included. */
+  images: string[];
   event_date: string | null;
   is_published: boolean;
   created_at: string;
@@ -159,6 +162,8 @@ export type GuestSpot = {
   artist_name: string;
   bio: string | null;
   instagram: string | null;
+  /** Single portrait shown up front; the portfolio sits behind a button. */
+  display_image_url: string | null;
   portfolio_images: string[];
   dates_available: string | null;
   date_start: string | null;

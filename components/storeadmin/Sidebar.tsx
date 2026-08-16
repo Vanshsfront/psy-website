@@ -27,7 +27,7 @@ const allNavItems = [
     { label: "Artists", href: "/storeadmin/artists", icon: Palette, roles: ["admin", "superadmin"] as UserRole[] },
     { label: "Campaigns", href: "/storeadmin/campaigns", icon: Send, roles: ["admin", "superadmin"] as UserRole[] },
     { label: "Finance", href: "/storeadmin/finance", icon: DollarSign, roles: ["superadmin"] as UserRole[] },
-    { label: "Petty Cash", href: "/storeadmin/expenses", icon: Wallet, roles: ["admin", "superadmin"] as UserRole[] },
+    { label: "Expenses", href: "/storeadmin/expenses", icon: Wallet, roles: ["admin", "superadmin"] as UserRole[] },
 ];
 
 export default function Sidebar() {

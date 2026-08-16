@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Trash2, Upload } from "lucide-react";
 import Image from "next/image";
 import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
+import RichTextToolbar from "@/components/admin/RichTextToolbar";
+import { richTextExtensions } from "@/lib/tiptap";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useImageUpload } from "@/hooks/useImageUpload";
@@ -37,8 +37,9 @@ export default function CommunityPostSlideOver({
   const [type, setType] = useState<CommunityPost["type"]>("event");
   const [description, setDescription] = useState("");
   const [eventDate, setEventDate] = useState("");
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [imagePath, setImagePath] = useState<string | null>(null);
+  // The first entry is the cover: it is what the grid cards show and what gets
+  // written back to the legacy `image_url` column.
+  const [images, setImages] = useState<string[]>([]);
   const [isPublished, setIsPublished] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -46,17 +47,12 @@ export default function CommunityPostSlideOver({
   // Rich text editor for content
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: [
-      StarterKit,
-      Placeholder.configure({
-        placeholder: "Write full post content here...",
-      }),
-    ],
+    extensions: richTextExtensions("Write full post content here..."),
     content: "",
     editorProps: {
       attributes: {
         class:
-          "prose prose-invert prose-sm focus:outline-none min-h-[120px] p-3",
+          "prose prose-invert prose-sm max-w-none focus:outline-none min-h-[120px] p-3",
       },
     },
   });
@@ -68,8 +64,7 @@ export default function CommunityPostSlideOver({
       setType(post.type);
       setDescription(post.description || "");
       setEventDate(post.event_date ? post.event_date.split("T")[0] : "");
-      setImageUrl(post.image_url);
-      setImagePath(null);
+      setImages(post.images?.length ? post.images : post.image_url ? [post.image_url] : []);
       setIsPublished(post.is_published);
       editor?.commands.setContent(post.content || "");
     } else if (!post && isOpen) {
@@ -77,8 +72,7 @@ export default function CommunityPostSlideOver({
       setType("event");
       setDescription("");
       setEventDate("");
-      setImageUrl(null);
-      setImagePath(null);
+      setImages([]);
       setIsPublished(false);
       editor?.commands.setContent("");
     }
@@ -86,14 +80,15 @@ export default function CommunityPostSlideOver({
 
   // Image upload handler
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     setIsUploading(true);
     try {
-      const result = await upload(file, "community-images", "posts");
-      setImageUrl(result.url);
-      setImagePath(result.path);
+      const results = await Promise.all(
+        Array.from(files).map((file) => upload(file, "community-images", "posts"))
+      );
+      setImages((prev) => [...prev, ...results.map((r) => r.url)]);
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Failed to upload image"
@@ -105,17 +100,19 @@ export default function CommunityPostSlideOver({
     }
   };
 
-  // Remove image
-  const handleRemoveImage = async () => {
-    if (imagePath) {
-      try {
-        await deleteFile("community-images", imagePath);
-      } catch {
-        // Silently ignore — image may already be deleted
-      }
-    }
-    setImageUrl(null);
-    setImagePath(null);
+  // Drops the image from the post. The file is deliberately left in the bucket:
+  // an editor can remove an image and then cancel, and the same URL may be
+  // reused by another post, so deleting here risks breaking a live page.
+  const handleRemoveImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const makeCover = (index: number) => {
+    setImages((prev) => {
+      const next = [...prev];
+      const [picked] = next.splice(index, 1);
+      return [picked, ...next];
+    });
   };
 
   // Save
@@ -133,7 +130,10 @@ export default function CommunityPostSlideOver({
         description: stripDashes(description.trim() || null),
         content: stripDashes(editor?.getHTML() || null),
         event_date: type === "event" && eventDate ? eventDate : null,
-        image_url: imageUrl,
+        // image_url stays the cover so the grid cards and any older consumer keep
+        // working; `images` carries the full gallery.
+        image_url: images[0] ?? null,
+        images,
         is_published: isPublished,
       };
 
@@ -176,7 +176,7 @@ export default function CommunityPostSlideOver({
     type,
     description,
     eventDate,
-    imageUrl,
+    images,
     isPublished,
     isEditing,
     post,
@@ -309,6 +309,7 @@ export default function CommunityPostSlideOver({
                   Full Content
                 </label>
                 <div className="rounded border border-[#2a2a2a] bg-ink overflow-hidden">
+                  <RichTextToolbar editor={editor} />
                   <EditorContent editor={editor} />
                 </div>
                 <p className="text-xs text-taupe/60 mt-1">
@@ -333,41 +334,70 @@ export default function CommunityPostSlideOver({
               {/* Image Upload */}
               <div>
                 <label className="block text-sm font-medium mb-1.5 text-taupe">
-                  Image
+                  Images
                 </label>
-                {imageUrl ? (
-                  <div className="relative aspect-video bg-[#1a1a1a] rounded overflow-hidden">
-                    <Image
-                      src={imageUrl}
-                      alt="Post image"
-                      fill
-                      className="object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRemoveImage}
-                      className="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-red-500/80 rounded transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4 text-bone" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                    className="w-full aspect-video rounded border border-dashed border-[#2a2a2a] bg-[#1a1a1a] flex flex-col items-center justify-center gap-2 text-taupe hover:border-psy-green/40 hover:text-psy-green transition-colors disabled:opacity-50"
-                  >
-                    <Upload className="w-6 h-6" />
-                    <span className="text-sm">
-                      {isUploading ? "Uploading..." : "Click to upload image"}
-                    </span>
-                  </button>
+                {images.length > 0 && (
+                  <>
+                    <p className="text-xs text-taupe/60 mb-2">
+                      The first image is the cover shown on the community grid.
+                      Click another to promote it.
+                    </p>
+                    <div className="grid grid-cols-3 gap-2 mb-2">
+                      {images.map((url, i) => (
+                        <div
+                          key={`${url}-${i}`}
+                          className={`relative aspect-video bg-[#1a1a1a] rounded overflow-hidden group ${
+                            i === 0 ? "ring-2 ring-psy-green" : ""
+                          }`}
+                        >
+                          <Image src={url} alt={`Post image ${i + 1}`} fill className="object-cover" />
+                          {i === 0 ? (
+                            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-psy-green text-ink text-[10px] uppercase tracking-wider">
+                              Cover
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => makeCover(i)}
+                              className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-bone text-[10px] uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              Make cover
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(i)}
+                            className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-red-500/80 rounded transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-bone" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className={`w-full rounded border border-dashed border-[#2a2a2a] bg-[#1a1a1a] flex flex-col items-center justify-center gap-2 text-taupe hover:border-psy-green/40 hover:text-psy-green transition-colors disabled:opacity-50 ${
+                    images.length > 0 ? "py-4" : "aspect-video"
+                  }`}
+                >
+                  <Upload className="w-6 h-6" />
+                  <span className="text-sm">
+                    {isUploading
+                      ? "Uploading..."
+                      : images.length > 0
+                        ? "Add more images"
+                        : "Click to upload images"}
+                  </span>
+                </button>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/jpeg,image/png,image/webp,image/avif"
+                  multiple
                   onChange={handleImageUpload}
                   className="hidden"
                 />

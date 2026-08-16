@@ -10,7 +10,12 @@ export async function GET(request: NextRequest) {
       date_from: params.get("date_from") || "",
       date_to: params.get("date_to") || "",
       category: params.get("category") || "",
-      limit: Number(params.get("limit")) || 200,
+      expense_type: params.get("expense_type") || "",
+      payment_mode: params.get("payment_mode") || "",
+      // Defaulting to 200 silently truncated the list — and every total the page
+      // computed from it — once the studio passed 200 expenses. getExpenses pages
+      // internally, so the cap only needs to be higher than the real row count.
+      limit: Number(params.get("limit")) || 5000,
     });
     return NextResponse.json({ expenses });
   } catch {
