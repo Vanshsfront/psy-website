@@ -147,7 +147,10 @@ export type CommunityPost = {
   description: string | null;
   content: string | null;
   type: "event" | "collab" | "announcement";
+  /** Cover image — kept in sync with `images[0]`; used by the grid cards. */
   image_url: string | null;
+  /** Full gallery, cover included. */
+  images: string[];
   event_date: string | null;
   is_published: boolean;
   created_at: string;

@@ -248,7 +248,7 @@ export default function StudioClient({
                 </div>
               </FadeInOnScroll>
 
-              {artists.length > 0 ? (
+              {artists.length + guestSpots.length > 0 ? (
                 <StaggeredGrid className="grid grid-cols-1 md:grid-cols-3 gap-12">
                   {artists.map((artist) => (
                     <div key={artist.id} className="group cursor-pointer">
@@ -289,6 +289,49 @@ export default function StudioClient({
                       </Link>
                     </div>
                   ))}
+
+                  {/* Guest artists sit alongside the residents while they are in
+                      the studio, badged so it is clear they are visiting and
+                      carrying the dates they are available. With two residents
+                      this fills the third column that was otherwise empty. */}
+                  {guestSpots.map((spot) => {
+                    const photo = spot.display_image_url || spot.portfolio_images?.[0]
+                    return (
+                      <div key={`guest-${spot.id}`} className="group cursor-pointer">
+                        <div className="aspect-[9/16] overflow-hidden mb-4 bg-[#1a1a1a] relative">
+                          {photo ? (
+                            <img
+                              src={photo}
+                              alt={spot.artist_name}
+                              className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-[1.04] transition-all duration-500 ease-out"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-taupe font-sans text-caption">
+                              No Photo
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-ink/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                          <span className="absolute top-3 left-3 px-2 py-1 text-micro uppercase tracking-widest font-sans bg-gold/90 text-ink">
+                            Guest Artist
+                          </span>
+                        </div>
+                        <h3 className="font-display text-xl text-bone">
+                          {spot.artist_name}
+                        </h3>
+                        {spot.dates_available && (
+                          <span className="inline-block mt-2 px-3 py-1 text-micro uppercase tracking-widest font-sans border border-gold/40 text-gold bg-gold/5">
+                            {spot.dates_available}
+                          </span>
+                        )}
+                        <Link
+                          href="/studio/guest-spot"
+                          className="text-cta font-sans uppercase tracking-widest text-micro text-psy-green mt-3 inline-block"
+                        >
+                          View Work →
+                        </Link>
+                      </div>
+                    )
+                  })}
                 </StaggeredGrid>
               ) : (
                 <div className="w-full text-center py-24">

@@ -150,17 +150,43 @@ export default function CommunityTab({
                 <X className="w-5 h-5" />
               </button>
 
-              {/* Image */}
-              {selectedPost.image_url && (
-                <div className="relative w-full aspect-video md:aspect-[21/9]">
-                  <Image
-                    src={selectedPost.image_url}
-                    alt={selectedPost.title}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-              )}
+              {/* Gallery. Falls back to the single `image_url` for posts saved
+                  before multiple images were supported. */}
+              {(() => {
+                const gallery = selectedPost.images?.length
+                  ? selectedPost.images
+                  : selectedPost.image_url
+                    ? [selectedPost.image_url]
+                    : [];
+                if (gallery.length === 0) return null;
+
+                return (
+                  <>
+                    <div className="relative w-full aspect-video md:aspect-[21/9]">
+                      <Image
+                        src={gallery[0]}
+                        alt={selectedPost.title}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    {gallery.length > 1 && (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-2">
+                        {gallery.slice(1).map((img, i) => (
+                          <div key={i} className="relative aspect-[4/3] bg-[#1a1a1a]">
+                            <Image
+                              src={img}
+                              alt={`${selectedPost.title} ${i + 2}`}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               {/* Content */}
               <div className="p-6 md:p-10 lg:p-12">
