@@ -3,9 +3,24 @@ import bcryptjs from "bcryptjs";
 import { NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase-server";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.SHOP_JWT_SECRET || process.env.NEXTAUTH_SECRET || "psy-shop-dev-secret"
-);
+/**
+ * Signing key for shop customer sessions.
+ *
+ * The literal that used to sit at the end of this chain never took effect in
+ * production — NEXTAUTH_SECRET is set, so it always won — but it was one unset
+ * variable away from letting anyone who read this public repository forge a
+ * customer session. Same reasoning as lib/storeadmin/server/auth.ts: no default,
+ * and read lazily so `next build` does not require the value.
+ */
+function jwtSecret(): Uint8Array {
+  const secret = process.env.SHOP_JWT_SECRET || process.env.NEXTAUTH_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      "SHOP_JWT_SECRET (or NEXTAUTH_SECRET) must be set to at least 32 characters — customer sessions cannot be signed without it"
+    );
+  }
+  return new TextEncoder().encode(secret);
+}
 
 export async function createCustomerToken(
   customerId: string,
@@ -14,14 +29,14 @@ export async function createCustomerToken(
   return new SignJWT({ sub: customerId, email })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("7d")
-    .sign(JWT_SECRET);
+    .sign(jwtSecret());
 }
 
 export async function verifyCustomerToken(
   token: string
 ): Promise<{ sub: string; email: string } | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET, {
+    const { payload } = await jwtVerify(token, jwtSecret(), {
       algorithms: ["HS256"],
     });
     return payload as { sub: string; email: string };

@@ -2,9 +2,29 @@ import { SignJWT, jwtVerify } from "jose";
 import bcryptjs from "bcryptjs";
 import { NextRequest } from "next/server";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "psyshot-dev-secret-change-me"
-);
+/**
+ * The signing key for every /storeadmin session.
+ *
+ * This used to fall back to a literal written in this file. That file is in a
+ * public repository and JWT_SECRET was never set in production, so the studio
+ * ran for weeks signing superadmin sessions with a key anyone could read —
+ * three lines of jose were enough to mint a valid `yogesh` token against
+ * psyonline.in. There is no safe default for a signing key, so there is no
+ * default: an unset JWT_SECRET now fails the request loudly.
+ *
+ * Read lazily rather than at module load so `next build`, which imports every
+ * route handler, does not need the secret present to produce a build.
+ */
+function jwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      "JWT_SECRET must be set to at least 32 characters — /storeadmin sessions cannot be signed without it"
+    );
+  }
+  return new TextEncoder().encode(secret);
+}
+
 const JWT_EXPIRE_HOURS = 24;
 
 export type UserRole = "superadmin" | "admin" | "artist";
@@ -32,12 +52,12 @@ export async function createToken(username: string): Promise<string> {
   return new SignJWT({ sub: username })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime(`${JWT_EXPIRE_HOURS}h`)
-    .sign(JWT_SECRET);
+    .sign(jwtSecret());
 }
 
 export async function decodeToken(token: string): Promise<{ sub: string } | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET, { algorithms: ["HS256"] });
+    const { payload } = await jwtVerify(token, jwtSecret(), { algorithms: ["HS256"] });
     return payload as { sub: string };
   } catch {
     return null;
