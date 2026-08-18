@@ -269,6 +269,21 @@ async function batchCustomerMetrics(customerIds: string[]): Promise<Record<strin
   return metrics;
 }
 
+/**
+ * Split a search box into words safe to drop into a PostgREST `or` filter.
+ *
+ * Commas, parens and quotes are the filter grammar's own punctuation, and `%`
+ * and `_` are ilike wildcards — a name pasted with any of them would otherwise
+ * either break the query or silently widen it. Everything else survives,
+ * including the `+` on a phone number.
+ */
+function searchWords(search: string): string[] {
+  return search
+    .split(/\s+/)
+    .map((w) => w.replace(/[,()"'\\%_]/g, "").trim())
+    .filter(Boolean);
+}
+
 export async function getCustomers(params: {
   search?: string;
   source?: string;
@@ -291,7 +306,16 @@ export async function getCustomers(params: {
     const pageEnd = offset + Math.min(fetched + PAGE, limit) - 1;
     let q = getDb().from("customers").select("*");
     if (search) {
-      q = q.or(`name.ilike.%${search}%,phone.ilike.%${search}%,instagram.ilike.%${search}%`);
+      // Match every word separately rather than the whole string as one
+      // substring. Typing a customer's full name used to return nothing the
+      // moment the stored record differed at all — "Yash Naik" missed
+      // "Yash  L Naik" (middle initial, double space), which left the
+      // appointment booker with no row to click and a permanently disabled
+      // Book button. Chained .or() calls are ANDed by PostgREST, so each word
+      // must appear in at least one of the three fields.
+      for (const word of searchWords(search)) {
+        q = q.or(`name.ilike.%${word}%,phone.ilike.%${word}%,instagram.ilike.%${word}%`);
+      }
     }
     if (source) {
       q = q.eq("source", source);

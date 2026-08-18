@@ -323,6 +323,13 @@ export default function AppointmentsPage() {
                                 {saving ? "Saving…" : "Book appointment"}
                             </button>
                             <button onClick={() => setShowNew(false)} className="px-4 py-2 text-sm text-[var(--muted)]">Cancel</button>
+                            {!customer && (
+                                // The button is disabled until a customer row is picked, and a
+                                // disabled button that says nothing reads as a broken one.
+                                <span className="self-center text-[11px] text-[var(--muted)]">
+                                    Pick a customer above to enable this
+                                </span>
+                            )}
                         </div>
                     </div>
                 )}
@@ -550,6 +557,11 @@ function CustomerSearch({
                 className="w-full px-3 py-2 neo-input text-sm"
             />
             {searching && <Loader2 className="w-4 h-4 animate-spin absolute right-3 top-2.5 text-[var(--muted)]" />}
+            {!searching && query.trim().length >= 2 && results.length === 0 && (
+                <div className="absolute z-20 left-0 right-0 mt-1 rounded border border-[var(--border-color)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--muted)]">
+                    No customer matches “{query.trim()}”. Try just the first name or the phone number.
+                </div>
+            )}
             {results.length > 0 && (
                 <div className="absolute z-20 left-0 right-0 mt-1 rounded border border-[var(--border-color)] bg-[var(--surface)] max-h-60 overflow-y-auto">
                     {results.map((c) => (
