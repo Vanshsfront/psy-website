@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { guardAdminApi } from "@/lib/auth/guard";
 import { createServiceClient } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
@@ -8,13 +8,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json(
-      { error: "Unauthorized", code: 401 },
-      { status: 401 }
-    );
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   try {
     const supabase = createServiceClient();

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { getArtists, getArtistByName, createArtist } from "@/lib/storeadmin/server/database";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
     const includeInactive = request.nextUrl.searchParams.get("include_inactive") === "true";
     const artists = await getArtists(!includeInactive);
     return NextResponse.json({ artists });
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
   } catch (e) {
     const { detail, status } = authErrorResponse(e);
     return NextResponse.json({ detail }, { status });

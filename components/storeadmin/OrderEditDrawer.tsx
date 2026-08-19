@@ -20,6 +20,7 @@ interface FormState {
     service_description: string;
     payment_mode: string;
     source: string;
+    sourced_by: string;
     deposit: string;
     total: string;
     tracking_number: string;
@@ -37,6 +38,7 @@ const EMPTY_FORM: FormState = {
     service_description: "",
     payment_mode: "",
     source: "",
+    sourced_by: "",
     deposit: "",
     total: "",
     tracking_number: "",
@@ -55,6 +57,7 @@ function orderToForm(o: Order): FormState {
         service_description: o.service_description || "",
         payment_mode: o.payment_mode ? o.payment_mode.toLowerCase() : "",
         source: o.source || "",
+        sourced_by: (o as { sourced_by?: string }).sourced_by || "",
         deposit: o.deposit != null ? String(o.deposit) : "",
         total: o.total != null ? String(o.total) : "",
         tracking_number: o.tracking_number || "",
@@ -75,6 +78,7 @@ function buildPatch(original: FormState, current: FormState): Record<string, unk
         "service_description",
         "payment_mode",
         "source",
+        "sourced_by",
         "tracking_number",
         "courier_name",
         "discount_code",
@@ -332,6 +336,20 @@ export default function OrderEditDrawer({
                                 <option value="upi">UPI</option>
                                 <option value="card">Card</option>
                                 <option value="other">Other</option>
+                            </select>
+                        </Field>
+                        <Field label="Who brought this job">
+                            <select
+                                value={form.sourced_by}
+                                onChange={(e) => update("sourced_by", e.target.value)}
+                                className="w-full px-3 py-2 neo-input text-sm"
+                            >
+                                {/* Blank stays blank. A guest artist's revenue share
+                                    depends on this, and defaulting it to "studio"
+                                    would quietly decide the split for them. */}
+                                <option value="">Not recorded</option>
+                                <option value="studio">The studio</option>
+                                <option value="artist">The artist</option>
                             </select>
                         </Field>
                         <Field label="Source">

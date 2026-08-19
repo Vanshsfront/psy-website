@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse, hashPassword } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse, hashPassword } from "@/lib/storeadmin/server/auth";
 import { listUsers, createUser, getUserByUsername } from "@/lib/storeadmin/server/database";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireRole(request, "superadmin");
+    await requireRoute(request);
     const users = await listUsers();
     // Password hashes never leave the server, even for the owner.
     return NextResponse.json({ users });
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireRole(request, "superadmin");
+    await requireRoute(request);
     const { username, password, role, artist_id } = await request.json();
 
     const name = String(username || "").trim().toLowerCase();

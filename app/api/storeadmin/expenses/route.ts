@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { getExpenses } from "@/lib/storeadmin/server/database";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
     const params = request.nextUrl.searchParams;
     const expenses = await getExpenses({
       date_from: params.get("date_from") || "",

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/storeadmin/AuthProvider";
+import { OWN_RECORDS_ONLY } from "@/lib/auth/permissions";
 import Sidebar from "@/components/storeadmin/Sidebar";
 import DataTable, { DataTableColumn } from "@/components/storeadmin/DataTable";
 import InlineCell from "@/components/storeadmin/InlineCell";
@@ -56,7 +57,11 @@ const SOURCE_OPTIONS = [
 ];
 
 function OrdersContent() {
-    const { isAuthenticated, loading: authLoading } = useAuth();
+    const { isAuthenticated, loading: authLoading, role } = useAuth();
+    // Yogesh asked for Executives to get "Orders (view access only)". The rows
+    // they see are already narrowed to their own by the API; this removes the
+    // editing affordances so nothing offers an action that would be refused.
+    const readOnly = Boolean(role && OWN_RECORDS_ONLY.includes(role));
     const router = useRouter();
     const [orders, setOrders] = useState<Order[]>([]);
     const [artists, setArtists] = useState<Artist[]>([]);
@@ -130,6 +135,7 @@ function OrdersContent() {
                 accessor: (o) => o.order_date,
                 render: (o) => (
                     <InlineCell
+                        readOnly={readOnly}
                         type="date"
                         value={o.order_date ? o.order_date.split("T")[0] : ""}
                         display={<span>{formatDate(o.order_date)}</span>}
@@ -147,6 +153,7 @@ function OrdersContent() {
                 accessor: (o) => (o.consent_signed ? "yes" : "no"),
                 render: (o) => (
                     <InlineCell
+                        readOnly={readOnly}
                         type="checkbox"
                         value={!!o.consent_signed}
                         onSave={(next) =>
@@ -197,6 +204,7 @@ function OrdersContent() {
                 accessor: (o) => o.service_description ?? "",
                 render: (o) => (
                     <InlineCell
+                        readOnly={readOnly}
                         type="text"
                         value={getServiceTail(o.service_description)}
                         placeholder="What was done"
@@ -224,6 +232,7 @@ function OrdersContent() {
                 accessor: (o) => parseAppointmentType(o.service_description),
                 render: (o) => (
                     <InlineCell
+                        readOnly={readOnly}
                         type="select"
                         value={parseAppointmentType(o.service_description)}
                         options={[
@@ -250,6 +259,7 @@ function OrdersContent() {
                 accessor: (o) => o.artists?.name ?? "",
                 render: (o) => (
                     <InlineCell
+                        readOnly={readOnly}
                         type="select"
                         value={o.artist_id ?? ""}
                         options={artistOptions}
@@ -270,6 +280,7 @@ function OrdersContent() {
                 accessor: (o) => (o.payment_mode ? o.payment_mode.toLowerCase() : ""),
                 render: (o) => (
                     <InlineCell
+                        readOnly={readOnly}
                         type="select"
                         value={o.payment_mode ?? ""}
                         options={PAYMENT_OPTIONS}
@@ -292,6 +303,7 @@ function OrdersContent() {
                 accessor: (o) => o.deposit,
                 render: (o) => (
                     <InlineCell
+                        readOnly={readOnly}
                         type="number"
                         value={o.deposit ?? 0}
                         onSave={(next) =>
@@ -312,6 +324,7 @@ function OrdersContent() {
                 accessor: (o) => o.total,
                 render: (o) => (
                     <InlineCell
+                        readOnly={readOnly}
                         type="number"
                         value={o.total ?? 0}
                         onSave={(next) =>
@@ -334,6 +347,7 @@ function OrdersContent() {
                 accessor: (o) => o.source ?? "",
                 render: (o) => (
                     <InlineCell
+                        readOnly={readOnly}
                         type="select"
                         value={o.source ?? ""}
                         options={SOURCE_OPTIONS}
@@ -351,6 +365,7 @@ function OrdersContent() {
                 accessor: (o) => o.tracking_number ?? "",
                 render: (o) => (
                     <InlineCell
+                        readOnly={readOnly}
                         type="text"
                         value={o.tracking_number ?? ""}
                         onSave={(next) =>
@@ -385,7 +400,14 @@ function OrdersContent() {
             },
         ],
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [router, artistOptions]
+        [router, artistOptions, readOnly]
+    );
+
+    // The trailing pencil column is an edit affordance, so it goes entirely for
+    // a read-only viewer rather than being rendered and then refusing to work.
+    const visibleColumns = useMemo(
+        () => (readOnly ? columns.filter((c) => c.label !== "" || c.width !== "60px") : columns),
+        [columns, readOnly]
     );
 
     const exportCsv = () => {
@@ -514,7 +536,7 @@ function OrdersContent() {
 
                 <DataTable<Order>
                     rows={orders}
-                    columns={columns}
+                    columns={visibleColumns}
                     rowKey={(o) => o.id}
                     storageKey="psy_orders_table_v4"
                     defaultHiddenColumns={["tracking_number"]}
@@ -544,12 +566,14 @@ function OrdersContent() {
                     }}
                 />
 
-                <OrderEditDrawer
+                {/* Not rendered at all for a read-only viewer, rather than
+                    rendered and refused on save. */}
+                {!readOnly && <OrderEditDrawer
                     open={editingId !== null}
                     orderId={editingId}
                     onClose={() => setEditingId(null)}
                     onSaved={handleSaved}
-                />
+                />}
             </main>
         </div>
     );

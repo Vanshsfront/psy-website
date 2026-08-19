@@ -26,6 +26,7 @@ import {
     Wallet,
     ArrowUpCircle,
 } from "lucide-react";
+import { can } from "@/lib/auth/permissions";
 
 const PAGE_SIZE = 25;
 
@@ -191,7 +192,7 @@ function ExpensesContent() {
         }
     };
 
-    const canTopup = role === "superadmin";
+    const canTopup = can(role, "pettyCash.topup");
 
     if (authLoading || !isAuthenticated) {
         return (

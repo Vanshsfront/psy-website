@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { OWN_RECORDS_ONLY } from "@/lib/auth/permissions";
 import { getOrders, getCustomerById, createOrder } from "@/lib/storeadmin/server/database";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    const me = await requireRoute(request);
     const params = request.nextUrl.searchParams;
     const customerId = params.get("customer_id") || "";
     const rawLimit = Number(params.get("limit"));
-    const orders = rawLimit > 0 ? await getOrders(customerId, rawLimit) : await getOrders(customerId);
+
+    // An Executive sees only their own orders. Taken from their account rather
+    // than from a query parameter, so the scope cannot be widened by editing
+    // the URL. Same rule as appointments.
+    const artistScope = OWN_RECORDS_ONLY.includes(me.role) ? me.artistId : null;
+
+    const orders = rawLimit > 0
+      ? await getOrders(customerId, rawLimit, artistScope)
+      : await getOrders(customerId, undefined, artistScope);
     return NextResponse.json({ orders });
   } catch (e) {
     const { detail, status } = authErrorResponse(e);
@@ -18,8 +27,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    const me = await requireRoute(request);
     const body = await request.json();
+
+    // An Executive can only ever record work against themselves, whatever the
+    // request body says.
+    if (OWN_RECORDS_ONLY.includes(me.role)) body.artist_id = me.artistId;
+
     const customer = await getCustomerById(body.customer_id);
     if (!customer) {
       return NextResponse.json({ detail: "Customer not found" }, { status: 404 });

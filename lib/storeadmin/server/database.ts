@@ -564,7 +564,13 @@ export async function searchCustomersByConditions(
 
 // ── Orders ──
 
-export async function getOrders(customerId = "", limit = 50000) {
+/**
+ * @param artistScope when set, only that artist's orders are returned. Applied
+ * in the query rather than filtered afterwards, so an Executive login cannot
+ * widen its own view by passing different parameters. Same rule as
+ * getAppointments.
+ */
+export async function getOrders(customerId = "", limit = 50000, artistScope: string | null = null) {
   // Supabase caps each response at 1000 rows; page internally to honour `limit`.
   const PAGE = 1000;
   type OrderRow = Record<string, unknown> & { id: string };
@@ -573,6 +579,7 @@ export async function getOrders(customerId = "", limit = 50000) {
     const pageEnd = Math.min(fetched + PAGE, limit) - 1;
     let q = getDb().from("orders").select("*, customers(name, phone), artists(name)");
     if (customerId) q = q.eq("customer_id", customerId);
+    if (artistScope) q = q.eq("artist_id", artistScope);
     // `order_date` alone is not unique, so paging on it can skip or repeat rows
     // across pages; `id` breaks ties into a total order.
     const { data } = await q
@@ -586,12 +593,73 @@ export async function getOrders(customerId = "", limit = 50000) {
   return rows;
 }
 
-export async function getOrderById(orderId: string) {
-  const { data } = await getDb()
+export async function getOrderById(orderId: string, artistScope: string | null = null) {
+  let q = getDb()
     .from("orders")
     .select("*, customers(name, phone, instagram), artists(name)")
     .eq("id", orderId);
+  // Scoped in the query, so an out-of-scope id simply returns nothing rather
+  // than confirming that the order exists.
+  if (artistScope) q = q.eq("artist_id", artistScope);
+  const { data } = await q;
   return data?.[0] ?? null;
+}
+
+/**
+ * What one artist has earned, for the Executive login's own-earnings view.
+ *
+ * Deliberately separate from getFinancialSummary, which reports the whole
+ * studio's revenue, expenses and profit. An Executive must never see either
+ * the studio totals or another artist's numbers, so this takes the artist id
+ * and never accepts a wildcard: passing no id returns zeroes rather than
+ * everything.
+ */
+export async function getArtistEarnings(
+  artistId: string | null,
+  from = "",
+  to = ""
+): Promise<{
+  orderCount: number;
+  revenue: number;
+  deposits: number;
+  balance: number;
+  orders: Record<string, unknown>[];
+}> {
+  const empty = { orderCount: 0, revenue: 0, deposits: 0, balance: 0, orders: [] };
+  if (!artistId) return empty;
+
+  const PAGE = 1000;
+  const rows: Record<string, unknown>[] = [];
+  for (let fetched = 0; ; fetched += PAGE) {
+    let q = getDb()
+      .from("orders")
+      .select("id, order_date, service_description, total, deposit, payment_mode, customers(name)")
+      .eq("artist_id", artistId);
+    if (from) q = q.gte("order_date", from);
+    if (to) q = q.lte("order_date", to);
+    const { data } = await q
+      .order("order_date", { ascending: false })
+      .order("id", { ascending: true })
+      .range(fetched, fetched + PAGE - 1);
+    if (!data?.length) break;
+    rows.push(...data);
+    // Paged rather than capped: an artist with more than 1000 orders would
+    // otherwise silently see an understated total, which is the same bug that
+    // was found in getFinancialSummary.
+    if (data.length < PAGE) break;
+  }
+
+  const num = (v: unknown) => (typeof v === "number" ? v : Number(v) || 0);
+  const revenue = rows.reduce((sum, r) => sum + num(r.total), 0);
+  const deposits = rows.reduce((sum, r) => sum + num(r.deposit), 0);
+
+  return {
+    orderCount: rows.length,
+    revenue,
+    deposits,
+    balance: revenue - deposits,
+    orders: rows,
+  };
 }
 
 export async function createOrder(inputData: Record<string, unknown>) {
@@ -607,6 +675,9 @@ export async function createOrder(inputData: Record<string, unknown>) {
     total: inputData.total ?? 0,
     comments: inputData.comments,
     source: inputData.source,
+    // studio or artist, for the guest artist revenue share. Left unset rather
+    // than defaulted, because assuming "studio" invents a 70:30 split.
+    sourced_by: inputData.sourced_by,
     consent_signed: inputData.consent_signed,
   };
   for (const k of Object.keys(payload)) {
@@ -1139,14 +1210,119 @@ export async function getBalanceSheet(dateFrom: string, dateTo: string) {
 
   const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount ?? 0), 0);
 
+  // Hand-entered lines, for the income and cost the order and expense tables
+  // cannot know about. Yogesh: "I will have to add expenses, incomes beyond what
+  // reflects dynamically as well". Amounts are signed, incomes positive and
+  // expenses negative, and they are kept as their own section rather than being
+  // folded into a category, so the computed sheet and what was added to it stay
+  // separately auditable.
+  const manual = await getManualEntries({ scope: "balance_sheet", from: dateFrom, to: dateTo });
+  const manualIncome = manual
+    .filter((m) => m.amount > 0)
+    .reduce((s, m) => s + Number(m.amount), 0);
+  const manualExpense = manual
+    .filter((m) => m.amount < 0)
+    .reduce((s, m) => s + Math.abs(Number(m.amount)), 0);
+
+  const receivablesWithManual = totalReceivables + manualIncome;
+  const expensesWithManual = totalExpenses + manualExpense;
+
   return {
     period: { from: dateFrom, to: dateTo },
     receivables,
-    total_receivables: totalReceivables,
+    total_receivables: receivablesWithManual,
     expenses_by_category: byCategory,
-    total_expenses: totalExpenses,
-    net_profit: totalReceivables - totalExpenses,
+    total_expenses: expensesWithManual,
+    net_profit: receivablesWithManual - expensesWithManual,
     order_count: orders.length,
     expense_count: expenses.length,
+    manual_entries: manual.map((m) => ({
+      id: m.id,
+      label: m.label,
+      amount: Number(m.amount),
+      kind: m.kind,
+      date: m.entry_date,
+    })),
+    manual_income: manualIncome,
+    manual_expense: manualExpense,
+    // The computed halves, kept so the sheet can show what was added by hand.
+    computed_receivables: totalReceivables,
+    computed_expenses: totalExpenses,
   };
+}
+
+// ── Manual entries ──
+//
+// Hand-written lines on the salary slips and the balance sheet, for the things
+// the computed figures cannot know about: a one-off bonus, a cash expense nobody
+// logged, income from outside the order flow. `amount` is signed and always
+// added, so a deduction or an expense is stored negative.
+
+export interface ManualEntry {
+  id: string;
+  scope: "salary" | "balance_sheet";
+  artist_id: string | null;
+  entry_date: string;
+  label: string;
+  amount: number;
+  kind: "bonus" | "deduction" | "income" | "expense";
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export async function getManualEntries(params: {
+  scope: "salary" | "balance_sheet";
+  from?: string;
+  to?: string;
+}): Promise<ManualEntry[]> {
+  let q = getDb()
+    .from("manual_entries")
+    .select("*")
+    .eq("scope", params.scope)
+    .eq("is_deleted", false);
+  if (params.from) q = q.gte("entry_date", params.from);
+  if (params.to) q = q.lte("entry_date", params.to);
+  const { data, error } = await q.order("entry_date", { ascending: true });
+  if (error) throw new Error(`Failed to read manual entries: ${error.message}`);
+  return (data ?? []) as unknown as ManualEntry[];
+}
+
+export async function createManualEntry(
+  input: Record<string, unknown>,
+  createdBy: string
+): Promise<ManualEntry> {
+  const kind = String(input.kind);
+  const magnitude = Math.abs(Number(input.amount) || 0);
+  // The sign is derived from the kind rather than trusted from the client, so a
+  // deduction can never arrive as a positive number and quietly pay someone more.
+  const amount = kind === "deduction" || kind === "expense" ? -magnitude : magnitude;
+
+  const payload = {
+    scope: input.scope,
+    artist_id: input.scope === "salary" ? (input.artist_id ?? null) : null,
+    entry_date: input.entry_date,
+    label: input.label,
+    amount,
+    kind,
+    notes: input.notes ?? null,
+    created_by: createdBy,
+  };
+  const { data, error } = await getDb().from("manual_entries").insert(payload).select();
+  if (error) throw new Error(error.message);
+  return data?.[0] as unknown as ManualEntry;
+}
+
+export async function deleteManualEntry(id: string, deletedBy: string): Promise<boolean> {
+  // Soft, because these change what people were paid and a pay run must stay
+  // reconstructable after the fact.
+  const { data, error } = await getDb()
+    .from("manual_entries")
+    .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: deletedBy })
+    .eq("id", id)
+    .eq("is_deleted", false)
+    .select();
+  if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error("Entry not found");
+  return true;
 }

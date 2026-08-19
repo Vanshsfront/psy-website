@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { guardAdminApi } from "@/lib/auth/guard";
 import { createServiceClient } from "@/lib/supabase-server";
 import { z } from "zod";
 
@@ -16,13 +16,8 @@ const createDiscountSchema = z.object({
 });
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json(
-      { error: "Unauthorized", code: 401 },
-      { status: 401 }
-    );
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   try {
     const supabase = createServiceClient();
@@ -43,13 +38,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json(
-      { error: "Unauthorized", code: 401 },
-      { status: 401 }
-    );
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   try {
     const supabase = createServiceClient();

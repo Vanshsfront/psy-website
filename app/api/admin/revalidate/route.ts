@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { guardAdminApi } from "@/lib/auth/guard";
 import { revalidatePath } from "next/cache";
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json(
-      { error: "Unauthorized", code: 401 },
-      { status: 401 }
-    );
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   try {
     const body = await request.json();

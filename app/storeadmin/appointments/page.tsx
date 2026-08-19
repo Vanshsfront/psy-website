@@ -9,6 +9,7 @@ import { api, clearApiCache } from "@/lib/storeadmin/api";
 import { formatCurrency } from "@/lib/storeadmin/utils";
 import type { Appointment, Artist, Customer } from "@/types/storeadmin";
 import { Loader2, Plus, ChevronLeft, ChevronRight, X, Check, Trash2 } from "lucide-react";
+import { OWN_RECORDS_ONLY } from "@/lib/auth/permissions";
 
 const dayKey = (d: Date) => {
     // Local calendar day, not UTC: toISOString() would roll over at 05:30 IST
@@ -205,7 +206,7 @@ export default function AppointmentsPage() {
                         <h1 className="font-display text-4xl font-bold">Appointments</h1>
                         <p className="text-sm text-[var(--muted)] mt-1">
                             {counts.booked} booked · {counts.confirmed} confirmed · {counts.completed} completed
-                            {role === "artist" && " · your bookings only"}
+                            {role && OWN_RECORDS_ONLY.includes(role) && " · your bookings only"}
                         </p>
                     </div>
                     <button
@@ -284,7 +285,7 @@ export default function AppointmentsPage() {
                                     <option value="0">Open ended</option>
                                 </select>
                             </div>
-                            {role !== "artist" && (
+                            {!(role && OWN_RECORDS_ONLY.includes(role)) && (
                                 <div>
                                     <label className="text-[10px] uppercase tracking-wider text-[var(--muted)] mb-1 block">Artist</label>
                                     <select value={form.artist_id} onChange={(e) => setForm({ ...form, artist_id: e.target.value })}

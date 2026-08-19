@@ -9,14 +9,58 @@ function getToken(): string | null {
 const cache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_TTL_MS = 60 * 1000; // 1 minute
 
+/**
+ * Who the cached entries belong to.
+ *
+ * The cache used to be keyed on the request path alone and was never cleared on
+ * sign-out, so signing out and signing in as somebody else within the 60s TTL
+ * served the second person the first person's data. On a shared studio machine
+ * that is exactly how an artist login would have been handed the customer list.
+ * Entries are now namespaced by user, and changing user empties the cache.
+ */
+let cacheIdentity: string | null = null;
+
 export const clearApiCache = () => cache.clear();
+
+/** Point the cache at a user. Pass null on sign-out. Any change wipes the cache. */
+export function setCacheIdentity(identity: string | null) {
+    if (identity === cacheIdentity) return;
+    cacheIdentity = identity;
+    cache.clear();
+}
+
+const cacheKeyFor = (path: string) => `${cacheIdentity ?? "anon"}::${path}`;
+
+/**
+ * Ask the server who we are, without the redirect-on-401 behaviour of apiFetch.
+ *
+ * Used once on mount to establish the session. It has to bypass apiFetch
+ * because a 401 there hard-navigates to /storeadmin/login, and doing that from
+ * the login page itself is a reload loop. Returns null instead of throwing.
+ *
+ * Sends both credentials and the Bearer header so it resolves a session held
+ * either as the httpOnly cookie or as a legacy localStorage token.
+ */
+export async function probeSession(): Promise<{ username: string; role: string } | null> {
+    const token = getToken();
+    try {
+        const res = await fetch("/api/storeadmin/auth/me", {
+            credentials: "include",
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) return null;
+        return await res.json();
+    } catch {
+        return null;
+    }
+}
 
 async function apiFetch<T>(
     path: string,
     options: RequestInit = {}
 ): Promise<T> {
     const isGet = !options.method || options.method === "GET";
-    const cacheKey = path;
+    const cacheKey = cacheKeyFor(path);
 
     // 1. Check Cache for GET requests
     if (isGet && cache.has(cacheKey)) {
@@ -48,6 +92,7 @@ async function apiFetch<T>(
     if (res.status === 401) {
         if (typeof window !== "undefined") {
             localStorage.removeItem("psyshot_token");
+            setCacheIdentity(null);
             window.location.href = "/storeadmin/login";
         }
         throw new Error("Unauthorized");
@@ -74,6 +119,9 @@ async function apiFetch<T>(
 
 // Auth
 export const api = {
+    logout: () =>
+        apiFetch<{ ok: boolean }>("/api/storeadmin/auth/logout", { method: "POST" }),
+
     login: (username: string, password: string) =>
         apiFetch<{ token: string; username: string; role: string }>("/api/storeadmin/auth/login", {
             method: "POST",
@@ -403,6 +451,70 @@ export const api = {
         }),
 
     // Export
+    getManualEntries: (scope: "salary" | "balance_sheet", from: string, to: string) =>
+        apiFetch<{ entries: Array<{ id: string; label: string; amount: number; kind: string; entry_date: string; artist_id: string | null }> }>(
+            `/api/storeadmin/manual-entries?scope=${scope}&from=${from}&to=${to}`
+        ),
+
+    createManualEntry: (body: Record<string, unknown>) =>
+        apiFetch<{ created: boolean }>("/api/storeadmin/manual-entries", {
+            method: "POST",
+            body: JSON.stringify(body),
+        }),
+
+    deleteManualEntry: (id: string) =>
+        apiFetch<{ deleted: boolean }>(`/api/storeadmin/manual-entries?id=${id}`, { method: "DELETE" }),
+
+    getSalarySlips: (from: string, to: string) =>
+        apiFetch<{
+            slips: Array<{
+                artistName: string;
+                statedAs: string;
+                fixed: number;
+                commission: number | null;
+                total: number | null;
+                basis: { label: string; amount: number; percent: number } | null;
+                unresolved?: { question: string; options: Array<{ label: string; amount: number; total: number }> };
+                notes: string[];
+                adjustments: Array<{ id: string; label: string; amount: number; kind: string }>;
+                adjustmentTotal: number;
+            }>;
+        }>(`/api/storeadmin/salary?from=${from}&to=${to}`),
+
+    getAnalytics: (params: { from: string; to: string; grain: string; artist_id?: string }) => {
+        const q = new URLSearchParams({ from: params.from, to: params.to, grain: params.grain });
+        if (params.artist_id) q.set("artist_id", params.artist_id);
+        return apiFetch<{ analytics: import("@/lib/storeadmin/server/analytics").AnalyticsResult }>(
+            `/api/storeadmin/analytics?${q.toString()}`
+        );
+    },
+
+    getOverview: () =>
+        apiFetch<{
+            overview: {
+                studio: { orders: number; revenue: number; customers: number; appointments: number };
+                shop: { orders: number; revenue: number; products: number; customers: number; bookings: number };
+                combinedRevenue: number;
+            };
+        }>("/api/storeadmin/overview"),
+
+    getMyEarnings: (params: { from?: string; to?: string } = {}) => {
+        const q = new URLSearchParams();
+        if (params.from) q.set("from", params.from);
+        if (params.to) q.set("to", params.to);
+        const qs = q.toString();
+        return apiFetch<{
+            earnings: {
+                orderCount: number;
+                revenue: number;
+                deposits: number;
+                balance: number;
+                orders: Array<Record<string, unknown>>;
+            };
+            linkedToArtist: boolean;
+        }>(`/api/storeadmin/finance/my-earnings${qs ? `?${qs}` : ""}`);
+    },
+
     exportMastersheet: async (): Promise<Blob> => {
         const token = getToken();
         const res = await fetch(`/api/storeadmin/export/mastersheet`, {

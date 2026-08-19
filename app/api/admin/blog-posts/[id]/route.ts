@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { guardAdminApi } from "@/lib/auth/guard";
 import { createServiceClient } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +19,8 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized", code: 401 }, { status: 401 });
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("blog_posts")
@@ -42,10 +40,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized", code: 401 }, { status: 401 });
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
 
   try {
     const body = await request.json();
@@ -85,10 +81,8 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized", code: 401 }, { status: 401 });
-  }
+  const denied = await guardAdminApi();
+  if (denied) return denied;
   const supabase = createServiceClient();
   const { error } = await supabase.from("blog_posts").delete().eq("id", params.id);
   if (error) {

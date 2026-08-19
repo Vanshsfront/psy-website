@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { createPettyCashTopup } from "@/lib/storeadmin/server/database";
 
 export async function POST(request: NextRequest) {
   try {
-    await requireRole(request, "superadmin");
+    await requireRoute(request);
     const { amount, note } = await request.json();
     if (!amount || amount <= 0) {
       return NextResponse.json({ detail: "Amount must be positive" }, { status: 400 });

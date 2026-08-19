@@ -16,6 +16,7 @@ import {
     Palette,
 } from "lucide-react";
 import Link from "next/link";
+import { can } from "@/lib/auth/permissions";
 
 function DashboardContent() {
     const { isAuthenticated, loading: authLoading, username, role } = useAuth();
@@ -153,7 +154,7 @@ function DashboardContent() {
                                 </div>
                                 <div className="text-3xl font-bold">{ordersThisMonth.length}</div>
                                 <p className="text-xs text-[var(--muted)] mt-1">{totalOrders} all time</p>
-                                {role === "superadmin" && (
+                                {can(role, "revenue.view") && (
                                     <p className="text-xs text-[var(--primary)] mt-2 font-medium">
                                         {formatCurrency(revenueThisMonth)}
                                         <span className="text-[var(--muted)] font-normal"> · {formatCurrency(totalRevenue)} all time</span>
@@ -192,7 +193,7 @@ function DashboardContent() {
                                                     </p>
                                                 </div>
                                                 <div className="text-right">
-                                                    {role === "superadmin" && (
+                                                    {can(role, "revenue.view") && (
                                                         <p className="text-sm font-mono text-[var(--foreground)]">{formatCurrency(order.total)}</p>
                                                     )}
                                                     <p className="text-xs text-[var(--muted)]">{formatRelativeDate(order.order_date)}</p>
@@ -223,7 +224,7 @@ function DashboardContent() {
                                                                 <span className="text-xs font-bold text-[var(--muted)] w-4">{idx + 1}</span>
                                                                 <span className="text-sm font-medium">{artist.name}</span>
                                                             </div>
-                                                            {role === "superadmin" && (
+                                                            {can(role, "revenue.view") && (
                                                                 <span className="text-sm font-semibold text-[var(--primary)]">{formatCurrency(artist.revenue)}</span>
                                                             )}
                                                         </div>

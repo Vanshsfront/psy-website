@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { OWN_RECORDS_ONLY } from "@/lib/auth/permissions";
 import { getOrderById, updateOrder, deleteOrder } from "@/lib/storeadmin/server/database";
 
 const ALLOWED_FIELDS = new Set([
@@ -17,13 +18,18 @@ const ALLOWED_FIELDS = new Set([
   "discount_code",
   "discount_amount",
   "consent_signed",
+  // Who brought this job, for the guest artist revenue share.
+  "sourced_by",
 ]);
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    const me = await requireRoute(request);
     const { id } = params;
-    const order = await getOrderById(id);
+    // Scoped in the query: an out-of-scope id returns nothing rather than
+    // confirming that somebody else's order exists.
+    const artistScope = OWN_RECORDS_ONLY.includes(me.role) ? me.artistId : null;
+    const order = await getOrderById(id, artistScope);
     if (!order) {
       return NextResponse.json({ detail: "Order not found" }, { status: 404 });
     }
@@ -36,7 +42,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
   } catch (e) {
     const { detail, status } = authErrorResponse(e);
     return NextResponse.json({ detail }, { status });
@@ -82,7 +88,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
   } catch (e) {
     const { detail, status } = authErrorResponse(e);
     return NextResponse.json({ detail }, { status });

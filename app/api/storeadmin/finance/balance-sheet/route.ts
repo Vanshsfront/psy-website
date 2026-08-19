@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { getBalanceSheet } from "@/lib/storeadmin/server/database";
 
 export async function GET(request: NextRequest) {
   try {
     // Owner only, like the rest of Finance.
-    await requireRole(request, "superadmin");
+    await requireRoute(request);
     const params = request.nextUrl.searchParams;
 
     // Defaults to the current calendar month, which is the unit the studio's

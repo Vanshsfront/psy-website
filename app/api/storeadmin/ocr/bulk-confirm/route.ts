@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import {
   checkDuplicateCustomer,
   createCustomer,
@@ -11,7 +11,7 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
     const body = await request.json();
     const { session_id, orders } = body;
 

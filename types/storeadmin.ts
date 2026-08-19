@@ -36,7 +36,19 @@ export interface Artist {
     id: string;
     name: string;
     is_active: boolean;
+    /** External freelancer: no base pay, paid a revenue share per job. */
+    is_guest_artist?: boolean;
     created_at: string;
+    /**
+     * The website half of the record, present since migration 012 merged the
+     * two artist tables. `name` stays the studio's short working name because
+     * order import matches on it; `display_name` is the full name the public
+     * site shows. A null slug means this artist has no public profile.
+     */
+    display_name?: string | null;
+    slug?: string | null;
+    speciality?: string | null;
+    profile_photo_url?: string | null;
 }
 
 export interface Order {
@@ -74,6 +86,17 @@ export interface BalanceSheet {
     }>;
     total_expenses: number;
     net_profit: number;
+    /**
+     * Lines added by hand, for income and cost the order and expense tables
+     * cannot know about. Signed: incomes positive, expenses negative. Already
+     * included in the totals above; kept separately so the sheet can show what
+     * was computed and what was added.
+     */
+    manual_entries?: Array<{ id: string; label: string; amount: number; kind: string; date: string }>;
+    manual_income?: number;
+    manual_expense?: number;
+    computed_receivables?: number;
+    computed_expenses?: number;
     order_count: number;
     expense_count: number;
 }
@@ -214,7 +237,13 @@ export interface FilterResult {
 export interface FinancialSummary {
     revenue: number;
     expenses: number;
-    profit: number;
+    /**
+     * Absent for anyone without profit.view: the API removes it rather than the
+     * UI hiding it. `profit_withheld` says so explicitly, so a missing value is
+     * never mistaken for zero.
+     */
+    profit?: number;
+    profit_withheld?: boolean;
     petty_cash_balance: number;
     category_breakdown: Record<string, number>;
     order_count: number;

@@ -14,6 +14,14 @@ export interface InlineCellProps {
     display?: React.ReactNode;
     className?: string;
     disabled?: boolean;
+    /**
+     * Render as plain text with no editing affordance at all.
+     *
+     * Different from `disabled`, which means "editable, but not right now" and
+     * dims the cell to say so. `readOnly` is for a viewer who will never be able
+     * to edit this, so dimming the whole table would just make it look broken.
+     */
+    readOnly?: boolean;
 }
 
 /**
@@ -29,6 +37,7 @@ export default function InlineCell({
     display,
     className,
     disabled,
+    readOnly,
 }: InlineCellProps) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState<string>(toStr(value));
@@ -73,6 +82,16 @@ export default function InlineCell({
             type === "number" ? (draft === "" ? 0 : Number(draft)) : draft || null;
         await commit(next);
     };
+
+    // Nothing interactive at all for a viewer who cannot edit. Placed ahead of
+    // every branch below so no click target or hover state is rendered.
+    if (readOnly) {
+        return (
+            <span className={className}>
+                {display ?? (type === "checkbox" ? (value ? "Yes" : "No") : toStr(value) || "—")}
+            </span>
+        );
+    }
 
     if (type === "checkbox") {
         return (

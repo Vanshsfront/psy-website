@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse, hashPassword } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse, hashPassword } from "@/lib/storeadmin/server/auth";
 import { updateUser, deleteUser, listUsers } from "@/lib/storeadmin/server/database";
 
 /** Refuse to remove the last way into the system. */
@@ -25,7 +25,7 @@ async function wouldOrphanTheStudio(userId: string, nextRole?: string, nextActiv
 
 export async function PATCH(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const me = await requireRole(request, "superadmin");
+    const me = await requireRoute(request);
     const { id } = await ctx.params;
     const body = await request.json();
 
@@ -72,7 +72,7 @@ export async function PATCH(request: NextRequest, ctx: { params: Promise<{ id: s
 
 export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
-    await requireRole(request, "superadmin");
+    await requireRoute(request);
     const { id } = await ctx.params;
 
     if (await wouldOrphanTheStudio(id, undefined, false)) {
