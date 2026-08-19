@@ -62,6 +62,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Studio",
     items: [
       { label: "Dashboard", href: "/storeadmin", icon: LayoutDashboard },
+      { label: "Both Businesses", href: "/storeadmin/overview", icon: Scale },
       { label: "Customers", href: "/storeadmin/customers", icon: Users },
       { label: "Appointments", href: "/storeadmin/appointments", icon: CalendarDays },
       { label: "My Earnings", href: "/storeadmin/my-earnings", icon: Wallet },

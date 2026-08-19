@@ -451,6 +451,15 @@ export const api = {
         }),
 
     // Export
+    getOverview: () =>
+        apiFetch<{
+            overview: {
+                studio: { orders: number; revenue: number; customers: number; appointments: number };
+                shop: { orders: number; revenue: number; products: number; customers: number; bookings: number };
+                combinedRevenue: number;
+            };
+        }>("/api/storeadmin/overview"),
+
     getMyEarnings: (params: { from?: string; to?: string } = {}) => {
         const q = new URLSearchParams();
         if (params.from) q.set("from", params.from);
