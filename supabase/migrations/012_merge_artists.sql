@@ -103,7 +103,11 @@ SELECT a.name, a.name, true, a.slug, a.bio, a.speciality, a.instagram, a.profile
   FROM public.artists a
  WHERE NOT EXISTS (SELECT 1 FROM artist_pairing p WHERE p.website_name = a.name);
 
--- ── 4. repoint the portfolio ──
+-- ── 4. repoint everything that references the old table ──
+--
+-- TWO tables point at public.artists, not one: portfolio_items and bookings.
+-- Missing either leaves it pointing at the renamed legacy table, so its
+-- PostgREST embed stops resolving and new rows fail the foreign key.
 
 CREATE TEMP TABLE artist_id_map (old_id uuid PRIMARY KEY, new_id uuid NOT NULL) ON COMMIT DROP;
 
@@ -121,11 +125,17 @@ SELECT a.id, s.id
    AND NOT EXISTS (SELECT 1 FROM artist_id_map m WHERE m.old_id = a.id);
 
 ALTER TABLE public.portfolio_items DROP CONSTRAINT IF EXISTS portfolio_items_artist_id_fkey;
+ALTER TABLE public.bookings DROP CONSTRAINT IF EXISTS bookings_artist_id_fkey;
 
 UPDATE public.portfolio_items pi
    SET artist_id = m.new_id
   FROM artist_id_map m
  WHERE pi.artist_id = m.old_id;
+
+UPDATE public.bookings b
+   SET artist_id = m.new_id
+  FROM artist_id_map m
+ WHERE b.artist_id = m.old_id;
 
 -- No portfolio item may be left pointing at an id that is about to disappear.
 DO $$
@@ -136,14 +146,25 @@ BEGIN
     FROM public.portfolio_items pi
    WHERE pi.artist_id IS NOT NULL
      AND NOT EXISTS (SELECT 1 FROM studio.artists s WHERE s.id = pi.artist_id);
-
   IF orphans > 0 THEN
     RAISE EXCEPTION '% portfolio items would be orphaned', orphans;
+  END IF;
+
+  SELECT count(*) INTO orphans
+    FROM public.bookings b
+   WHERE b.artist_id IS NOT NULL
+     AND NOT EXISTS (SELECT 1 FROM studio.artists s WHERE s.id = b.artist_id);
+  IF orphans > 0 THEN
+    RAISE EXCEPTION '% bookings would be orphaned', orphans;
   END IF;
 END $$;
 
 ALTER TABLE public.portfolio_items
   ADD CONSTRAINT portfolio_items_artist_id_fkey
+  FOREIGN KEY (artist_id) REFERENCES studio.artists(id) ON DELETE SET NULL;
+
+ALTER TABLE public.bookings
+  ADD CONSTRAINT bookings_artist_id_fkey
   FOREIGN KEY (artist_id) REFERENCES studio.artists(id) ON DELETE SET NULL;
 
 -- ── 5. public.artists becomes a view over the survivor ──
