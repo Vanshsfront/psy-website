@@ -60,6 +60,31 @@ export function sessionCookieOptions(): {
 // existing importers of this module keep working.
 export type { UserRole };
 
+/**
+ * A refusal to authenticate or authorise, as opposed to anything else going
+ * wrong.
+ *
+ * This exists because the two were previously indistinguishable. Every failure
+ * reaching authErrorResponse was reported as 401, so a database error, a typo
+ * in a query or a missing table all arrived at the browser as "Unauthorized" on
+ * a perfectly valid session. That is not a cosmetic problem: the client treats
+ * 401 as a dead session, wipes the token and bounces you to the login screen,
+ * so a server-side fault logged people out and told them nothing.
+ *
+ * It cost real time on the 2026-08-19 deploy, where a missing GRANT on
+ * studio.manual_entries surfaced as 401 on the salary and balance sheet screens
+ * and looked for all the world like a role bug.
+ */
+export class AuthError extends Error {
+  readonly status: 401 | 403;
+
+  constructor(status: 401 | 403, message?: string) {
+    super(message ?? (status === 403 ? "Forbidden" : "Unauthorized"));
+    this.name = "AuthError";
+    this.status = status;
+  }
+}
+
 /** Who the caller is, resolved from the database rather than from the token. */
 export interface AuthedUser {
   username: string;
@@ -116,14 +141,14 @@ function tokenFromRequest(request: NextRequest): string | null {
 /** Look the caller up. Throws "Unauthorized" for a bad token or disabled account. */
 export async function getAuthedUser(request: NextRequest): Promise<AuthedUser> {
   const token = tokenFromRequest(request);
-  if (!token) throw new Error("Unauthorized");
+  if (!token) throw new AuthError(401);
 
   const payload = await decodeToken(token);
-  if (!payload?.sub) throw new Error("Unauthorized");
+  if (!payload?.sub) throw new AuthError(401);
 
   const { getUserByUsername } = await import("./database");
   const user = await getUserByUsername(payload.sub);
-  if (!user || user.is_active === false) throw new Error("Unauthorized");
+  if (!user || user.is_active === false) throw new AuthError(401);
 
   return {
     username: user.username,
@@ -145,7 +170,7 @@ export async function requireRole(
   ...allowed: UserRole[]
 ): Promise<AuthedUser> {
   const user = await getAuthedUser(request);
-  if (!allowed.includes(user.role)) throw new Error("Forbidden");
+  if (!allowed.includes(user.role)) throw new AuthError(403);
   return user;
 }
 
@@ -161,7 +186,7 @@ export async function requireRoute(request: NextRequest): Promise<AuthedUser> {
   const allowed = accessForPath(request.nextUrl.pathname, request.method);
 
   if (allowed === undefined) {
-    throw new Error("Forbidden");
+    throw new AuthError(403);
   }
 
   // null means the route authenticates itself and must not be role-gated.
@@ -170,7 +195,7 @@ export async function requireRoute(request: NextRequest): Promise<AuthedUser> {
   }
 
   const user = await getAuthedUser(request);
-  if (!allowed.includes(user.role)) throw new Error("Forbidden");
+  if (!allowed.includes(user.role)) throw new AuthError(403);
   return user;
 }
 
@@ -180,13 +205,35 @@ export async function authenticateRequest(request: NextRequest): Promise<string>
   return user.username;
 }
 
-/** Maps a thrown auth error to the right status, so 403 stops reading as 401. */
+/**
+ * Turn a thrown error into a status.
+ *
+ * Only an AuthError produces 401 or 403. Everything else is a fault on our side
+ * and gets 500, which is both honest and the difference between "sign in again"
+ * and "this is broken, tell somebody".
+ *
+ * The message of a non-auth error is deliberately not returned to the caller:
+ * database errors quote table and column names. It is logged instead, so the
+ * detail lands somewhere a developer can read it and nowhere else.
+ */
 export function authErrorResponse(e: unknown): { detail: string; status: number } {
-  const message = e instanceof Error ? e.message : "Unauthorized";
-  if (message === "Forbidden") {
-    return { detail: "You do not have access to this", status: 403 };
+  if (e instanceof AuthError) {
+    return e.status === 403
+      ? { detail: "You do not have access to this", status: 403 }
+      : { detail: "Unauthorized", status: 401 };
   }
-  return { detail: "Unauthorized", status: 401 };
+
+  // Kept for anything that still throws the bare strings rather than an
+  // AuthError, so a missed call site degrades to the old behaviour instead of
+  // reporting a genuine auth failure as a server fault.
+  if (e instanceof Error && (e.message === "Unauthorized" || e.message === "Forbidden")) {
+    return e.message === "Forbidden"
+      ? { detail: "You do not have access to this", status: 403 }
+      : { detail: "Unauthorized", status: 401 };
+  }
+
+  console.error("storeadmin route failed:", e);
+  return { detail: "Something went wrong on our end", status: 500 };
 }
 
 /**

@@ -27,11 +27,10 @@ export async function GET(request: NextRequest) {
     );
     return NextResponse.json({ analytics });
   } catch (e) {
+    // authErrorResponse now distinguishes the two: only a real auth
+    // failure is 401 or 403, anything else is 500 with the detail logged
+    // rather than returned, because database errors quote table names.
     const { detail, status } = authErrorResponse(e);
-    if (status === 401 || status === 403) return NextResponse.json({ detail }, { status });
-    return NextResponse.json(
-      { detail: e instanceof Error ? e.message : "Could not load analytics" },
-      { status: 500 }
-    );
+    return NextResponse.json({ detail }, { status });
   }
 }

@@ -70,12 +70,11 @@ export async function POST(request: NextRequest) {
     const entry = await createManualEntry(body, me.username);
     return NextResponse.json({ created: true, entry });
   } catch (e) {
+    // authErrorResponse now distinguishes the two: only a real auth
+    // failure is 401 or 403, anything else is 500 with the detail logged
+    // rather than returned, because database errors quote table names.
     const { detail, status } = authErrorResponse(e);
-    if (status === 401 || status === 403) return NextResponse.json({ detail }, { status });
-    return NextResponse.json(
-      { detail: e instanceof Error ? e.message : "Could not save that line" },
-      { status: 500 }
-    );
+    return NextResponse.json({ detail }, { status });
   }
 }
 
@@ -87,11 +86,10 @@ export async function DELETE(request: NextRequest) {
     await deleteManualEntry(id, me.username);
     return NextResponse.json({ deleted: true });
   } catch (e) {
+    // authErrorResponse now distinguishes the two: only a real auth
+    // failure is 401 or 403, anything else is 500 with the detail logged
+    // rather than returned, because database errors quote table names.
     const { detail, status } = authErrorResponse(e);
-    if (status === 401 || status === 403) return NextResponse.json({ detail }, { status });
-    return NextResponse.json(
-      { detail: e instanceof Error ? e.message : "Could not remove that line" },
-      { status: 500 }
-    );
+    return NextResponse.json({ detail }, { status });
   }
 }

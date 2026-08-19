@@ -34,10 +34,14 @@ export async function PATCH(request: NextRequest, ctx: { params: Promise<{ id: s
     const appointment = await updateAppointment(id, body, scope);
     return NextResponse.json({ updated: true, appointment });
   } catch (e) {
+    // "not found" is an answer, not a fault. An appointment outside an
+    // artist's scope is reported the same way as one that does not exist,
+    // deliberately, so the response cannot confirm somebody else's booking.
+    if (e instanceof Error && e.message.includes("not found")) {
+      return NextResponse.json({ detail: e.message }, { status: 404 });
+    }
     const { detail, status } = authErrorResponse(e);
-    if (status === 401 || status === 403) return NextResponse.json({ detail }, { status });
-    const message = e instanceof Error ? e.message : "Could not update the appointment";
-    return NextResponse.json({ detail: message }, { status: message.includes("not found") ? 404 : 500 });
+    return NextResponse.json({ detail }, { status });
   }
 }
 
@@ -49,9 +53,13 @@ export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: 
     // Soft delete: the row leaves every view but the studio keeps the history.
     return NextResponse.json({ deleted: true });
   } catch (e) {
+    // "not found" is an answer, not a fault. An appointment outside an
+    // artist's scope is reported the same way as one that does not exist,
+    // deliberately, so the response cannot confirm somebody else's booking.
+    if (e instanceof Error && e.message.includes("not found")) {
+      return NextResponse.json({ detail: e.message }, { status: 404 });
+    }
     const { detail, status } = authErrorResponse(e);
-    if (status === 401 || status === 403) return NextResponse.json({ detail }, { status });
-    const message = e instanceof Error ? e.message : "Could not remove the appointment";
-    return NextResponse.json({ detail: message }, { status: message.includes("not found") ? 404 : 500 });
+    return NextResponse.json({ detail }, { status });
   }
 }

@@ -32,6 +32,9 @@ export async function POST(request: NextRequest) {
     response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
     return response;
   } catch (e) {
-    return NextResponse.json({ detail: e instanceof Error ? e.message : "Server error" }, { status: 500 });
+    // Logged, not returned. This endpoint answers unauthenticated callers, and
+    // a database error quotes table and column names.
+    console.error("storeadmin login failed:", e);
+    return NextResponse.json({ detail: "Something went wrong on our end" }, { status: 500 });
   }
 }

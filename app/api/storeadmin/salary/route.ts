@@ -29,11 +29,10 @@ export async function GET(request: NextRequest) {
     const slips = await getSalarySlips(from, to, scope);
     return NextResponse.json({ slips });
   } catch (e) {
+    // authErrorResponse now distinguishes the two: only a real auth
+    // failure is 401 or 403, anything else is 500 with the detail logged
+    // rather than returned, because database errors quote table names.
     const { detail, status } = authErrorResponse(e);
-    if (status === 401 || status === 403) return NextResponse.json({ detail }, { status });
-    return NextResponse.json(
-      { detail: e instanceof Error ? e.message : "Could not work out the salary slips" },
-      { status: 500 }
-    );
+    return NextResponse.json({ detail }, { status });
   }
 }
