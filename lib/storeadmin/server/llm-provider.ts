@@ -16,10 +16,12 @@ export async function generateText(prompt: string, maxTokens = 1000): Promise<st
   try {
     const model = client.getGenerativeModel({
       // Gemini Flash Lite is the default for storeadmin AI text features (fast,
-      // cheap, allowed on this project type, unlike gemma-4/gemini-2.5 which are
-      // 403-denied on the current free key). Override with no code change via
+      // cheap). Pinned to the "-latest" alias: the previous default
+      // gemini-2.0-flash-lite was retired and returns HTTP 404. The old note
+      // about gemma-4/gemini-2.5 being 403-denied on this key is stale — both
+      // are now available. Override with no code change via
       //   GOOGLE_TEXT_MODEL=...
-      model: process.env.GOOGLE_TEXT_MODEL || "gemini-2.0-flash-lite",
+      model: process.env.GOOGLE_TEXT_MODEL || "gemini-flash-lite-latest",
       generationConfig: { temperature: 0.3, maxOutputTokens: maxTokens },
     });
     const result = await model.generateContent(prompt);

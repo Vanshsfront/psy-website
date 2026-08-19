@@ -1,20 +1,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { OCR_FORM_EXTRACTION_PROMPT } from "./prompts";
+import { parseMultiOcrResponse, type OcrResult } from "./ocr-parse";
+import { extractOrdersWithGemma } from "./ocr-gemma";
 
-const FIELD_MAP: Record<string, string> = {
-  CONFIDENCE: "confidence",
-  DATE: "date",
-  ARTIST: "artist",
-  CUSTOMER_NAME: "customer_name",
-  PHONE: "phone",
-  INSTAGRAM: "instagram",
-  SERVICE: "service_description",
-  PAYMENT_MODE: "payment_mode",
-  DEPOSIT: "deposit",
-  TOTAL: "total",
-  COMMENTS: "comments",
-  SOURCE: "source",
-};
+export type { OcrOrder, OcrResult } from "./ocr-parse";
+export { parseMultiOcrResponse } from "./ocr-parse";
 
 function getOcrClient(): GoogleGenerativeAI {
   const apiKey = process.env.GOOGLE_API_KEY || "";
@@ -22,70 +12,18 @@ function getOcrClient(): GoogleGenerativeAI {
   return new GoogleGenerativeAI(apiKey);
 }
 
-function parseSingleOrderBlock(text: string): { confidence: number; fields: Record<string, unknown> } {
-  const fields: Record<string, unknown> = {};
-  let confidence = 0;
-
-  for (const line of text.trim().split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || !trimmed.includes(":")) continue;
-
-    const colonIdx = trimmed.indexOf(":");
-    const key = trimmed.slice(0, colonIdx).trim().toUpperCase();
-    const value = trimmed.slice(colonIdx + 1).trim();
-
-    if (key in FIELD_MAP) {
-      const mappedKey = FIELD_MAP[key];
-      if (mappedKey === "confidence") {
-        const numMatch = value.replace(/[^\d.]/g, "");
-        confidence = parseFloat(numMatch) || 0;
-      } else if (value.toUpperCase() === "MISSING") {
-        fields[mappedKey] = null;
-      } else if (mappedKey === "deposit" || mappedKey === "total") {
-        const numStr = value.replace(/[^\d.]/g, "");
-        fields[mappedKey] = parseFloat(numStr) || 0;
-      } else {
-        fields[mappedKey] = value;
-      }
-    }
-  }
-
-  return { confidence, fields };
-}
-
-function parseMultiOcrResponse(rawText: string): { orders: Array<{ confidence: number; fields: Record<string, unknown> }>; raw_text: string; error: string | null } {
-  const orderPattern = /===\s*ORDER\s+\d+\s*===/gi;
-  const parts = rawText.split(orderPattern);
-
-  if (parts.length <= 1) {
-    const single = parseSingleOrderBlock(rawText);
-    if (Object.keys(single.fields).length > 0) {
-      return { orders: [single], raw_text: rawText, error: null };
-    }
-    return { orders: [], raw_text: rawText, error: null };
-  }
-
-  const orders: Array<{ confidence: number; fields: Record<string, unknown> }> = [];
-  for (const part of parts) {
-    const trimmed = part.trim();
-    if (!trimmed) continue;
-    const parsed = parseSingleOrderBlock(trimmed);
-    if (Object.keys(parsed.fields).length > 0) {
-      orders.push(parsed);
-    }
-  }
-
-  return { orders, raw_text: rawText, error: null };
-}
-
-export async function extractOrdersFromImage(imageBytes: Buffer, mimeType = "image/png") {
+export async function extractOrdersWithGemini(
+  imageBytes: Buffer,
+  mimeType = "image/png"
+): Promise<OcrResult> {
   try {
     const client = getOcrClient();
     const model = client.getGenerativeModel({
-      // Gemini Flash Lite for OCR/vision. Multimodal-capable and avoids the
-      // gemini-2.5 403 denials seen on this project's free key. Override via
-      //   GOOGLE_OCR_MODEL=...
-      model: process.env.GOOGLE_OCR_MODEL || "gemini-2.0-flash-lite",
+      // Gemini Flash Lite for OCR/vision. Pinned to the "-latest" alias rather
+      // than a dated snapshot: gemini-2.0-flash-lite was retired by Google and
+      // started returning HTTP 404 "no longer available", which silently broke
+      // every OCR extraction. Override via GOOGLE_OCR_MODEL=...
+      model: process.env.GOOGLE_OCR_MODEL || "gemini-flash-lite-latest",
       generationConfig: { temperature: 0.1, maxOutputTokens: 8000 },
     });
 
@@ -110,4 +48,26 @@ export async function extractOrdersFromImage(imageBytes: Buffer, mimeType = "ima
   } catch (e) {
     return { orders: [], raw_text: "", error: e instanceof Error ? e.message : String(e) };
   }
+}
+
+/**
+ * OCR backend selection.
+ *
+ *   STOREADMIN_OCR_PROVIDER=gemini   (default) Google Gemini Flash Lite — hosted, fast, costs per call.
+ *   STOREADMIN_OCR_PROVIDER=gemma    Self-hosted Gemma 4 via Ollama on this VPS — free, ~35-150s per
+ *                                    image on CPU, noticeably weaker on handwriting. See ocr-gemma.ts.
+ *
+ * Both return the identical shape, so callers and the /storeadmin/ocr review UI
+ * need no changes when switching.
+ */
+export async function extractOrdersFromImage(
+  imageBytes: Buffer,
+  mimeType = "image/png"
+): Promise<OcrResult> {
+  const provider = (process.env.STOREADMIN_OCR_PROVIDER || "gemini").toLowerCase();
+
+  if (provider === "gemma" || provider === "ollama") {
+    return extractOrdersWithGemma(imageBytes, mimeType);
+  }
+  return extractOrdersWithGemini(imageBytes, mimeType);
 }

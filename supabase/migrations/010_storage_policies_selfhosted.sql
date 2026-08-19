@@ -1,12 +1,12 @@
 -- Migration 010: storage.objects policies for the self-hosted stack
 --
 -- The buckets and their policies were created in the hosted Supabase dashboard,
--- so they lived in the `storage` schema and never came across in the cutover —
+-- so they lived in the `storage` schema and never came across in the cutover.
 -- migrate-db.sh only moves `public` and `studio`. The buckets themselves were
 -- recreated by migrate-storage.py, but `storage.objects` arrived with RLS ON and
 -- ZERO policies, which denies every write. Reads kept working because public
 -- buckets are served by storage-api itself, so the only visible symptom was
--- "new row violates row-level security policy" on every upload — in /admin
+-- "new row violates row-level security policy" on every upload: in /admin
 -- (blog covers, products, portfolio, artists, testimonials, community, guest
 -- spots), on the public guest-artist apply form, and on storeadmin receipts.
 --
@@ -18,7 +18,7 @@
 --   * the four /admin-only buckets get read/insert/update/delete
 --   * community-images, guest-spot-images and testimonial-images get no UPDATE
 --     (uploads run with upsert:false, so nothing ever updates a row)
---   * guest-applications gets read+insert only — the public apply form writes
+--   * guest-applications gets read+insert only, since the public apply form writes
 --     there and nothing is allowed to remove what an applicant submitted
 --
 -- None carries a TO clause, so they apply to every role. Uploads run in the

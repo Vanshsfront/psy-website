@@ -82,6 +82,12 @@ export const API_ACCESS: ReadonlyArray<{ prefix: string; roles: readonly UserRol
   { prefix: "/api/storeadmin/orders", roles: STAFF },
   { prefix: "/api/storeadmin/petty-cash", roles: STAFF },
   { prefix: "/api/storeadmin/whatsapp/templates", roles: STAFF },
+
+  // The shop and website side, formerly /api/admin under NextAuth. That system
+  // had no role concept at all: any row in admin_users could call anything.
+  // STAFF is the faithful equivalent, because artists never had a login to
+  // that panel in the first place, so excluding them changes nothing.
+  { prefix: "/api/admin", roles: STAFF },
 ];
 
 /**
