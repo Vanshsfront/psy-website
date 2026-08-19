@@ -71,6 +71,10 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Finance", href: "/storeadmin/finance", icon: DollarSign },
       { label: "Balance Sheet", href: "/storeadmin/balance-sheet", icon: Scale },
       { label: "Artists", href: "/storeadmin/artists", icon: Palette },
+      { label: "Portfolio", href: "/admin/portfolio", icon: ImageIcon },
+      { label: "Blog", href: "/admin/blog", icon: BookOpen },
+      { label: "Bookings", href: "/admin/bookings", icon: Calendar },
+      { label: "Community", href: "/admin/community", icon: Megaphone },
       // The four that were sitting in the shop panel. The doc files all of them
       // under Studio and no open question touches them.
       { label: "Guest Spots", href: "/admin/guest-spots", icon: UserPlus },
@@ -85,7 +89,6 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
       { label: "Products", href: "/admin/products", icon: Package },
-      { label: "Portfolio", href: "/admin/portfolio", icon: ImageIcon },
       { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
       { label: "Inventory", href: "/admin/inventory", icon: Warehouse },
       { label: "Collections", href: "/admin/collections", icon: FolderOpen },
@@ -96,22 +99,16 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    // Three live screens that appear in neither of Yogesh's lists. They are
-    // parked here rather than hidden, because dropping a working screen on an
-    // unconfirmed guess is the one mistake here with a real cost. When he says
-    // where they belong, they move into Studio or Shop above and this section
-    // disappears.
+    // Temporary. Yogesh asked for the two Artists screens to be combined "if
+    // possible ... without losing out on functionality", which needs a data
+    // migration: this one is the public roster (slug, bio, photo, speciality)
+    // that the marketing site renders, while Studio > Artists is the CRM lookup
+    // attached to orders. Separate tables, unrelated ids, and two different sets
+    // of foreign keys pointing at them. Until they are merged this stays
+    // reachable, because the website roster is editable nowhere else.
     title: "Website",
     items: [
-      // Not the same thing as Studio > Artists above. This one is the public
-      // roster (slug, bio, photo, speciality) rendered on the marketing site;
-      // that one is the CRM lookup attached to orders. They are separate tables
-      // with unrelated ids, and whether they merge is one of the open questions,
-      // so this stays reachable until it is answered.
       { label: "Website Artists", href: "/admin/artists", icon: Palette },
-      { label: "Blog", href: "/admin/blog", icon: BookOpen },
-      { label: "Bookings", href: "/admin/bookings", icon: Calendar },
-      { label: "Community", href: "/admin/community", icon: Megaphone },
     ],
   },
 ];
