@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NAV_SECTIONS } from "@/lib/auth/navigation";
+import { canOpen, type UserRole } from "@/lib/auth/permissions";
 import {
   LayoutDashboard,
   Package,
@@ -27,40 +29,26 @@ import {
 
 interface AdminSidebarProps {
   userName: string;
+  role: UserRole;
   signOutAction: () => Promise<void>;
 }
 
-const navItems = [
-  { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { label: "Products", href: "/admin/products", icon: Package },
-  { label: "Portfolio", href: "/admin/portfolio", icon: ImageIcon },
-  { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
-  { label: "Bookings", href: "/admin/bookings", icon: Calendar },
-  { label: "Artists", href: "/admin/artists", icon: Users },
-  { label: "Community", href: "/admin/community", icon: Megaphone },
-  { label: "Blog", href: "/admin/blog", icon: BookOpen },
-  { label: "Guest Spots", href: "/admin/guest-spots", icon: UserPlus },
-  { label: "Guest Artists", href: "/admin/guest-artists", icon: Inbox },
-  { label: "Testimonials", href: "/admin/testimonials", icon: Star },
-  { label: "Inventory", href: "/admin/inventory", icon: Warehouse },
-  { label: "Collections", href: "/admin/collections", icon: FolderOpen },
-  { label: "Categories", href: "/admin/categories", icon: Layers },
-  { label: "Discounts", href: "/admin/discounts", icon: Tag },
-  { label: "Customers", href: "/admin/customers", icon: Contact },
-  { label: "Returns", href: "/admin/returns", icon: RotateCcw },
-  { label: "Site Settings", href: "/admin/site-settings", icon: Settings },
-];
 
 export default function AdminSidebar({
   userName,
+  role,
   signOutAction,
 }: AdminSidebarProps) {
   const pathname = usePathname();
 
-  const isActive = (href: string) => {
-    if (href === "/admin") return pathname === "/admin";
-    return pathname.startsWith(href);
-  };
+  // The same sections and the same access rules the Studio panel renders, so
+  // whichever half you are in you can see and reach the other.
+  const sections = NAV_SECTIONS
+    .map((s) => ({ ...s, items: s.items.filter((i) => canOpen(role, i.href)) }))
+    .filter((s) => s.items.length > 0);
+
+  const EXACT = new Set(["/admin", "/storeadmin", "/storeadmin/orders", "/storeadmin/orders/new"]);
+  const isActive = (href: string) => (EXACT.has(href) ? pathname === href : pathname.startsWith(href));
 
   return (
     <aside className="w-full md:w-60 shrink-0 bg-surface border-b md:border-b-0 md:border-r border-borderDark flex flex-col md:fixed md:top-0 md:left-0 md:h-screen md:z-40">
@@ -72,8 +60,13 @@ export default function AdminSidebar({
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto overscroll-contain">
-        {navItems.map((item) => {
+      <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto overscroll-contain">
+        {sections.map((section) => (
+          <div key={section.title} className="space-y-1">
+            <p className="px-4 pb-1 text-[10px] uppercase tracking-[0.15em] text-mutedText/70">
+              {section.title}
+            </p>
+            {section.items.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
           return (
@@ -90,7 +83,9 @@ export default function AdminSidebar({
               <span className="tracking-wide">{item.label}</span>
             </Link>
           );
-        })}
+            })}
+          </div>
+        ))}
       </nav>
 
       {/* View Shop Button */}

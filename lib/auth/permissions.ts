@@ -129,6 +129,28 @@ export const SCREEN_ACCESS: Record<string, readonly UserRole[]> = {
   "/storeadmin/finance": OWNER,
   "/storeadmin/balance-sheet": OWNER,
   "/storeadmin/users": OWNER,
+
+  // The shop and website screens, formerly the separate /admin panel. NextAuth
+  // gated these on "is signed in" with no roles at all, so STAFF preserves the
+  // reach exactly: artists never had a login to that panel.
+  "/admin": STAFF,
+  "/admin/products": STAFF,
+  "/admin/portfolio": STAFF,
+  "/admin/orders": STAFF,
+  "/admin/inventory": STAFF,
+  "/admin/collections": STAFF,
+  "/admin/categories": STAFF,
+  "/admin/discounts": STAFF,
+  "/admin/customers": STAFF,
+  "/admin/returns": STAFF,
+  "/admin/guest-spots": STAFF,
+  "/admin/guest-artists": STAFF,
+  "/admin/testimonials": STAFF,
+  "/admin/site-settings": STAFF,
+  "/admin/artists": STAFF,
+  "/admin/blog": STAFF,
+  "/admin/bookings": STAFF,
+  "/admin/community": STAFF,
 };
 
 export function canOpen(role: UserRole | null, href: string): boolean {

@@ -28,6 +28,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="min-h-screen bg-background flex flex-col md:flex-row font-sans">
       <AdminSidebar
         userName={user.username}
+        role={user.role}
         signOutAction={signOutAction}
       />
 

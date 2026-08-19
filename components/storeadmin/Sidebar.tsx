@@ -21,25 +21,8 @@ import {
     Scale,
 } from "lucide-react";
 import { canOpen } from "@/lib/auth/permissions";
+import { NAV_SECTIONS } from "@/lib/auth/navigation";
 
-/**
- * Nav items. Who may see each one is NOT declared here. It comes from
- * SCREEN_ACCESS in lib/auth/permissions.ts, the same file the API gate reads,
- * so a hidden link and a blocked endpoint can never disagree.
- */
-const allNavItems = [
-    { label: "Dashboard", href: "/storeadmin", icon: LayoutDashboard },
-    { label: "Customers", href: "/storeadmin/customers", icon: Users },
-    { label: "Orders", href: "/storeadmin/orders", icon: ClipboardList },
-    { label: "New Order", href: "/storeadmin/orders/new", icon: PlusCircle },
-    { label: "Artists", href: "/storeadmin/artists", icon: Palette },
-    { label: "Campaigns", href: "/storeadmin/campaigns", icon: Send },
-    { label: "Finance", href: "/storeadmin/finance", icon: DollarSign },
-    { label: "Expenses", href: "/storeadmin/expenses", icon: Wallet },
-    { label: "Balance Sheet", href: "/storeadmin/balance-sheet", icon: Scale },
-    { label: "Appointments", href: "/storeadmin/appointments", icon: CalendarDays },
-    { label: "Logins", href: "/storeadmin/users", icon: ShieldCheck },
-];
 
 export default function Sidebar() {
     const pathname = usePathname();
@@ -47,7 +30,13 @@ export default function Sidebar() {
     // Render nothing until the role is known. This previously fell open with
     // `!role || ...`, so on every page load each user saw the full nav for a
     // moment before it narrowed to theirs.
-    const navItems = role ? allNavItems.filter(item => canOpen(role, item.href)) : [];
+    // A section with no reachable items is dropped rather than left as a bare
+    // heading, so an artist does not see an empty "Shop" label.
+    const sections = role
+        ? NAV_SECTIONS
+              .map((s) => ({ ...s, items: s.items.filter((i) => canOpen(role, i.href)) }))
+              .filter((s) => s.items.length > 0)
+        : [];
     const [mobileOpen, setMobileOpen] = useState(false);
 
     useEffect(() => {
@@ -63,12 +52,11 @@ export default function Sidebar() {
         return () => { document.body.style.overflow = ""; };
     }, [mobileOpen]);
 
-    const isActive = (href: string) => {
-        if (href === "/storeadmin") return pathname === "/storeadmin";
-        if (href === "/storeadmin/orders/new") return pathname === "/storeadmin/orders/new";
-        if (href === "/storeadmin/orders") return pathname === "/storeadmin/orders";
-        return pathname.startsWith(href);
-    };
+    // Exact match for the section roots and for anything that is a prefix of a
+    // sibling, so /storeadmin/orders does not light up while on
+    // /storeadmin/orders/new, and the two Dashboards do not both look active.
+    const EXACT = new Set(["/storeadmin", "/admin", "/storeadmin/orders", "/storeadmin/orders/new"]);
+    const isActive = (href: string) => (EXACT.has(href) ? pathname === href : pathname.startsWith(href));
 
     return (
         <>
@@ -112,8 +100,13 @@ export default function Sidebar() {
                 </div>
 
                 {/* Nav */}
-                <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto overscroll-contain">
-                    {navItems.map((item) => {
+                <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto overscroll-contain">
+                    {sections.map((section) => (
+                        <div key={section.title} className="space-y-1">
+                            <p className="px-4 pb-1 text-[10px] uppercase tracking-[0.15em] text-[var(--muted)]/70">
+                                {section.title}
+                            </p>
+                            {section.items.map((item) => {
                         const Icon = item.icon;
                         const active = isActive(item.href);
                         return (
@@ -130,7 +123,9 @@ export default function Sidebar() {
                                 <span className="tracking-wide">{item.label}</span>
                             </Link>
                         );
-                    })}
+                            })}
+                        </div>
+                    ))}
                 </nav>
 
                 {/* User + Sign Out */}

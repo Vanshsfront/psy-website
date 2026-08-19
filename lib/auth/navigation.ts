@@ -1,0 +1,117 @@
+import {
+  LayoutDashboard,
+  Users,
+  PlusCircle,
+  Send,
+  DollarSign,
+  ClipboardList,
+  Palette,
+  Wallet,
+  ShieldCheck,
+  CalendarDays,
+  Scale,
+  Package,
+  Image as ImageIcon,
+  ShoppingBag,
+  Calendar,
+  Megaphone,
+  BookOpen,
+  UserPlus,
+  Inbox,
+  Star,
+  Warehouse,
+  FolderOpen,
+  Layers,
+  Tag,
+  Contact,
+  RotateCcw,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
+
+/**
+ * The admin navigation, in the two sections Yogesh asked for.
+ *
+ * From For PSY.pdf, 2026-08-19: "Break store admin into two parts and add D2C
+ * to store admin itself". Studio is the tattoo business, Shop is the D2C
+ * jewellery side. Both used to be separate panels with separate logins.
+ *
+ * Access is NOT declared here. It comes from SCREEN_ACCESS in
+ * lib/auth/permissions.ts, the same map the API gate reads, so a visible link
+ * always matches a reachable endpoint.
+ *
+ * URLs are unchanged on purpose. Consolidating /admin/* and /storeadmin/* under
+ * one prefix is a mechanical move worth doing once, after the open questions are
+ * settled, rather than twice.
+ */
+
+export interface NavItem {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+}
+
+export interface NavSection {
+  /** Shown as the group heading. */
+  title: string;
+  items: NavItem[];
+}
+
+export const NAV_SECTIONS: NavSection[] = [
+  {
+    title: "Studio",
+    items: [
+      { label: "Dashboard", href: "/storeadmin", icon: LayoutDashboard },
+      { label: "Customers", href: "/storeadmin/customers", icon: Users },
+      { label: "Appointments", href: "/storeadmin/appointments", icon: CalendarDays },
+      { label: "Orders", href: "/storeadmin/orders", icon: ClipboardList },
+      { label: "New Order", href: "/storeadmin/orders/new", icon: PlusCircle },
+      { label: "Campaigns", href: "/storeadmin/campaigns", icon: Send },
+      { label: "Expenses", href: "/storeadmin/expenses", icon: Wallet },
+      { label: "Finance", href: "/storeadmin/finance", icon: DollarSign },
+      { label: "Balance Sheet", href: "/storeadmin/balance-sheet", icon: Scale },
+      { label: "Artists", href: "/storeadmin/artists", icon: Palette },
+      // The four that were sitting in the shop panel. The doc files all of them
+      // under Studio and no open question touches them.
+      { label: "Guest Spots", href: "/admin/guest-spots", icon: UserPlus },
+      { label: "Guest Artists", href: "/admin/guest-artists", icon: Inbox },
+      { label: "Testimonials", href: "/admin/testimonials", icon: Star },
+      { label: "Site Settings", href: "/admin/site-settings", icon: Settings },
+      { label: "Logins", href: "/storeadmin/users", icon: ShieldCheck },
+    ],
+  },
+  {
+    title: "Shop",
+    items: [
+      { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+      { label: "Products", href: "/admin/products", icon: Package },
+      { label: "Portfolio", href: "/admin/portfolio", icon: ImageIcon },
+      { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
+      { label: "Inventory", href: "/admin/inventory", icon: Warehouse },
+      { label: "Collections", href: "/admin/collections", icon: FolderOpen },
+      { label: "Categories", href: "/admin/categories", icon: Layers },
+      { label: "Discounts", href: "/admin/discounts", icon: Tag },
+      { label: "Customers", href: "/admin/customers", icon: Contact },
+      { label: "Returns", href: "/admin/returns", icon: RotateCcw },
+    ],
+  },
+  {
+    // Three live screens that appear in neither of Yogesh's lists. They are
+    // parked here rather than hidden, because dropping a working screen on an
+    // unconfirmed guess is the one mistake here with a real cost. When he says
+    // where they belong, they move into Studio or Shop above and this section
+    // disappears.
+    title: "Website",
+    items: [
+      // Not the same thing as Studio > Artists above. This one is the public
+      // roster (slug, bio, photo, speciality) rendered on the marketing site;
+      // that one is the CRM lookup attached to orders. They are separate tables
+      // with unrelated ids, and whether they merge is one of the open questions,
+      // so this stays reachable until it is answered.
+      { label: "Website Artists", href: "/admin/artists", icon: Palette },
+      { label: "Blog", href: "/admin/blog", icon: BookOpen },
+      { label: "Bookings", href: "/admin/bookings", icon: Calendar },
+      { label: "Community", href: "/admin/community", icon: Megaphone },
+    ],
+  },
+];
