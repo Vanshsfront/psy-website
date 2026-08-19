@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/storeadmin/AuthProvider";
 import Sidebar from "@/components/storeadmin/Sidebar";
@@ -200,11 +201,26 @@ function ArtistsContent() {
                                             {artist.name.charAt(0)}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h3 className="font-semibold truncate">{artist.name}</h3>
+                                            <h3 className="font-semibold truncate">
+                                                {artist.display_name || artist.name}
+                                            </h3>
                                             <p className={`text-xs ${artist.is_active ? "text-[var(--primary)]" : "text-[var(--muted)]"}`}>
                                                 {artist.is_active ? "Active" : "Inactive"}
+                                                {artist.display_name ? ` · ${artist.name} in orders` : ""}
                                             </p>
                                         </div>
+                                        {/* One record now covers both halves, so the
+                                            website profile is edited from here rather
+                                            than from a second Artists screen. The ids
+                                            were unified by migration 012, so these link
+                                            straight at the existing profile form. */}
+                                        <Link
+                                            href={artist.slug ? `/admin/artists/${artist.id}/edit` : "/admin/artists/new"}
+                                            title={artist.slug ? "Edit the public website profile" : "Give this artist a public website profile"}
+                                            className="text-[11px] px-2 py-1 rounded border border-[var(--border-color)] text-[var(--muted)] hover:text-[var(--foreground)] whitespace-nowrap"
+                                        >
+                                            {artist.slug ? "Website profile" : "Add profile"}
+                                        </Link>
                                         <button
                                             type="button"
                                             onClick={() => toggleActive(artist)}

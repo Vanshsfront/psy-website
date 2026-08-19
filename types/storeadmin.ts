@@ -37,6 +37,16 @@ export interface Artist {
     name: string;
     is_active: boolean;
     created_at: string;
+    /**
+     * The website half of the record, present since migration 012 merged the
+     * two artist tables. `name` stays the studio's short working name because
+     * order import matches on it; `display_name` is the full name the public
+     * site shows. A null slug means this artist has no public profile.
+     */
+    display_name?: string | null;
+    slug?: string | null;
+    speciality?: string | null;
+    profile_photo_url?: string | null;
 }
 
 export interface Order {

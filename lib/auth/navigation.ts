@@ -99,17 +99,4 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Returns", href: "/admin/returns", icon: RotateCcw },
     ],
   },
-  {
-    // Temporary. Yogesh asked for the two Artists screens to be combined "if
-    // possible ... without losing out on functionality", which needs a data
-    // migration: this one is the public roster (slug, bio, photo, speciality)
-    // that the marketing site renders, while Studio > Artists is the CRM lookup
-    // attached to orders. Separate tables, unrelated ids, and two different sets
-    // of foreign keys pointing at them. Until they are merged this stays
-    // reachable, because the website roster is editable nowhere else.
-    title: "Website",
-    items: [
-      { label: "Website Artists", href: "/admin/artists", icon: Palette },
-    ],
-  },
 ];
