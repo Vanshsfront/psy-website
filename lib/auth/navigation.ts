@@ -45,6 +45,13 @@ import {
  * URLs are unchanged on purpose. Consolidating /admin/* and /storeadmin/* under
  * one prefix is a mechanical move worth doing once, after the open questions are
  * settled, rather than twice.
+ *
+ * SIX SCREENS ARE DELIBERATELY ABSENT, at russhil's request on 2026-08-19:
+ * Both Businesses, My Earnings, Balance Sheet, Analytics, Salary Slips and
+ * Logins. Nothing was deleted. The pages, routes, permission rules and data all
+ * remain, so putting any of them back is one line here. Their URLs still work
+ * for anyone who has them and still enforce the same roles, which is why this
+ * is a change to what the panel offers rather than to who may reach what.
  */
 
 export interface NavItem {
@@ -64,18 +71,13 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Studio",
     items: [
       { label: "Dashboard", href: "/storeadmin", icon: LayoutDashboard },
-      { label: "Both Businesses", href: "/storeadmin/overview", icon: Scale },
       { label: "Customers", href: "/storeadmin/customers", icon: Users },
       { label: "Appointments", href: "/storeadmin/appointments", icon: CalendarDays },
-      { label: "My Earnings", href: "/storeadmin/my-earnings", icon: Wallet },
       { label: "Orders", href: "/storeadmin/orders", icon: ClipboardList },
       { label: "New Order", href: "/storeadmin/orders/new", icon: PlusCircle },
-      { label: "Analytics", href: "/storeadmin/analytics", icon: TrendingUp },
       { label: "Campaigns", href: "/storeadmin/campaigns", icon: Send },
       { label: "Expenses", href: "/storeadmin/expenses", icon: Wallet },
       { label: "Finance", href: "/storeadmin/finance", icon: DollarSign },
-      { label: "Balance Sheet", href: "/storeadmin/balance-sheet", icon: Scale },
-      { label: "Salary Slips", href: "/storeadmin/salary", icon: Receipt },
       { label: "Artists", href: "/storeadmin/artists", icon: Palette },
       { label: "Portfolio", href: "/admin/portfolio", icon: ImageIcon },
       { label: "Blog", href: "/admin/blog", icon: BookOpen },
@@ -87,7 +89,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Guest Artists", href: "/admin/guest-artists", icon: Inbox },
       { label: "Testimonials", href: "/admin/testimonials", icon: Star },
       { label: "Site Settings", href: "/admin/site-settings", icon: Settings },
-      { label: "Logins", href: "/storeadmin/users", icon: ShieldCheck },
     ],
   },
   {
