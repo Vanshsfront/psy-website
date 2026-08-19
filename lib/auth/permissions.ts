@@ -94,6 +94,7 @@ export const API_ACCESS: ReadonlyArray<{ prefix: string; roles: MethodAccess }> 
   // Owner only.
   { prefix: "/api/storeadmin/users", roles: OWNER },
   { prefix: "/api/storeadmin/overview", roles: OWNER },
+  { prefix: "/api/storeadmin/salary", roles: OWNER },
   { prefix: "/api/storeadmin/finance", roles: OWNER },
   // Everyone's own earnings, which is a different question from the studio's
   // finances. Longest-prefix matching puts this ahead of the OWNER rule above.
@@ -180,6 +181,7 @@ export const SCREEN_ACCESS: Record<string, readonly UserRole[]> = {
   "/storeadmin/finance": OWNER,
   "/storeadmin/balance-sheet": OWNER,
   "/storeadmin/overview": OWNER,
+  "/storeadmin/salary": OWNER,
   "/storeadmin/users": OWNER,
 
   // The shop and website screens, formerly the separate /admin panel. NextAuth

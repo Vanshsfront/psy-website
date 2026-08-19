@@ -451,6 +451,20 @@ export const api = {
         }),
 
     // Export
+    getSalarySlips: (from: string, to: string) =>
+        apiFetch<{
+            slips: Array<{
+                artistName: string;
+                statedAs: string;
+                fixed: number;
+                commission: number | null;
+                total: number | null;
+                basis: { label: string; amount: number; percent: number } | null;
+                unresolved?: { question: string; options: Array<{ label: string; amount: number; total: number }> };
+                notes: string[];
+            }>;
+        }>(`/api/storeadmin/salary?from=${from}&to=${to}`),
+
     getOverview: () =>
         apiFetch<{
             overview: {

@@ -26,6 +26,7 @@ import {
   Contact,
   RotateCcw,
   Settings,
+  Receipt,
   type LucideIcon,
 } from "lucide-react";
 
@@ -72,6 +73,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Expenses", href: "/storeadmin/expenses", icon: Wallet },
       { label: "Finance", href: "/storeadmin/finance", icon: DollarSign },
       { label: "Balance Sheet", href: "/storeadmin/balance-sheet", icon: Scale },
+      { label: "Salary Slips", href: "/storeadmin/salary", icon: Receipt },
       { label: "Artists", href: "/storeadmin/artists", icon: Palette },
       { label: "Portfolio", href: "/admin/portfolio", icon: ImageIcon },
       { label: "Blog", href: "/admin/blog", icon: BookOpen },
