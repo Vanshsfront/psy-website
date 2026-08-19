@@ -40,7 +40,7 @@ export default function BalanceSheetPage() {
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
-        if (!authLoading && isAuthenticated && role && !can(role, "finance.view")) {
+        if (!authLoading && isAuthenticated && role && !can(role, "balanceSheet.view")) {
             router.push("/storeadmin");
         }
     }, [authLoading, isAuthenticated, role, router]);
@@ -60,7 +60,7 @@ export default function BalanceSheetPage() {
     }, [month]);
 
     useEffect(() => {
-        if (isAuthenticated && can(role, "finance.view")) load();
+        if (isAuthenticated && can(role, "balanceSheet.view")) load();
     }, [isAuthenticated, role, load]);
 
     const toggle = (cat: string) =>
@@ -71,7 +71,7 @@ export default function BalanceSheetPage() {
             return next;
         });
 
-    if (authLoading || !isAuthenticated || !can(role, "finance.view")) {
+    if (authLoading || !isAuthenticated || !can(role, "balanceSheet.view")) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-[var(--primary)]" />

@@ -96,7 +96,12 @@ export const API_ACCESS: ReadonlyArray<{ prefix: string; roles: MethodAccess }> 
   { prefix: "/api/storeadmin/overview", roles: OWNER },
   { prefix: "/api/storeadmin/salary", roles: OWNER },
   { prefix: "/api/storeadmin/manual-entries", roles: OWNER },
-  { prefix: "/api/storeadmin/finance", roles: OWNER },
+  // Revenue is not gated: "We don't want to gate revenue numbers because the
+  // team works on revenue targets." The summary therefore admits staff, and the
+  // route strips the profit figure for anyone without profit.view. Only the
+  // balance sheet stays with the owner.
+  { prefix: "/api/storeadmin/finance", roles: STAFF },
+  { prefix: "/api/storeadmin/finance/balance-sheet", roles: OWNER },
   // Everyone's own earnings, which is a different question from the studio's
   // finances. Longest-prefix matching puts this ahead of the OWNER rule above.
   { prefix: "/api/storeadmin/finance/my-earnings", roles: { default: OWNER, GET: ALL_ROLES } },
@@ -179,7 +184,7 @@ export const SCREEN_ACCESS: Record<string, readonly UserRole[]> = {
   "/storeadmin/expenses": STAFF,
   "/storeadmin/appointments": ALL_ROLES,
   "/storeadmin/my-earnings": ALL_ROLES,
-  "/storeadmin/finance": OWNER,
+  "/storeadmin/finance": STAFF,
   "/storeadmin/balance-sheet": OWNER,
   "/storeadmin/overview": OWNER,
   "/storeadmin/salary": OWNER,
@@ -224,18 +229,38 @@ export function canOpen(role: UserRole | null, href: string): boolean {
 export type Capability =
   /** See money on the dashboard: order totals, revenue, per-artist earnings. */
   | "revenue.view"
+  /** See profit, which is revenue after costs. Gated where revenue is not. */
+  | "profit.view"
   /** Top up the petty cash float. */
   | "pettyCash.topup"
   /** Create, disable and reset other people's logins. */
   | "logins.manage"
-  /** Open the finance and balance sheet screens. */
-  | "finance.view";
+  /** Open the Finance screen, which shows revenue and costs but not profit. */
+  | "finance.view"
+  /** Open the balance sheet. Gated: it is where profit is stated. */
+  | "balanceSheet.view"
+  /** See the salary slips, which are everyone's pay. */
+  | "payroll.view"
+  /** See the both-businesses overview. */
+  | "overview.view";
 
 const CAPABILITIES: Record<Capability, readonly UserRole[]> = {
-  "revenue.view": OWNER,
+  // Yogesh, 2026-08-19: "We don't want to gate revenue numbers because the team
+  // works on revenue targets. We want to make all execution tabs for studio and
+  // shop available in the manager login. We only want to gate balance-sheets
+  // and profits, and other management tabs to me."
+  "revenue.view": STAFF,
+  "profit.view": OWNER,
   "pettyCash.topup": OWNER,
   "logins.manage": OWNER,
-  "finance.view": OWNER,
+  // Opening the Finance screen, which now shows revenue to managers and hides
+  // the profit line from them.
+  "finance.view": STAFF,
+  // The management screens stay with the owner: "We only want to gate
+  // balance-sheets and profits, and other management tabs to me."
+  "balanceSheet.view": OWNER,
+  "payroll.view": OWNER,
+  "overview.view": OWNER,
 };
 
 export function can(role: UserRole | null, capability: Capability): boolean {

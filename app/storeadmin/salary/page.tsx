@@ -65,7 +65,7 @@ export default function SalaryPage() {
     }, [authLoading, isAuthenticated, router]);
 
     useEffect(() => {
-        if (!authLoading && isAuthenticated && role && !can(role, "finance.view")) {
+        if (!authLoading && isAuthenticated && role && !can(role, "payroll.view")) {
             router.push("/storeadmin");
         }
     }, [authLoading, isAuthenticated, role, router]);
@@ -87,10 +87,10 @@ export default function SalaryPage() {
     }, [month]);
 
     useEffect(() => {
-        if (isAuthenticated && can(role, "finance.view")) load();
+        if (isAuthenticated && can(role, "payroll.view")) load();
     }, [isAuthenticated, role, load]);
 
-    if (authLoading || !isAuthenticated || !can(role, "finance.view")) {
+    if (authLoading || !isAuthenticated || !can(role, "payroll.view")) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-[var(--primary)]" />

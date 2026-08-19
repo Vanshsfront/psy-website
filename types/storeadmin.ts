@@ -235,7 +235,13 @@ export interface FilterResult {
 export interface FinancialSummary {
     revenue: number;
     expenses: number;
-    profit: number;
+    /**
+     * Absent for anyone without profit.view: the API removes it rather than the
+     * UI hiding it. `profit_withheld` says so explicitly, so a missing value is
+     * never mistaken for zero.
+     */
+    profit?: number;
+    profit_withheld?: boolean;
     petty_cash_balance: number;
     category_breakdown: Record<string, number>;
     order_count: number;

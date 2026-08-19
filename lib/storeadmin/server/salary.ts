@@ -55,11 +55,12 @@ export const SALARY_RULES: SalaryPlan[] = [
   {
     artistName: "Kshipra",
     fixed: 30000,
-    // Matched case-insensitively: the data holds both "google" and "Google",
-    // both "instagram" and "Instagram". No record uses facebook at all, so that
-    // channel contributes nothing until it appears in the data.
-    rule: { kind: "channel_revenue", percent: 10, channels: ["google", "instagram", "facebook"] },
-    statedAs: "30k fixed + 10% of all google/instagram/facebook leads",
+    // Facebook dropped at Yogesh's request once it turned out no record uses it:
+    // "my bad, we can exclude facebook altogether - it's only instagram and
+    // google". Matched case-insensitively, because the column holds both
+    // "google" and "Google", both "instagram" and "Instagram".
+    rule: { kind: "channel_revenue", percent: 10, channels: ["google", "instagram"] },
+    statedAs: "30k fixed + 10% of google and instagram leads",
   },
   {
     artistName: "Sohel",
@@ -250,7 +251,7 @@ export async function getSalarySlips(from: string, to: string): Promise<SalarySl
       const pct = plan.rule.percent / 100;
       notes.push(`${orderCount} orders from ${customerCount} customers on these channels.`);
       notes.push(
-        "No customer record uses facebook, so that channel contributes nothing until it appears in the data."
+        "Only counts customers with a recorded source. Historic customers predate that field, so older months understate this."
       );
       slips.push({
         artistName: plan.artistName,
@@ -284,7 +285,10 @@ export async function getSalarySlips(from: string, to: string): Promise<SalarySl
     // this profit is overstated and so is the commission taken from it. July
     // 2026 for instance shows 602,796 of revenue against 5,523 of expenses.
     notes.push(
-      "Net profit is revenue minus the expenses recorded for the month. Anything not entered as an expense, such as payroll or rent, is not deducted."
+      "Net profit is revenue minus the expenses recorded for the month, salaries included, as Yogesh confirmed: payroll is an expense and this is worked out after it."
+    );
+    notes.push(
+      "Enter his BASE pay as the expense, not his total. Entering the total puts this commission inside the figure it is calculated from, which makes the number depend on itself."
     );
     if (summaryRevenue > 0 && profit > summaryRevenue * 0.9) {
       notes.push(
