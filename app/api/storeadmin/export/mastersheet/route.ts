@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { getDb } from "@/lib/storeadmin/server/database";
 import ExcelJS from "exceljs";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireRole(request, "superadmin");
+    await requireRoute(request);
 
     const db = getDb();
 

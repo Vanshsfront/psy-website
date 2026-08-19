@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { landingPathFor } from "@/lib/auth/permissions";
 import { useAuth } from "@/components/storeadmin/AuthProvider";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -18,13 +19,12 @@ export default function LoginPage() {
         setError("");
         setLoading(true);
         try {
-            await login(username, password);
-            // Finance role users go straight to finance page
-            if (username === "yogesh") {
-                router.push("/storeadmin/finance");
-            } else {
-                router.push("/storeadmin");
-            }
+            const me = await login(username, password);
+            // Routed by role, not by name. This used to send the literal user
+            // "yogesh" to finance and everyone else to the dashboard, which
+            // dropped artists onto a screen whose three requests they are not
+            // allowed to make.
+            router.push(landingPathFor(me.role));
         } catch {
             setError("Invalid credentials");
         } finally {

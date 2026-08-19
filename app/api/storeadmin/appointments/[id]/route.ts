@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import {
   updateAppointment,
   completeAppointment,
@@ -13,7 +13,7 @@ function scopeFor(role: string, artistId: string | null) {
 
 export async function PATCH(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const me = await requireRole(request, "superadmin", "admin", "artist");
+    const me = await requireRoute(request);
     const { id } = await ctx.params;
     const body = await request.json();
     const scope = scopeFor(me.role, me.artistId);
@@ -43,7 +43,7 @@ export async function PATCH(request: NextRequest, ctx: { params: Promise<{ id: s
 
 export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const me = await requireRole(request, "superadmin", "admin", "artist");
+    const me = await requireRoute(request);
     const { id } = await ctx.params;
     await deleteAppointment(id, me.username, scopeFor(me.role, me.artistId));
     // Soft delete: the row leaves every view but the studio keeps the history.

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { generateText } from "@/lib/storeadmin/server/llm-provider";
 import { templateGenerationPrompt, parseTemplateGeneration } from "@/lib/storeadmin/server/prompts";
 
 export async function POST(request: NextRequest) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
   } catch (e) {
     const { detail, status } = authErrorResponse(e);
     return NextResponse.json({ detail }, { status });

@@ -7,12 +7,8 @@ import Sidebar from "@/components/storeadmin/Sidebar";
 import { api, clearApiCache } from "@/lib/storeadmin/api";
 import type { StoreUser, Artist } from "@/types/storeadmin";
 import { Loader2, Plus, Trash2, ShieldCheck, UserCog, Palette, KeyRound } from "lucide-react";
+import { can, ROLE_LABELS, type UserRole } from "@/lib/auth/permissions";
 
-const ROLE_LABEL: Record<string, string> = {
-    superadmin: "Owner — full access including finance",
-    admin: "Manager — everything except finance and logins",
-    artist: "Artist — only their own appointments and earnings",
-};
 
 const ROLE_ICON: Record<string, typeof ShieldCheck> = {
     superadmin: ShieldCheck,
@@ -42,7 +38,7 @@ export default function UsersPage() {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
         // Managers must not see this screen at all; the API refuses them anyway,
         // but bouncing here avoids rendering an empty page they cannot use.
-        if (!authLoading && isAuthenticated && role && role !== "superadmin") {
+        if (!authLoading && isAuthenticated && role && !can(role, "logins.manage")) {
             router.push("/storeadmin");
         }
     }, [authLoading, isAuthenticated, role, router]);
@@ -63,7 +59,7 @@ export default function UsersPage() {
     }, []);
 
     useEffect(() => {
-        if (isAuthenticated && role === "superadmin") load();
+        if (isAuthenticated && can(role, "logins.manage")) load();
     }, [isAuthenticated, role, load]);
 
     const create = async () => {
@@ -130,7 +126,7 @@ export default function UsersPage() {
         }
     };
 
-    if (authLoading || !isAuthenticated || role !== "superadmin") {
+    if (authLoading || !isAuthenticated || !can(role, "logins.manage")) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-[var(--primary)]" />
@@ -206,7 +202,7 @@ export default function UsersPage() {
                                     <option value="admin">Manager</option>
                                     <option value="superadmin">Owner</option>
                                 </select>
-                                <p className="text-[11px] text-[var(--muted)] mt-1">{ROLE_LABEL[form.role]}</p>
+                                <p className="text-[11px] text-[var(--muted)] mt-1">{ROLE_LABELS[form.role as UserRole]}</p>
                             </div>
                             {form.role === "artist" && (
                                 <div>
@@ -263,7 +259,7 @@ export default function UsersPage() {
                                             )}
                                         </div>
                                         <p className="text-xs text-[var(--muted)]">
-                                            {ROLE_LABEL[u.role]}
+                                            {ROLE_LABELS[u.role as UserRole]}
                                             {u.artists?.name ? ` · ${u.artists.name}` : ""}
                                         </p>
                                     </div>

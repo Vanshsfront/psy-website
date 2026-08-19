@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { getPettyCashBalance } from "@/lib/storeadmin/server/database";
 
 export async function GET(request: NextRequest) {
   try {
     // Readable by staff: the balance card sits on the Expenses screen, which
     // admins use. Only topping the float up is restricted to the owner.
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
   } catch (e) {
     const { detail, status } = authErrorResponse(e);
     return NextResponse.json({ detail }, { status });

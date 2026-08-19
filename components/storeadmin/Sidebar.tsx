@@ -20,26 +20,34 @@ import {
     CalendarDays,
     Scale,
 } from "lucide-react";
-import type { UserRole } from "@/components/storeadmin/AuthProvider";
+import { canOpen } from "@/lib/auth/permissions";
 
+/**
+ * Nav items. Who may see each one is NOT declared here. It comes from
+ * SCREEN_ACCESS in lib/auth/permissions.ts, the same file the API gate reads,
+ * so a hidden link and a blocked endpoint can never disagree.
+ */
 const allNavItems = [
-    { label: "Dashboard", href: "/storeadmin", icon: LayoutDashboard, roles: ["admin", "superadmin"] as UserRole[] },
-    { label: "Customers", href: "/storeadmin/customers", icon: Users, roles: ["admin", "superadmin"] as UserRole[] },
-    { label: "Orders", href: "/storeadmin/orders", icon: ClipboardList, roles: ["admin", "superadmin"] as UserRole[] },
-    { label: "New Order", href: "/storeadmin/orders/new", icon: PlusCircle, roles: ["admin", "superadmin"] as UserRole[] },
-    { label: "Artists", href: "/storeadmin/artists", icon: Palette, roles: ["admin", "superadmin"] as UserRole[] },
-    { label: "Campaigns", href: "/storeadmin/campaigns", icon: Send, roles: ["admin", "superadmin"] as UserRole[] },
-    { label: "Finance", href: "/storeadmin/finance", icon: DollarSign, roles: ["superadmin"] as UserRole[] },
-    { label: "Expenses", href: "/storeadmin/expenses", icon: Wallet, roles: ["admin", "superadmin"] as UserRole[] },
-    { label: "Balance Sheet", href: "/storeadmin/balance-sheet", icon: Scale, roles: ["superadmin"] as UserRole[] },
-    { label: "Appointments", href: "/storeadmin/appointments", icon: CalendarDays, roles: ["admin", "superadmin", "artist"] as UserRole[] },
-    { label: "Logins", href: "/storeadmin/users", icon: ShieldCheck, roles: ["superadmin"] as UserRole[] },
+    { label: "Dashboard", href: "/storeadmin", icon: LayoutDashboard },
+    { label: "Customers", href: "/storeadmin/customers", icon: Users },
+    { label: "Orders", href: "/storeadmin/orders", icon: ClipboardList },
+    { label: "New Order", href: "/storeadmin/orders/new", icon: PlusCircle },
+    { label: "Artists", href: "/storeadmin/artists", icon: Palette },
+    { label: "Campaigns", href: "/storeadmin/campaigns", icon: Send },
+    { label: "Finance", href: "/storeadmin/finance", icon: DollarSign },
+    { label: "Expenses", href: "/storeadmin/expenses", icon: Wallet },
+    { label: "Balance Sheet", href: "/storeadmin/balance-sheet", icon: Scale },
+    { label: "Appointments", href: "/storeadmin/appointments", icon: CalendarDays },
+    { label: "Logins", href: "/storeadmin/users", icon: ShieldCheck },
 ];
 
 export default function Sidebar() {
     const pathname = usePathname();
     const { logout, username, role } = useAuth();
-    const navItems = allNavItems.filter(item => !role || item.roles.includes(role));
+    // Render nothing until the role is known. This previously fell open with
+    // `!role || ...`, so on every page load each user saw the full nav for a
+    // moment before it narrowed to theirs.
+    const navItems = role ? allNavItems.filter(item => canOpen(role, item.href)) : [];
     const [mobileOpen, setMobileOpen] = useState(false);
 
     useEffect(() => {

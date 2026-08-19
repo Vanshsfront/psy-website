@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { getCustomers, checkDuplicateCustomer, createCustomer } from "@/lib/storeadmin/server/database";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
     const params = request.nextUrl.searchParams;
 
     const rawLimit = Number(params.get("limit"));
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
     const body = await request.json();
 
     const dup = await checkDuplicateCustomer(body.phone || "", body.instagram || "");

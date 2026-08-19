@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { getOrderById, updateOrder, deleteOrder } from "@/lib/storeadmin/server/database";
 
 const ALLOWED_FIELDS = new Set([
@@ -21,7 +21,7 @@ const ALLOWED_FIELDS = new Set([
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
     const { id } = params;
     const order = await getOrderById(id);
     if (!order) {
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
   } catch (e) {
     const { detail, status } = authErrorResponse(e);
     return NextResponse.json({ detail }, { status });
@@ -82,7 +82,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
   } catch (e) {
     const { detail, status } = authErrorResponse(e);
     return NextResponse.json({ detail }, { status });

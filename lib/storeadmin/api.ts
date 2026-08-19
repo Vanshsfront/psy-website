@@ -9,14 +9,58 @@ function getToken(): string | null {
 const cache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_TTL_MS = 60 * 1000; // 1 minute
 
+/**
+ * Who the cached entries belong to.
+ *
+ * The cache used to be keyed on the request path alone and was never cleared on
+ * sign-out, so signing out and signing in as somebody else within the 60s TTL
+ * served the second person the first person's data. On a shared studio machine
+ * that is exactly how an artist login would have been handed the customer list.
+ * Entries are now namespaced by user, and changing user empties the cache.
+ */
+let cacheIdentity: string | null = null;
+
 export const clearApiCache = () => cache.clear();
+
+/** Point the cache at a user. Pass null on sign-out. Any change wipes the cache. */
+export function setCacheIdentity(identity: string | null) {
+    if (identity === cacheIdentity) return;
+    cacheIdentity = identity;
+    cache.clear();
+}
+
+const cacheKeyFor = (path: string) => `${cacheIdentity ?? "anon"}::${path}`;
+
+/**
+ * Ask the server who we are, without the redirect-on-401 behaviour of apiFetch.
+ *
+ * Used once on mount to establish the session. It has to bypass apiFetch
+ * because a 401 there hard-navigates to /storeadmin/login, and doing that from
+ * the login page itself is a reload loop. Returns null instead of throwing.
+ *
+ * Sends both credentials and the Bearer header so it resolves a session held
+ * either as the httpOnly cookie or as a legacy localStorage token.
+ */
+export async function probeSession(): Promise<{ username: string; role: string } | null> {
+    const token = getToken();
+    try {
+        const res = await fetch("/api/storeadmin/auth/me", {
+            credentials: "include",
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) return null;
+        return await res.json();
+    } catch {
+        return null;
+    }
+}
 
 async function apiFetch<T>(
     path: string,
     options: RequestInit = {}
 ): Promise<T> {
     const isGet = !options.method || options.method === "GET";
-    const cacheKey = path;
+    const cacheKey = cacheKeyFor(path);
 
     // 1. Check Cache for GET requests
     if (isGet && cache.has(cacheKey)) {
@@ -48,6 +92,7 @@ async function apiFetch<T>(
     if (res.status === 401) {
         if (typeof window !== "undefined") {
             localStorage.removeItem("psyshot_token");
+            setCacheIdentity(null);
             window.location.href = "/storeadmin/login";
         }
         throw new Error("Unauthorized");
@@ -74,6 +119,9 @@ async function apiFetch<T>(
 
 // Auth
 export const api = {
+    logout: () =>
+        apiFetch<{ ok: boolean }>("/api/storeadmin/auth/logout", { method: "POST" }),
+
     login: (username: string, password: string) =>
         apiFetch<{ token: string; username: string; role: string }>("/api/storeadmin/auth/login", {
             method: "POST",

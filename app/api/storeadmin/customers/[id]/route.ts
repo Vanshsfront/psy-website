@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { getCustomerById, updateCustomer, deleteCustomer, getOrders } from "@/lib/storeadmin/server/database";
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
     const { id } = params;
     const customer = await getCustomerById(id);
     if (!customer) {
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
     const { id } = params;
     const body = await request.json();
     const data: Record<string, unknown> = {};
@@ -40,7 +40,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
     const { id } = params;
     const success = await deleteCustomer(id);
     if (!success) {

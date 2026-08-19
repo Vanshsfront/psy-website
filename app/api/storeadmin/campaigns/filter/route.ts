@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { searchCustomersByConditions } from "@/lib/storeadmin/server/database";
 import { parseNlFilter, buildSupabaseQueryFromConditions, runInference } from "@/lib/storeadmin/server/nl-filter";
 
 export async function POST(request: NextRequest) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
     const { filter_text } = await request.json();
 
     const filterResult = await parseNlFilter(filter_text);

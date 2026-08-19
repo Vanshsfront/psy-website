@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireRole, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
 import { getCustomerById } from "@/lib/storeadmin/server/database";
 import { fetchTemplates, renderTemplatePreview } from "@/lib/storeadmin/server/whatsapp-utils";
 
 export async function POST(request: NextRequest) {
   try {
-    await requireRole(request, "superadmin", "admin");
+    await requireRoute(request);
 
     const formData = await request.formData();
     const templateName = formData.get("template_name") as string || "";
