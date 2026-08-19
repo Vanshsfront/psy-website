@@ -140,7 +140,7 @@ export default function UsersPage() {
     return (
         <div className="flex min-h-screen">
             <Sidebar />
-            <main className="flex-1 ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10">
+            <main className="flex-1 min-w-0 ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10">
                 <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
                     <div>
                         <h1 className="font-display text-4xl font-bold">Logins</h1>

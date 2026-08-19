@@ -428,7 +428,7 @@ function NewOrderContent() {
     return (
         <div className="flex min-h-screen">
             <Sidebar />
-            <main className="flex-1 ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10">
+            <main className="flex-1 min-w-0 ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10">
                 <div className={tab === "ocr" && ocrStep === "review" ? "max-w-[100%]" : "max-w-3xl mx-auto"}>
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
                         <div>

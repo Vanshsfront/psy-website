@@ -98,7 +98,7 @@ function ProfileContent() {
     return (
         <div className="flex min-h-screen">
             <Sidebar />
-            <main className="flex-1 ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10 max-w-7xl">
+            <main className="flex-1 min-w-0 ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10 max-w-7xl">
                 {/* Breadcrumb */}
                 <div className="flex items-center gap-2 text-sm text-[var(--muted)] mb-6">
                     <button

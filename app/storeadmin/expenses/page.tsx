@@ -250,7 +250,7 @@ function ExpensesContent() {
     return (
         <div className="flex min-h-screen">
             <Sidebar />
-            <main className="flex-1 ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10 max-w-7xl">
+            <main className="flex-1 min-w-0 ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10 max-w-7xl">
                 {/* Petty Cash Balance Card */}
                 <div className="neo-card stat-accent stat-accent-gold p-5 mb-6 animate-fadeIn">
                     <div className="flex items-center justify-between">

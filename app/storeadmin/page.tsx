@@ -130,7 +130,7 @@ function DashboardContent() {
     return (
         <div className="flex min-h-screen">
             <Sidebar />
-            <main className="flex-1 ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10 max-w-7xl">
+            <main className="flex-1 min-w-0 ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10 max-w-7xl">
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="font-display text-4xl font-bold">System Overview</h1>
