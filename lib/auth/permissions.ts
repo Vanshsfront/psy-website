@@ -72,7 +72,18 @@ export const ROLE_NAMES: Record<UserRole, string> = {
  * `null` means the route handles its own authentication and must not be gated
  * by role. Those are deliberate and each one is explained.
  */
-export const API_ACCESS: ReadonlyArray<{ prefix: string; roles: readonly UserRole[] | null }> = [
+/**
+ * Either one role list for every method, or a list per method.
+ *
+ * Per-method is what "view access only" needs: an Executive may GET an order
+ * but must not PATCH or DELETE it. `default` covers any method not named.
+ */
+export type MethodAccess =
+  | readonly UserRole[]
+  | null
+  | { default: readonly UserRole[]; [method: string]: readonly UserRole[] };
+
+export const API_ACCESS: ReadonlyArray<{ prefix: string; roles: MethodAccess }> = [
   // Public by necessity.
   { prefix: "/api/storeadmin/auth/login", roles: null }, // issues the session
   { prefix: "/api/storeadmin/auth/logout", roles: null }, // must work on a dead session
@@ -83,6 +94,9 @@ export const API_ACCESS: ReadonlyArray<{ prefix: string; roles: readonly UserRol
   // Owner only.
   { prefix: "/api/storeadmin/users", roles: OWNER },
   { prefix: "/api/storeadmin/finance", roles: OWNER },
+  // Everyone's own earnings, which is a different question from the studio's
+  // finances. Longest-prefix matching puts this ahead of the OWNER rule above.
+  { prefix: "/api/storeadmin/finance/my-earnings", roles: { default: OWNER, GET: ALL_ROLES } },
   { prefix: "/api/storeadmin/export/mastersheet", roles: OWNER },
   { prefix: "/api/storeadmin/petty-cash/topup", roles: OWNER },
 
@@ -97,7 +111,10 @@ export const API_ACCESS: ReadonlyArray<{ prefix: string; roles: readonly UserRol
   { prefix: "/api/storeadmin/daily-notes", roles: STAFF },
   { prefix: "/api/storeadmin/expenses", roles: STAFF },
   { prefix: "/api/storeadmin/ocr", roles: STAFF },
-  { prefix: "/api/storeadmin/orders", roles: STAFF },
+  // Executives may read their own orders and create one, never edit or delete.
+  // The reading is narrowed to their own rows in the route, the same way
+  // appointments are.
+  { prefix: "/api/storeadmin/orders", roles: { default: STAFF, GET: ALL_ROLES, POST: ALL_ROLES } },
   { prefix: "/api/storeadmin/petty-cash", roles: STAFF },
   { prefix: "/api/storeadmin/whatsapp/templates", roles: STAFF },
 
@@ -117,14 +134,28 @@ export const API_ACCESS: ReadonlyArray<{ prefix: string; roles: readonly UserRol
  */
 export const OWN_RECORDS_ONLY: readonly UserRole[] = ["artist"];
 
-/** Resolve the roles allowed on a path. `null` means the route self-authenticates. */
-export function accessForPath(pathname: string): readonly UserRole[] | null | undefined {
-  let best: { prefix: string; roles: readonly UserRole[] | null } | undefined;
+/**
+ * Resolve the roles allowed on a path and method.
+ *
+ * `null` means the route self-authenticates. `undefined` means no rule exists,
+ * which callers must treat as denied.
+ */
+export function accessForPath(
+  pathname: string,
+  method = "GET"
+): readonly UserRole[] | null | undefined {
+  let best: { prefix: string; roles: MethodAccess } | undefined;
   for (const entry of API_ACCESS) {
     if (!pathname.startsWith(entry.prefix)) continue;
     if (!best || entry.prefix.length > best.prefix.length) best = entry;
   }
-  return best?.roles;
+  if (!best) return undefined;
+
+  const { roles } = best;
+  if (roles === null || Array.isArray(roles)) return roles as readonly UserRole[] | null;
+
+  const byMethod = roles as { default: readonly UserRole[]; [m: string]: readonly UserRole[] };
+  return byMethod[method.toUpperCase()] ?? byMethod.default;
 }
 
 /* ────────────────────────── Screens ────────────────────────── */
@@ -138,12 +169,13 @@ export function accessForPath(pathname: string): readonly UserRole[] | null | un
 export const SCREEN_ACCESS: Record<string, readonly UserRole[]> = {
   "/storeadmin": STAFF,
   "/storeadmin/customers": STAFF,
-  "/storeadmin/orders": STAFF,
-  "/storeadmin/orders/new": STAFF,
+  "/storeadmin/orders": ALL_ROLES,
+  "/storeadmin/orders/new": ALL_ROLES,
   "/storeadmin/artists": STAFF,
   "/storeadmin/campaigns": STAFF,
   "/storeadmin/expenses": STAFF,
   "/storeadmin/appointments": ALL_ROLES,
+  "/storeadmin/my-earnings": ALL_ROLES,
   "/storeadmin/finance": OWNER,
   "/storeadmin/balance-sheet": OWNER,
   "/storeadmin/users": OWNER,

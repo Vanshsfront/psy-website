@@ -564,7 +564,13 @@ export async function searchCustomersByConditions(
 
 // ── Orders ──
 
-export async function getOrders(customerId = "", limit = 50000) {
+/**
+ * @param artistScope when set, only that artist's orders are returned. Applied
+ * in the query rather than filtered afterwards, so an Executive login cannot
+ * widen its own view by passing different parameters. Same rule as
+ * getAppointments.
+ */
+export async function getOrders(customerId = "", limit = 50000, artistScope: string | null = null) {
   // Supabase caps each response at 1000 rows; page internally to honour `limit`.
   const PAGE = 1000;
   type OrderRow = Record<string, unknown> & { id: string };
@@ -573,6 +579,7 @@ export async function getOrders(customerId = "", limit = 50000) {
     const pageEnd = Math.min(fetched + PAGE, limit) - 1;
     let q = getDb().from("orders").select("*, customers(name, phone), artists(name)");
     if (customerId) q = q.eq("customer_id", customerId);
+    if (artistScope) q = q.eq("artist_id", artistScope);
     // `order_date` alone is not unique, so paging on it can skip or repeat rows
     // across pages; `id` breaks ties into a total order.
     const { data } = await q
@@ -586,12 +593,73 @@ export async function getOrders(customerId = "", limit = 50000) {
   return rows;
 }
 
-export async function getOrderById(orderId: string) {
-  const { data } = await getDb()
+export async function getOrderById(orderId: string, artistScope: string | null = null) {
+  let q = getDb()
     .from("orders")
     .select("*, customers(name, phone, instagram), artists(name)")
     .eq("id", orderId);
+  // Scoped in the query, so an out-of-scope id simply returns nothing rather
+  // than confirming that the order exists.
+  if (artistScope) q = q.eq("artist_id", artistScope);
+  const { data } = await q;
   return data?.[0] ?? null;
+}
+
+/**
+ * What one artist has earned, for the Executive login's own-earnings view.
+ *
+ * Deliberately separate from getFinancialSummary, which reports the whole
+ * studio's revenue, expenses and profit. An Executive must never see either
+ * the studio totals or another artist's numbers, so this takes the artist id
+ * and never accepts a wildcard: passing no id returns zeroes rather than
+ * everything.
+ */
+export async function getArtistEarnings(
+  artistId: string | null,
+  from = "",
+  to = ""
+): Promise<{
+  orderCount: number;
+  revenue: number;
+  deposits: number;
+  balance: number;
+  orders: Record<string, unknown>[];
+}> {
+  const empty = { orderCount: 0, revenue: 0, deposits: 0, balance: 0, orders: [] };
+  if (!artistId) return empty;
+
+  const PAGE = 1000;
+  const rows: Record<string, unknown>[] = [];
+  for (let fetched = 0; ; fetched += PAGE) {
+    let q = getDb()
+      .from("orders")
+      .select("id, order_date, service_description, total, deposit, payment_mode, customers(name)")
+      .eq("artist_id", artistId);
+    if (from) q = q.gte("order_date", from);
+    if (to) q = q.lte("order_date", to);
+    const { data } = await q
+      .order("order_date", { ascending: false })
+      .order("id", { ascending: true })
+      .range(fetched, fetched + PAGE - 1);
+    if (!data?.length) break;
+    rows.push(...data);
+    // Paged rather than capped: an artist with more than 1000 orders would
+    // otherwise silently see an understated total, which is the same bug that
+    // was found in getFinancialSummary.
+    if (data.length < PAGE) break;
+  }
+
+  const num = (v: unknown) => (typeof v === "number" ? v : Number(v) || 0);
+  const revenue = rows.reduce((sum, r) => sum + num(r.total), 0);
+  const deposits = rows.reduce((sum, r) => sum + num(r.deposit), 0);
+
+  return {
+    orderCount: rows.length,
+    revenue,
+    deposits,
+    balance: revenue - deposits,
+    orders: rows,
+  };
 }
 
 export async function createOrder(inputData: Record<string, unknown>) {

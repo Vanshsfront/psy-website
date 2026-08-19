@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRoute, authErrorResponse } from "@/lib/storeadmin/server/auth";
+import { OWN_RECORDS_ONLY } from "@/lib/auth/permissions";
 import { getOrderById, updateOrder, deleteOrder } from "@/lib/storeadmin/server/database";
 
 const ALLOWED_FIELDS = new Set([
@@ -21,9 +22,12 @@ const ALLOWED_FIELDS = new Set([
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await requireRoute(request);
+    const me = await requireRoute(request);
     const { id } = params;
-    const order = await getOrderById(id);
+    // Scoped in the query: an out-of-scope id returns nothing rather than
+    // confirming that somebody else's order exists.
+    const artistScope = OWN_RECORDS_ONLY.includes(me.role) ? me.artistId : null;
+    const order = await getOrderById(id, artistScope);
     if (!order) {
       return NextResponse.json({ detail: "Order not found" }, { status: 404 });
     }

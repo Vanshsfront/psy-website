@@ -158,7 +158,7 @@ export async function requireRole(
  * the route loudly in testing instead of leaving it open in production.
  */
 export async function requireRoute(request: NextRequest): Promise<AuthedUser> {
-  const allowed = accessForPath(request.nextUrl.pathname);
+  const allowed = accessForPath(request.nextUrl.pathname, request.method);
 
   if (allowed === undefined) {
     throw new Error("Forbidden");
