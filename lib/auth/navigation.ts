@@ -46,12 +46,18 @@ import {
  * one prefix is a mechanical move worth doing once, after the open questions are
  * settled, rather than twice.
  *
- * SIX SCREENS ARE DELIBERATELY ABSENT, at russhil's request on 2026-08-19:
- * Both Businesses, My Earnings, Balance Sheet, Analytics, Salary Slips and
- * Logins. Nothing was deleted. The pages, routes, permission rules and data all
- * remain, so putting any of them back is one line here. Their URLs still work
- * for anyone who has them and still enforce the same roles, which is why this
- * is a change to what the panel offers rather than to who may reach what.
+ * There is a third section, Admin, holding the management screens: Both
+ * Businesses, Analytics, Balance Sheet, Salary Slips, Logins and My Earnings.
+ *
+ * They were briefly taken out of the nav entirely, which was wrong: Yogesh
+ * asked "Bro where can i access them now" and could not reach them at all.
+ * Taking them off the operational lists was the point; making them unreachable
+ * was not. They now sit in their own section, which is also what his original
+ * spec described, an "Admin (one login only)" group alongside Studio and Shop.
+ *
+ * The section is filtered by the same access rules as everything else, so it
+ * only appears to somebody who can open at least one screen inside it. For a
+ * Manager that is Analytics; for an Executive it is their own earnings.
  */
 
 export interface NavItem {
@@ -89,6 +95,19 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Guest Artists", href: "/admin/guest-artists", icon: Inbox },
       { label: "Testimonials", href: "/admin/testimonials", icon: Star },
       { label: "Site Settings", href: "/admin/site-settings", icon: Settings },
+    ],
+  },
+  {
+    // Money, oversight and account management. Kept apart from the two
+    // operational sections rather than mixed into them.
+    title: "Admin",
+    items: [
+      { label: "Both Businesses", href: "/storeadmin/overview", icon: Scale },
+      { label: "Analytics", href: "/storeadmin/analytics", icon: TrendingUp },
+      { label: "Balance Sheet", href: "/storeadmin/balance-sheet", icon: Scale },
+      { label: "Salary Slips", href: "/storeadmin/salary", icon: Receipt },
+      { label: "My Earnings", href: "/storeadmin/my-earnings", icon: Wallet },
+      { label: "Logins", href: "/storeadmin/users", icon: ShieldCheck },
     ],
   },
   {

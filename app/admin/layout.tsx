@@ -25,7 +25,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row font-sans">
+    <div className="min-h-screen bg-background font-sans">
       <AdminSidebar
         userName={user.username}
         role={user.role}
@@ -33,8 +33,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       />
 
       {/* Main content, offset by sidebar width on desktop */}
-      <main className="flex-1 md:ml-60 overflow-x-clip relative">
-        <div className="p-6 md:p-10 max-w-7xl mx-auto">
+      {/* The sidebar is fixed at every width now, so the content is offset on
+          desktop and full-bleed on mobile with room for the menu button. */}
+      <main className="md:ml-60 overflow-x-clip relative">
+        <div className="p-4 md:p-10 pt-16 md:pt-10 max-w-7xl mx-auto">
           {children}
         </div>
       </main>

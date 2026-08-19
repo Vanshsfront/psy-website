@@ -126,7 +126,7 @@ export default function BalanceSheetPage() {
     return (
         <div className="flex min-h-screen">
             <Sidebar />
-            <main className="flex-1 md:ml-60 p-6 md:p-10">
+            <main className="flex-1 ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10">
                 <div className="flex items-center gap-3 mb-6 flex-wrap">
                     <div className="flex-1 min-w-[200px]">
                         <h1 className="font-display text-4xl font-bold">Balance Sheet</h1>

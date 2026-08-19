@@ -200,7 +200,7 @@ export default function AppointmentsPage() {
     return (
         <div className="flex min-h-screen">
             <Sidebar />
-            <main className="flex-1 md:ml-60 p-6 md:p-10">
+            <main className="flex-1 ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10">
                 <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
                     <div>
                         <h1 className="font-display text-4xl font-bold">Appointments</h1>

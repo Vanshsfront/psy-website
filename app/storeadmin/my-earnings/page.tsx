@@ -100,7 +100,7 @@ export default function MyEarningsPage() {
     return (
         <div className="min-h-screen">
             <Sidebar />
-            <main className="md:ml-60 p-6 md:p-10">
+            <main className="ml-0 md:ml-60 p-4 md:p-10 pt-16 md:pt-10">
                 <header className="mb-6">
                     <h1 className="font-display text-4xl font-bold">My Earnings</h1>
                     <p className="text-sm text-[var(--muted)] mt-1">
