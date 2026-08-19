@@ -514,25 +514,92 @@ function CustomerSearch({
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<Customer[]>([]);
     const [searching, setSearching] = useState(false);
+    const [creating, setCreating] = useState(false);
+    const [newPhone, setNewPhone] = useState("");
+    const [createError, setCreateError] = useState<string | null>(null);
+
+    // Booking somebody who has never been in before was a dead end: the picker
+    // could only find existing customers, so a first-time client could not be
+    // given an appointment at all without leaving to create them elsewhere.
+    const createAndSelect = async () => {
+        const name = query.trim();
+        if (!name) return;
+        setCreating(true);
+        setCreateError(null);
+        try {
+            const res = await api.createCustomer({
+                name,
+                phone: newPhone.trim() || null,
+                source: "appointment",
+            });
+            const payload = res as {
+                customer?: Customer;
+                duplicate_detected?: boolean;
+                matches?: Customer[];
+            };
+
+            // The server refuses to create when the phone already belongs to
+            // somebody, and hands back who. That is an answer rather than a
+            // failure: show them so the booking can go to the right person.
+            if (payload.duplicate_detected && payload.matches?.length) {
+                setResults(payload.matches.slice(0, 8));
+                setCreateError(
+                    payload.matches.length === 1
+                        ? `That number already belongs to ${payload.matches[0].name}. Pick them above, or clear the phone to add a separate record.`
+                        : "That number already belongs to an existing customer. Pick them above, or clear the phone to add a separate record."
+                );
+                return;
+            }
+
+            const created = payload.customer;
+            if (!created?.id) throw new Error("The customer was not created");
+            onSelect(created);
+            setQuery("");
+            setNewPhone("");
+        } catch (e) {
+            setCreateError(e instanceof Error ? e.message : "Could not create that customer");
+        } finally {
+            setCreating(false);
+        }
+    };
 
     useEffect(() => {
         if (selected || query.trim().length < 2) {
             setResults([]);
             return;
         }
+        // Mark it searching straight away, before the debounce has even fired.
+        // Otherwise the gap between keystroke and request is a moment where
+        // nothing is loading and no results are held, and the "no match" line
+        // flashes up over a name that does exist.
+        setSearching(true);
+
         // Debounced: typing a name should not fire a request per keystroke.
+        let superseded = false;
+
         const t = setTimeout(async () => {
-            setSearching(true);
             try {
                 const res = await api.getCustomers({ search: query.trim(), limit: 20 });
+                // Clearing the timeout cannot recall a request already in
+                // flight, so without this guard the reply to an older, shorter
+                // query can land after the current one and overwrite good
+                // results with stale ones. The message then names the query on
+                // screen while showing the verdict for a different one, which
+                // is how a customer who does exist gets reported as no match.
+                // Far more likely on a phone, where the round trip is slower.
+                if (superseded) return;
                 setResults(res.customers.slice(0, 8));
             } catch {
-                setResults([]);
+                if (!superseded) setResults([]);
             } finally {
-                setSearching(false);
+                if (!superseded) setSearching(false);
             }
         }, 300);
-        return () => clearTimeout(t);
+
+        return () => {
+            superseded = true;
+            clearTimeout(t);
+        };
     }, [query, selected]);
 
     if (selected) {
@@ -559,8 +626,27 @@ function CustomerSearch({
             />
             {searching && <Loader2 className="w-4 h-4 animate-spin absolute right-3 top-2.5 text-[var(--muted)]" />}
             {!searching && query.trim().length >= 2 && results.length === 0 && (
-                <div className="absolute z-20 left-0 right-0 mt-1 rounded border border-[var(--border-color)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--muted)]">
-                    No customer matches “{query.trim()}”. Try just the first name or the phone number.
+                <div className="absolute z-20 left-0 right-0 mt-1 rounded border border-[var(--border-color)] bg-[var(--surface)] p-3 space-y-2">
+                    <p className="text-sm text-[var(--muted)]">
+                        No customer matches “{query.trim()}”. Try just the first name, or add them.
+                    </p>
+                    <input
+                        value={newPhone}
+                        onChange={(e) => setNewPhone(e.target.value)}
+                        placeholder="Phone (optional)"
+                        className="w-full px-3 py-2 neo-input text-sm"
+                    />
+                    <button
+                        type="button"
+                        onClick={createAndSelect}
+                        disabled={creating}
+                        className="w-full px-3 py-2 rounded neo-btn text-sm disabled:opacity-40"
+                    >
+                        {creating ? "Adding…" : `Add “${query.trim()}” as a new customer`}
+                    </button>
+                    {createError && (
+                        <p className="text-xs text-[var(--danger)]">{createError}</p>
+                    )}
                 </div>
             )}
             {results.length > 0 && (
