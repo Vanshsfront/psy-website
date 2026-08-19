@@ -451,6 +451,23 @@ export const api = {
         }),
 
     // Export
+    getMyEarnings: (params: { from?: string; to?: string } = {}) => {
+        const q = new URLSearchParams();
+        if (params.from) q.set("from", params.from);
+        if (params.to) q.set("to", params.to);
+        const qs = q.toString();
+        return apiFetch<{
+            earnings: {
+                orderCount: number;
+                revenue: number;
+                deposits: number;
+                balance: number;
+                orders: Array<Record<string, unknown>>;
+            };
+            linkedToArtist: boolean;
+        }>(`/api/storeadmin/finance/my-earnings${qs ? `?${qs}` : ""}`);
+    },
+
     exportMastersheet: async (): Promise<Blob> => {
         const token = getToken();
         const res = await fetch(`/api/storeadmin/export/mastersheet`, {

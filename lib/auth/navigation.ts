@@ -64,6 +64,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Dashboard", href: "/storeadmin", icon: LayoutDashboard },
       { label: "Customers", href: "/storeadmin/customers", icon: Users },
       { label: "Appointments", href: "/storeadmin/appointments", icon: CalendarDays },
+      { label: "My Earnings", href: "/storeadmin/my-earnings", icon: Wallet },
       { label: "Orders", href: "/storeadmin/orders", icon: ClipboardList },
       { label: "New Order", href: "/storeadmin/orders/new", icon: PlusCircle },
       { label: "Campaigns", href: "/storeadmin/campaigns", icon: Send },
