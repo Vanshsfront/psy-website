@@ -7,7 +7,7 @@ import Sidebar from "@/components/storeadmin/Sidebar";
 import { api, clearApiCache } from "@/lib/storeadmin/api";
 import type { StoreUser, Artist } from "@/types/storeadmin";
 import { Loader2, Plus, Trash2, ShieldCheck, UserCog, Palette, KeyRound } from "lucide-react";
-import { can, ROLE_LABELS, type UserRole } from "@/lib/auth/permissions";
+import { can, ROLE_LABELS, ROLE_NAMES, type UserRole } from "@/lib/auth/permissions";
 
 
 const ROLE_ICON: Record<string, typeof ShieldCheck> = {
@@ -198,9 +198,9 @@ export default function UsersPage() {
                                     onChange={(e) => setForm({ ...form, role: e.target.value })}
                                     className="w-full px-3 py-2 neo-input text-sm"
                                 >
-                                    <option value="artist">Artist</option>
-                                    <option value="admin">Manager</option>
-                                    <option value="superadmin">Owner</option>
+                                    <option value="artist">{ROLE_NAMES.artist}</option>
+                                    <option value="admin">{ROLE_NAMES.admin}</option>
+                                    <option value="superadmin">{ROLE_NAMES.superadmin}</option>
                                 </select>
                                 <p className="text-[11px] text-[var(--muted)] mt-1">{ROLE_LABELS[form.role as UserRole]}</p>
                             </div>

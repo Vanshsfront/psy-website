@@ -33,13 +33,31 @@ export const STAFF: readonly UserRole[] = ["superadmin", "admin"];
 export const OWNER: readonly UserRole[] = ["superadmin"];
 
 /**
- * Copy shown in the Logins screen. Kept here so the words people read and the
- * access they actually get are defined in the same place.
+ * The names people see, and what each one actually gets.
+ *
+ * Yogesh asked for Admin / Manager / Executive. Those are labels only: the
+ * stored values stay superadmin / admin / artist. Renaming them in the database
+ * would mean reusing "admin" for what is currently "superadmin", so any row
+ * missed by the migration would silently gain owner access. The rename buys
+ * nothing and risks exactly the wrong failure, so it is not done. His words
+ * appear everywhere anyone reads them.
+ *
+ * "Executive" is his term, from sales, chosen because it generalises past
+ * tattoo artists to D2C staff later. It maps to the existing artist role, which
+ * stays scoped to its own records: "I want to keep artists to their own limited
+ * login."
  */
 export const ROLE_LABELS: Record<UserRole, string> = {
-  superadmin: "Owner, full access including finance",
-  admin: "Manager, everything except finance and logins",
-  artist: "Artist, only their own appointments and earnings",
+  superadmin: "Admin, everything including finance and logins",
+  admin: "Manager, full access to Studio and Shop",
+  artist: "Executive, only their own work",
+};
+
+/** Short name for the role, for table cells and dropdowns. */
+export const ROLE_NAMES: Record<UserRole, string> = {
+  superadmin: "Admin",
+  admin: "Manager",
+  artist: "Executive",
 };
 
 /* ────────────────────────── API access ────────────────────────── */
