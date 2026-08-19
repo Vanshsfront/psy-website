@@ -26,7 +26,14 @@ export type SalaryRule =
   /** A percentage of studio revenue from customers who arrived via given channels. */
   | { kind: "channel_revenue"; percent: number; channels: string[] }
   /** A percentage of the studio's net profit, revenue minus expenses. */
-  | { kind: "studio_net_profit"; percent: number };
+  | { kind: "studio_net_profit"; percent: number }
+  /**
+   * External freelancer paid a revenue share per job, with no base pay. The
+   * share depends on who brought the work: the artist keeps `artistSourced`
+   * percent of jobs they introduced and `studioSourced` percent of jobs the
+   * studio introduced.
+   */
+  | { kind: "guest_revenue_share"; studioSourced: number; artistSourced: number };
 
 export interface SalaryPlan {
   /** Matches studio.artists.name, which is the short working name. */
@@ -73,13 +80,31 @@ export const SALARY_RULES: SalaryPlan[] = [
 const num = (v: unknown) => (typeof v === "number" ? v : Number(v) || 0);
 const PAGE = 1000;
 
+/** Plain rupee formatting for the explanatory notes on a slip. */
+const formatMoney = (n: number) => `Rs ${Math.round(n).toLocaleString("en-IN")}`;
+
+/**
+ * The guest artist deal, applied to every artist flagged is_guest_artist.
+ *
+ * Yogesh: "a 70:30 logic for customers sourced by the studio and a 30:70
+ * revenue share logic for the customers sourced by the guest artists". Read as
+ * studio-first in both pairs, so the artist keeps 30% of work the studio brought
+ * and 70% of work they brought themselves. Confirm before anyone is paid on it:
+ * reading the pairs the other way round inverts every figure.
+ */
+export const GUEST_ARTIST_RULE = {
+  kind: "guest_revenue_share" as const,
+  studioSourced: 30,
+  artistSourced: 70,
+};
+
 /** Every order in the window for one artist. Paged, so totals cannot be capped. */
 async function ordersForArtist(artistId: string, from: string, to: string) {
-  const rows: Array<{ total: unknown; deposit: unknown }> = [];
+  const rows: Array<{ total: unknown; deposit: unknown; sourced_by?: unknown }> = [];
   for (let offset = 0; ; offset += PAGE) {
     const { data, error } = await getDb()
       .from("orders")
-      .select("id, total, deposit")
+      .select("id, total, deposit, sourced_by")
       .eq("artist_id", artistId)
       .gte("order_date", from)
       .lte("order_date", to)
@@ -176,9 +201,25 @@ export async function getSalarySlips(from: string, to: string): Promise<SalarySl
 
   const manual = await getManualEntries({ scope: "salary", from, to });
 
+  // Guest artists are not listed in SALARY_RULES. They come and go, so their
+  // plans are generated from the is_guest_artist flag on the artist record: flag
+  // somebody and they get a slip, with no code change.
+  const { data: guestRows } = await getDb()
+    .from("artists")
+    .select("name")
+    .eq("is_guest_artist", true);
+  const guestPlans: SalaryPlan[] = ((guestRows ?? []) as unknown as Array<{ name: string }>).map(
+    (g) => ({
+      artistName: g.name,
+      fixed: 0, // "Have no base pay"
+      rule: GUEST_ARTIST_RULE,
+      statedAs: `No base pay, ${GUEST_ARTIST_RULE.studioSourced}% of studio-sourced work and ${GUEST_ARTIST_RULE.artistSourced}% of their own`,
+    })
+  );
+
   const slips: Array<Omit<SalarySlip, "adjustments" | "adjustmentTotal">> = [];
 
-  for (const plan of SALARY_RULES) {
+  for (const plan of [...SALARY_RULES, ...guestPlans]) {
     const artist = artists.find((a) => a.name === plan.artistName);
     const notes: string[] = [];
 
@@ -263,6 +304,49 @@ export async function getSalarySlips(from: string, to: string): Promise<SalarySl
           label: `Revenue from ${plan.rule.channels.join(", ")} customers`,
           amount: revenue,
           percent: plan.rule.percent,
+        },
+        notes,
+      });
+      continue;
+    }
+
+    if (plan.rule.kind === "guest_revenue_share") {
+      const rows = await ordersForArtist(artist.id, from, to);
+
+      let studioSourced = 0;
+      let artistSourced = 0;
+      let unrecorded = 0;
+      for (const r of rows) {
+        const value = num(r.total);
+        if (r.sourced_by === "studio") studioSourced += value;
+        else if (r.sourced_by === "artist") artistSourced += value;
+        else unrecorded += value;
+      }
+
+      const share =
+        (studioSourced * plan.rule.studioSourced) / 100 +
+        (artistSourced * plan.rule.artistSourced) / 100;
+
+      notes.push(
+        `Studio brought ${formatMoney(studioSourced)} at ${plan.rule.studioSourced}%, they brought ${formatMoney(artistSourced)} at ${plan.rule.artistSourced}%.`
+      );
+      if (unrecorded > 0) {
+        // Not folded in at either rate. Picking one would invent a split.
+        notes.push(
+          `${formatMoney(unrecorded)} of work has no record of who brought it, so it is excluded rather than assumed. Set that on the order to include it.`
+        );
+      }
+
+      slips.push({
+        artistName: plan.artistName,
+        statedAs: plan.statedAs,
+        fixed: plan.fixed,
+        commission: share,
+        total: plan.fixed + share,
+        basis: {
+          label: "Revenue share on their own jobs",
+          amount: studioSourced + artistSourced,
+          percent: plan.rule.artistSourced,
         },
         notes,
       });

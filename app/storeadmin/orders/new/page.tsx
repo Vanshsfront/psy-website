@@ -85,7 +85,7 @@ function NewOrderContent() {
         customer_name: "", phone: "", instagram: "", email: "", artist_id: "",
         order_date: new Date().toISOString().split("T")[0],
         appointment_type: "", service_description: "", payment_mode: "cash", deposit: "",
-        total: "", comments: "", source: "", address: "", consent_signed: false,
+        total: "", comments: "", source: "", sourced_by: "", address: "", consent_signed: false,
     });
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [step, setStep] = useState<"form" | "success">("form");
@@ -190,6 +190,7 @@ function NewOrderContent() {
                     instagram: manualForm.instagram ? stripAtSign(manualForm.instagram) : null,
                     email: manualForm.email || null,
                     source: manualForm.source || null,
+                    sourced_by: manualForm.sourced_by || null,
                     address: manualForm.address || null,
                 });
                 custId = custRes.customer?.id;
@@ -224,6 +225,7 @@ function NewOrderContent() {
                 comments: manualForm.comments,
                 consent_signed: manualForm.consent_signed,
                 source: manualForm.source,
+                sourced_by: manualForm.sourced_by,
             });
             setStep("success");
         } catch (err) {
@@ -638,6 +640,17 @@ function NewOrderContent() {
                                             </select>
                                         </div>
                                         <div>
+                                            {/* Drives the guest artist revenue share. Left blank
+                                                by default: assuming "the studio" would decide a
+                                                70:30 split on somebody's behalf. */}
+                                            <label className="block text-sm text-[var(--muted)] mb-1">Who brought this job</label>
+                                            <select value={manualForm.sourced_by} onChange={(e) => setManualForm({ ...manualForm, sourced_by: e.target.value })} className="w-full px-4 py-3 neo-input text-sm">
+                                                <option value="">Not recorded</option>
+                                                <option value="studio">The studio</option>
+                                                <option value="artist">The artist</option>
+                                            </select>
+                                        </div>
+                                        <div>
                                             <label className="block text-sm text-[var(--muted)] mb-1">Deposit (₹)</label>
                                             <input type="number" value={manualForm.deposit} onChange={(e) => setManualForm({ ...manualForm, deposit: e.target.value })} className="w-full px-4 py-3 neo-input text-sm" placeholder="0" />
                                         </div>
@@ -676,7 +689,7 @@ function NewOrderContent() {
                                     <p className="text-[var(--muted)] mb-6">The order has been saved successfully.</p>
                                     <div className="flex gap-3 justify-center">
                                         <button onClick={() => router.push("/storeadmin")} className="px-6 py-3 neo-btn text-sm">Go to Dashboard</button>
-                                        <button onClick={() => { setStep("form"); setManualPage("customer"); setSelectedCustomer(null); setManualForm({ customer_name: "", phone: "", instagram: "", email: "", artist_id: "", order_date: new Date().toISOString().split("T")[0], appointment_type: "", service_description: "", payment_mode: "cash", deposit: "", total: "", comments: "", source: "", address: "", consent_signed: false }); }} className="px-6 py-3 neo-btn neo-btn-primary text-sm border-none">New Order</button>
+                                        <button onClick={() => { setStep("form"); setManualPage("customer"); setSelectedCustomer(null); setManualForm({ customer_name: "", phone: "", instagram: "", email: "", artist_id: "", order_date: new Date().toISOString().split("T")[0], appointment_type: "", service_description: "", payment_mode: "cash", deposit: "", total: "", comments: "", source: "", sourced_by: "", address: "", consent_signed: false }); }} className="px-6 py-3 neo-btn neo-btn-primary text-sm border-none">New Order</button>
                                     </div>
                                 </div>
                             )}

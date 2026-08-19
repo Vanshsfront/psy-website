@@ -481,6 +481,14 @@ export const api = {
             }>;
         }>(`/api/storeadmin/salary?from=${from}&to=${to}`),
 
+    getAnalytics: (params: { from: string; to: string; grain: string; artist_id?: string }) => {
+        const q = new URLSearchParams({ from: params.from, to: params.to, grain: params.grain });
+        if (params.artist_id) q.set("artist_id", params.artist_id);
+        return apiFetch<{ analytics: import("@/lib/storeadmin/server/analytics").AnalyticsResult }>(
+            `/api/storeadmin/analytics?${q.toString()}`
+        );
+    },
+
     getOverview: () =>
         apiFetch<{
             overview: {

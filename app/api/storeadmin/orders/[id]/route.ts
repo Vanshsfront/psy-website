@@ -18,6 +18,8 @@ const ALLOWED_FIELDS = new Set([
   "discount_code",
   "discount_amount",
   "consent_signed",
+  // Who brought this job, for the guest artist revenue share.
+  "sourced_by",
 ]);
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {

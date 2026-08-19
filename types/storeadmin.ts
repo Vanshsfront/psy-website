@@ -36,6 +36,8 @@ export interface Artist {
     id: string;
     name: string;
     is_active: boolean;
+    /** External freelancer: no base pay, paid a revenue share per job. */
+    is_guest_artist?: boolean;
     created_at: string;
     /**
      * The website half of the record, present since migration 012 merged the

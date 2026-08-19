@@ -27,6 +27,7 @@ import {
   RotateCcw,
   Settings,
   Receipt,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -69,6 +70,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "My Earnings", href: "/storeadmin/my-earnings", icon: Wallet },
       { label: "Orders", href: "/storeadmin/orders", icon: ClipboardList },
       { label: "New Order", href: "/storeadmin/orders/new", icon: PlusCircle },
+      { label: "Analytics", href: "/storeadmin/analytics", icon: TrendingUp },
       { label: "Campaigns", href: "/storeadmin/campaigns", icon: Send },
       { label: "Expenses", href: "/storeadmin/expenses", icon: Wallet },
       { label: "Finance", href: "/storeadmin/finance", icon: DollarSign },

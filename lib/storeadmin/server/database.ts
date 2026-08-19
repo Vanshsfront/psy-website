@@ -675,6 +675,9 @@ export async function createOrder(inputData: Record<string, unknown>) {
     total: inputData.total ?? 0,
     comments: inputData.comments,
     source: inputData.source,
+    // studio or artist, for the guest artist revenue share. Left unset rather
+    // than defaulted, because assuming "studio" invents a 70:30 split.
+    sourced_by: inputData.sourced_by,
     consent_signed: inputData.consent_signed,
   };
   for (const k of Object.keys(payload)) {

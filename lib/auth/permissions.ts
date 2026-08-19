@@ -113,6 +113,7 @@ export const API_ACCESS: ReadonlyArray<{ prefix: string; roles: MethodAccess }> 
   { prefix: "/api/storeadmin/appointments", roles: ALL_ROLES },
 
   // Staff.
+  { prefix: "/api/storeadmin/analytics", roles: STAFF },
   { prefix: "/api/storeadmin/artists", roles: STAFF },
   { prefix: "/api/storeadmin/campaigns", roles: STAFF },
   { prefix: "/api/storeadmin/customers", roles: STAFF },
@@ -182,6 +183,7 @@ export const SCREEN_ACCESS: Record<string, readonly UserRole[]> = {
   "/storeadmin/artists": STAFF,
   "/storeadmin/campaigns": STAFF,
   "/storeadmin/expenses": STAFF,
+  "/storeadmin/analytics": STAFF,
   "/storeadmin/appointments": ALL_ROLES,
   "/storeadmin/my-earnings": ALL_ROLES,
   "/storeadmin/finance": STAFF,
