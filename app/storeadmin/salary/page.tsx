@@ -6,7 +6,7 @@ import { useAuth } from "@/components/storeadmin/AuthProvider";
 import Sidebar from "@/components/storeadmin/Sidebar";
 import { api, clearApiCache } from "@/lib/storeadmin/api";
 import { formatCurrency } from "@/lib/storeadmin/utils";
-import { can } from "@/lib/auth/permissions";
+import { can, OWN_RECORDS_ONLY } from "@/lib/auth/permissions";
 import { Loader2, ChevronLeft, ChevronRight, AlertTriangle, X } from "lucide-react";
 
 /**
@@ -64,33 +64,37 @@ export default function SalaryPage() {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
     }, [authLoading, isAuthenticated, router]);
 
-    useEffect(() => {
-        if (!authLoading && isAuthenticated && role && !can(role, "payroll.view")) {
-            router.push("/storeadmin");
-        }
-    }, [authLoading, isAuthenticated, role, router]);
+    // No redirect. Admins see every slip; an Executive sees their own, which the
+    // API decides. Bouncing them would contradict "Salary Slip" appearing under
+    // Executive in the spec.
+    const ownSlipOnly = Boolean(role && OWN_RECORDS_ONLY.includes(role));
 
     const load = useCallback(async () => {
         setLoading(true);
         try {
             clearApiCache();
             const { from, to } = monthRange(month);
-            const [res, ar] = await Promise.all([api.getSalarySlips(from, to), api.getArtists()]);
+            // getArtists is staff-only, so an Executive must not call it. They
+            // have no add-a-line controls anyway, which is all the list feeds.
+            const res = await api.getSalarySlips(from, to);
             setSlips(res.slips as Slip[]);
-            setArtists(ar.artists as Array<{ id: string; name: string }>);
+            if (can(role, "payroll.view")) {
+                const ar = await api.getArtists();
+                setArtists(ar.artists as Array<{ id: string; name: string }>);
+            }
             setError(null);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Could not work out the salary slips");
         } finally {
             setLoading(false);
         }
-    }, [month]);
+    }, [month, role]);
 
     useEffect(() => {
-        if (isAuthenticated && can(role, "payroll.view")) load();
-    }, [isAuthenticated, role, load]);
+        if (isAuthenticated) load();
+    }, [isAuthenticated, load]);
 
-    if (authLoading || !isAuthenticated || !can(role, "payroll.view")) {
+    if (authLoading || !isAuthenticated) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-[var(--primary)]" />
@@ -151,7 +155,9 @@ export default function SalaryPage() {
                 <header className="mb-6">
                     <h1 className="font-display text-4xl font-bold">Salary Slips</h1>
                     <p className="text-sm text-[var(--muted)] mt-1">
-                        Fixed pay plus commission, worked out from this month&apos;s figures.
+                        {ownSlipOnly
+                            ? "Your own pay for the month, and how it was worked out."
+                            : "Fixed pay plus commission, worked out from this month's figures."}
                     </p>
                 </header>
 
@@ -276,7 +282,7 @@ export default function SalaryPage() {
                                         </div>
                                     )}
 
-                                    {addingFor === slip.artistName ? (
+                                    {!can(role, "payroll.view") ? null : addingFor === slip.artistName ? (
                                         <div className="mt-3 flex flex-wrap gap-2 items-center">
                                             <select
                                                 value={form.kind}
@@ -335,7 +341,9 @@ export default function SalaryPage() {
                             ))}
                         </div>
 
-                        <div className="mt-6 flex justify-between items-baseline px-5 py-4 rounded border border-[var(--primary)]/30 bg-[var(--surface)]">
+                        {/* A total across everybody only means something to whoever
+                            pays everybody. */}
+                        <div className={`mt-6 flex justify-between items-baseline px-5 py-4 rounded border border-[var(--primary)]/30 bg-[var(--surface)] ${ownSlipOnly ? "hidden" : ""}`}>
                             <span className="text-sm text-[var(--muted)]">Total payable, {monthLabel}</span>
                             <span className="font-display text-2xl">{formatCurrency(payable)}</span>
                         </div>

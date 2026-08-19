@@ -195,7 +195,19 @@ export interface SalarySlip {
   adjustmentTotal: number;
 }
 
-export async function getSalarySlips(from: string, to: string): Promise<SalarySlip[]> {
+/**
+ * @param onlyArtistId when set, only that artist's slip is returned.
+ *
+ * Yogesh's spec lists "Salary Slip" under Executive, and Executives are kept to
+ * their own limited login, so an artist opening this screen sees their own pay
+ * and nobody else's. Filtered here rather than in the page, because a slip the
+ * client is sent and then declines to draw has not been withheld.
+ */
+export async function getSalarySlips(
+  from: string,
+  to: string,
+  onlyArtistId: string | null = null
+): Promise<SalarySlip[]> {
   const { data: artistRows } = await getDb().from("artists").select("id, name");
   const artists = (artistRows ?? []) as unknown as Array<{ id: string; name: string }>;
 
@@ -219,7 +231,12 @@ export async function getSalarySlips(from: string, to: string): Promise<SalarySl
 
   const slips: Array<Omit<SalarySlip, "adjustments" | "adjustmentTotal">> = [];
 
-  for (const plan of [...SALARY_RULES, ...guestPlans]) {
+  const wanted = onlyArtistId ? artists.find((a) => a.id === onlyArtistId)?.name : null;
+  const plans = [...SALARY_RULES, ...guestPlans].filter(
+    (plan) => !onlyArtistId || plan.artistName === wanted
+  );
+
+  for (const plan of plans) {
     const artist = artists.find((a) => a.name === plan.artistName);
     const notes: string[] = [];
 

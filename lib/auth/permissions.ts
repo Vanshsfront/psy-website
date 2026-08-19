@@ -94,7 +94,8 @@ export const API_ACCESS: ReadonlyArray<{ prefix: string; roles: MethodAccess }> 
   // Owner only.
   { prefix: "/api/storeadmin/users", roles: OWNER },
   { prefix: "/api/storeadmin/overview", roles: OWNER },
-  { prefix: "/api/storeadmin/salary", roles: OWNER },
+  // Executives may read their own slip; the route narrows it to them.
+  { prefix: "/api/storeadmin/salary", roles: { default: OWNER, GET: ALL_ROLES } },
   { prefix: "/api/storeadmin/manual-entries", roles: OWNER },
   // Revenue is not gated: "We don't want to gate revenue numbers because the
   // team works on revenue targets." The summary therefore admits staff, and the
@@ -189,7 +190,7 @@ export const SCREEN_ACCESS: Record<string, readonly UserRole[]> = {
   "/storeadmin/finance": STAFF,
   "/storeadmin/balance-sheet": OWNER,
   "/storeadmin/overview": OWNER,
-  "/storeadmin/salary": OWNER,
+  "/storeadmin/salary": ALL_ROLES,
   "/storeadmin/users": OWNER,
 
   // The shop and website screens, formerly the separate /admin panel. NextAuth
