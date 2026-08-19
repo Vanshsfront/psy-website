@@ -333,8 +333,11 @@ export default function DataTable<Row>({
 
     return (
         <div className="space-y-4">
+            {/* The toolbar wraps: without flex-wrap the summary line, which
+                cannot break, held it open wider than a phone screen and took the
+                whole page sideways with it. */}
             {(globalSearch || activeFilters.length > 0 || globalQ) && (
-                <div className="glass-panel p-3 flex items-center gap-3">
+                <div className="glass-panel p-3 flex flex-wrap items-center gap-3">
                     {globalSearch && (
                         <div className="flex-1 relative">
                             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
@@ -374,7 +377,7 @@ export default function DataTable<Row>({
                         </button>
                     )}
                     {summary && (
-                        <div className="text-xs text-[var(--muted)] whitespace-nowrap">
+                        <div className="text-xs text-[var(--muted)] sm:whitespace-nowrap">
                             {summary(filtered)}
                         </div>
                     )}
