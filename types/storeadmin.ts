@@ -84,6 +84,17 @@ export interface BalanceSheet {
     }>;
     total_expenses: number;
     net_profit: number;
+    /**
+     * Lines added by hand, for income and cost the order and expense tables
+     * cannot know about. Signed: incomes positive, expenses negative. Already
+     * included in the totals above; kept separately so the sheet can show what
+     * was computed and what was added.
+     */
+    manual_entries?: Array<{ id: string; label: string; amount: number; kind: string; date: string }>;
+    manual_income?: number;
+    manual_expense?: number;
+    computed_receivables?: number;
+    computed_expenses?: number;
     order_count: number;
     expense_count: number;
 }

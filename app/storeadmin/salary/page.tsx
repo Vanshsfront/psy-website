@@ -7,7 +7,7 @@ import Sidebar from "@/components/storeadmin/Sidebar";
 import { api, clearApiCache } from "@/lib/storeadmin/api";
 import { formatCurrency } from "@/lib/storeadmin/utils";
 import { can } from "@/lib/auth/permissions";
-import { Loader2, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, AlertTriangle, X } from "lucide-react";
 
 /**
  * Monthly salary slips.
@@ -25,6 +25,13 @@ const monthRange = (d: Date) => {
     return { from, to: `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}` };
 };
 
+interface Adjustment {
+    id: string;
+    label: string;
+    amount: number;
+    kind: string;
+}
+
 interface Slip {
     artistName: string;
     statedAs: string;
@@ -34,6 +41,8 @@ interface Slip {
     basis: { label: string; amount: number; percent: number } | null;
     unresolved?: { question: string; options: Array<{ label: string; amount: number; total: number }> };
     notes: string[];
+    adjustments: Adjustment[];
+    adjustmentTotal: number;
 }
 
 export default function SalaryPage() {
@@ -42,8 +51,14 @@ export default function SalaryPage() {
 
     const [month, setMonth] = useState(() => new Date());
     const [slips, setSlips] = useState<Slip[]>([]);
+    const [artists, setArtists] = useState<Array<{ id: string; name: string }>>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // The add-a-line form, open against one artist at a time.
+    const [addingFor, setAddingFor] = useState<string | null>(null);
+    const [form, setForm] = useState({ label: "", amount: "", kind: "bonus" });
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
@@ -60,8 +75,9 @@ export default function SalaryPage() {
         try {
             clearApiCache();
             const { from, to } = monthRange(month);
-            const res = await api.getSalarySlips(from, to);
+            const [res, ar] = await Promise.all([api.getSalarySlips(from, to), api.getArtists()]);
             setSlips(res.slips as Slip[]);
+            setArtists(ar.artists as Array<{ id: string; name: string }>);
             setError(null);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Could not work out the salary slips");
@@ -81,6 +97,43 @@ export default function SalaryPage() {
             </div>
         );
     }
+
+    const addLine = async (artistName: string) => {
+        const artist = artists.find((a) => a.name === artistName);
+        if (!artist) return setError(`No artist record for ${artistName}`);
+        setSaving(true);
+        setError(null);
+        try {
+            const { from } = monthRange(month);
+            await api.createManualEntry({
+                scope: "salary",
+                artist_id: artist.id,
+                // Dated to the first of the month on screen, so the line lands in
+                // the period it is being added to rather than today's month.
+                entry_date: from,
+                label: form.label.trim(),
+                amount: Number(form.amount),
+                kind: form.kind,
+            });
+            setAddingFor(null);
+            setForm({ label: "", amount: "", kind: "bonus" });
+            await load();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Could not add that line");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const removeLine = async (id: string) => {
+        setError(null);
+        try {
+            await api.deleteManualEntry(id);
+            await load();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Could not remove that line");
+        }
+    };
 
     const step = (n: number) => {
         const d = new Date(month);
@@ -189,6 +242,84 @@ export default function SalaryPage() {
                                                 ))}
                                             </ul>
                                         </div>
+                                    )}
+
+                                    {(slip.adjustments.length > 0 || addingFor === slip.artistName) && (
+                                        <div className="mt-4 pt-3 border-t border-[var(--border-color)]">
+                                            <p className="text-[10px] uppercase tracking-wider text-[var(--muted)] mb-2">
+                                                Added by hand
+                                            </p>
+                                            <ul className="space-y-1 text-sm">
+                                                {slip.adjustments.map((a) => (
+                                                    <li key={a.id} className="flex justify-between items-center gap-4">
+                                                        <span className="text-[var(--muted)]">{a.label}</span>
+                                                        <span className="flex items-center gap-3">
+                                                            <span className={a.amount < 0 ? "text-[var(--danger)]" : ""}>
+                                                                {formatCurrency(a.amount)}
+                                                            </span>
+                                                            <button
+                                                                onClick={() => removeLine(a.id)}
+                                                                className="text-[var(--muted)] hover:text-[var(--danger)]"
+                                                                title="Remove this line"
+                                                            >
+                                                                <X className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                            {slip.adjustmentTotal !== 0 && (
+                                                <p className="text-[11px] text-[var(--muted)] mt-2">
+                                                    Adjustments total {formatCurrency(slip.adjustmentTotal)}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {addingFor === slip.artistName ? (
+                                        <div className="mt-3 flex flex-wrap gap-2 items-center">
+                                            <select
+                                                value={form.kind}
+                                                onChange={(e) => setForm({ ...form, kind: e.target.value })}
+                                                className="px-2 py-1.5 neo-input text-sm"
+                                            >
+                                                <option value="bonus">Bonus</option>
+                                                <option value="deduction">Deduction</option>
+                                            </select>
+                                            <input
+                                                value={form.label}
+                                                onChange={(e) => setForm({ ...form, label: e.target.value })}
+                                                placeholder="What is it for?"
+                                                className="px-2 py-1.5 neo-input text-sm flex-1 min-w-[10rem]"
+                                            />
+                                            <input
+                                                type="number"
+                                                value={form.amount}
+                                                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                                                placeholder="Amount"
+                                                className="px-2 py-1.5 neo-input text-sm w-28"
+                                            />
+                                            <button
+                                                onClick={() => addLine(slip.artistName)}
+                                                disabled={saving || !form.label.trim() || !form.amount}
+                                                className="px-3 py-1.5 rounded neo-btn text-sm disabled:opacity-40"
+                                            >
+                                                {saving ? "Saving…" : "Add"}
+                                            </button>
+                                            <button
+                                                onClick={() => setAddingFor(null)}
+                                                className="px-2 py-1.5 text-sm text-[var(--muted)]"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => { setAddingFor(slip.artistName); setForm({ label: "", amount: "", kind: "bonus" }); }}
+                                            className="mt-3 text-[11px] text-[var(--muted)] hover:text-[var(--foreground)] underline"
+                                        >
+                                            Add a bonus or deduction
+                                        </button>
                                     )}
 
                                     {slip.notes.length > 0 && (

@@ -451,6 +451,20 @@ export const api = {
         }),
 
     // Export
+    getManualEntries: (scope: "salary" | "balance_sheet", from: string, to: string) =>
+        apiFetch<{ entries: Array<{ id: string; label: string; amount: number; kind: string; entry_date: string; artist_id: string | null }> }>(
+            `/api/storeadmin/manual-entries?scope=${scope}&from=${from}&to=${to}`
+        ),
+
+    createManualEntry: (body: Record<string, unknown>) =>
+        apiFetch<{ created: boolean }>("/api/storeadmin/manual-entries", {
+            method: "POST",
+            body: JSON.stringify(body),
+        }),
+
+    deleteManualEntry: (id: string) =>
+        apiFetch<{ deleted: boolean }>(`/api/storeadmin/manual-entries?id=${id}`, { method: "DELETE" }),
+
     getSalarySlips: (from: string, to: string) =>
         apiFetch<{
             slips: Array<{
@@ -462,6 +476,8 @@ export const api = {
                 basis: { label: string; amount: number; percent: number } | null;
                 unresolved?: { question: string; options: Array<{ label: string; amount: number; total: number }> };
                 notes: string[];
+                adjustments: Array<{ id: string; label: string; amount: number; kind: string }>;
+                adjustmentTotal: number;
             }>;
         }>(`/api/storeadmin/salary?from=${from}&to=${to}`),
 

@@ -1,4 +1,4 @@
-import { getDb, getFinancialSummary } from "@/lib/storeadmin/server/database";
+import { getDb, getFinancialSummary, getManualEntries } from "@/lib/storeadmin/server/database";
 
 /**
  * Monthly salary slips.
@@ -160,13 +160,22 @@ export interface SalarySlip {
   unresolved?: { question: string; options: Array<{ label: string; amount: number; total: number }> };
   /** Anything the reader should know about the data behind the number. */
   notes: string[];
+  /**
+   * Hand-entered lines for this person this month, added on top of the computed
+   * figure. Yogesh: "its not set in stone, i do add bonuses as well time and
+   * again". Signed, so a deduction is negative.
+   */
+  adjustments: Array<{ id: string; label: string; amount: number; kind: string }>;
+  adjustmentTotal: number;
 }
 
 export async function getSalarySlips(from: string, to: string): Promise<SalarySlip[]> {
   const { data: artistRows } = await getDb().from("artists").select("id, name");
   const artists = (artistRows ?? []) as unknown as Array<{ id: string; name: string }>;
 
-  const slips: SalarySlip[] = [];
+  const manual = await getManualEntries({ scope: "salary", from, to });
+
+  const slips: Array<Omit<SalarySlip, "adjustments" | "adjustmentTotal">> = [];
 
   for (const plan of SALARY_RULES) {
     const artist = artists.find((a) => a.name === plan.artistName);
@@ -293,5 +302,23 @@ export async function getSalarySlips(from: string, to: string): Promise<SalarySl
     });
   }
 
-  return slips;
+  // Fold the hand-entered lines in last, so the computed figure and what was
+  // added to it stay separately visible on the slip.
+  return slips.map((slip) => {
+    const artist = artists.find((a) => a.name === slip.artistName);
+    const mine = artist ? manual.filter((m) => m.artist_id === artist.id) : [];
+    const adjustmentTotal = mine.reduce((sum, m) => sum + Number(m.amount || 0), 0);
+    return {
+      ...slip,
+      adjustments: mine.map((m) => ({
+        id: m.id,
+        label: m.label,
+        amount: Number(m.amount || 0),
+        kind: m.kind,
+      })),
+      adjustmentTotal,
+      // A slip with no settled rule stays unpayable even with a bonus on it.
+      total: slip.total === null ? null : slip.total + adjustmentTotal,
+    };
+  });
 }

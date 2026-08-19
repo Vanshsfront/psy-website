@@ -95,6 +95,7 @@ export const API_ACCESS: ReadonlyArray<{ prefix: string; roles: MethodAccess }> 
   { prefix: "/api/storeadmin/users", roles: OWNER },
   { prefix: "/api/storeadmin/overview", roles: OWNER },
   { prefix: "/api/storeadmin/salary", roles: OWNER },
+  { prefix: "/api/storeadmin/manual-entries", roles: OWNER },
   { prefix: "/api/storeadmin/finance", roles: OWNER },
   // Everyone's own earnings, which is a different question from the studio's
   // finances. Longest-prefix matching puts this ahead of the OWNER rule above.

@@ -7,7 +7,7 @@ import Sidebar from "@/components/storeadmin/Sidebar";
 import { api, clearApiCache } from "@/lib/storeadmin/api";
 import { formatCurrency } from "@/lib/storeadmin/utils";
 import type { BalanceSheet } from "@/types/storeadmin";
-import { Loader2, ChevronRight, ChevronDown, ChevronLeft } from "lucide-react";
+import { Loader2, ChevronRight, ChevronDown, ChevronLeft, X } from "lucide-react";
 import { can } from "@/lib/auth/permissions";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -33,6 +33,10 @@ export default function BalanceSheetPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [open, setOpen] = useState<Set<string>>(new Set());
+
+    const [adding, setAdding] = useState(false);
+    const [form, setForm] = useState({ label: "", amount: "", kind: "expense" });
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
@@ -74,6 +78,40 @@ export default function BalanceSheetPage() {
             </div>
         );
     }
+
+    const addLine = async () => {
+        setSaving(true);
+        setError(null);
+        try {
+            const { from } = monthRange(month);
+            await api.createManualEntry({
+                scope: "balance_sheet",
+                // Dated to the first of the month on screen, so the line lands in
+                // the period being edited rather than today's month.
+                entry_date: from,
+                label: form.label.trim(),
+                amount: Number(form.amount),
+                kind: form.kind,
+            });
+            setAdding(false);
+            setForm({ label: "", amount: "", kind: "expense" });
+            await load();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Could not add that line");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const removeLine = async (id: string) => {
+        setError(null);
+        try {
+            await api.deleteManualEntry(id);
+            await load();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Could not remove that line");
+        }
+    };
 
     const shift = (n: number) => {
         const d = new Date(month);
@@ -177,6 +215,87 @@ export default function BalanceSheetPage() {
                                     <span className="tabular-nums text-[var(--danger)]">{formatCurrency(sheet.total_expenses)}</span>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Hand-entered lines. Yogesh: "I will have to add expenses,
+                            incomes beyond what reflects dynamically as well". Kept as
+                            their own section so the computed sheet and what was added
+                            to it stay separately auditable. */}
+                        <div className="mt-6 rounded border border-[var(--border-color)] px-6 py-5">
+                            <div className="flex justify-between items-center mb-3">
+                                <span className="font-display text-xl">Added by hand</span>
+                                {!adding && (
+                                    <button
+                                        onClick={() => setAdding(true)}
+                                        className="text-[11px] text-[var(--muted)] hover:text-[var(--foreground)] underline"
+                                    >
+                                        Add income or expense
+                                    </button>
+                                )}
+                            </div>
+
+                            {(sheet.manual_entries ?? []).length === 0 && !adding && (
+                                <p className="text-sm text-[var(--muted)]">
+                                    Nothing added for this month. Rent, salaries and cash costs that are not
+                                    logged as expenses can go here.
+                                </p>
+                            )}
+
+                            <ul className="space-y-1 text-sm">
+                                {(sheet.manual_entries ?? []).map((m) => (
+                                    <li key={m.id} className="flex justify-between items-center gap-4">
+                                        <span className="text-[var(--muted)]">{m.label}</span>
+                                        <span className="flex items-center gap-3">
+                                            <span className={`tabular-nums ${m.amount < 0 ? "text-[var(--danger)]" : "text-[var(--accent)]"}`}>
+                                                {formatCurrency(m.amount)}
+                                            </span>
+                                            <button
+                                                onClick={() => removeLine(m.id)}
+                                                className="text-[var(--muted)] hover:text-[var(--danger)]"
+                                                title="Remove this line"
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                            </button>
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+
+                            {adding && (
+                                <div className="mt-3 flex flex-wrap gap-2 items-center">
+                                    <select
+                                        value={form.kind}
+                                        onChange={(e) => setForm({ ...form, kind: e.target.value })}
+                                        className="px-2 py-1.5 neo-input text-sm"
+                                    >
+                                        <option value="expense">Expense</option>
+                                        <option value="income">Income</option>
+                                    </select>
+                                    <input
+                                        value={form.label}
+                                        onChange={(e) => setForm({ ...form, label: e.target.value })}
+                                        placeholder="What is it?"
+                                        className="px-2 py-1.5 neo-input text-sm flex-1 min-w-[10rem]"
+                                    />
+                                    <input
+                                        type="number"
+                                        value={form.amount}
+                                        onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                                        placeholder="Amount"
+                                        className="px-2 py-1.5 neo-input text-sm w-28"
+                                    />
+                                    <button
+                                        onClick={addLine}
+                                        disabled={saving || !form.label.trim() || !form.amount}
+                                        className="px-3 py-1.5 rounded neo-btn text-sm disabled:opacity-40"
+                                    >
+                                        {saving ? "Saving…" : "Add"}
+                                    </button>
+                                    <button onClick={() => setAdding(false)} className="px-2 py-1.5 text-sm text-[var(--muted)]">
+                                        Cancel
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         <div className="mt-6 rounded border border-[var(--border-color)] px-6 py-5 flex justify-between items-center flex-wrap gap-2">
