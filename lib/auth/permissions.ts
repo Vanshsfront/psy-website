@@ -33,6 +33,18 @@ export const STAFF: readonly UserRole[] = ["superadmin", "admin"];
 export const OWNER: readonly UserRole[] = ["superadmin"];
 
 /**
+ * The owner and the Executives, and deliberately not Managers.
+ *
+ * Only "My Earnings" uses this. It is the one management-section screen that
+ * shows a person their own figure rather than the studio's, so an Executive
+ * keeps it, but Yogesh asked for the whole Admin section to be off a Manager
+ * login: "these 3 are still showing up for storeadmin for the studio login
+ * (access level: manager)". A Manager is not linked to an artist anyway, so the
+ * screen only ever showed them zeroes.
+ */
+export const OWNER_AND_EXECUTIVE: readonly UserRole[] = ["superadmin", "artist"];
+
+/**
  * The names people see, and what each one actually gets.
  *
  * Yogesh asked for Admin / Manager / Executive. Those are labels only: the
@@ -110,7 +122,7 @@ export const API_ACCESS: ReadonlyArray<{ prefix: string; roles: MethodAccess }> 
   { prefix: "/api/storeadmin/finance/balance-sheet", roles: OWNER },
   // Everyone's own earnings, which is a different question from the studio's
   // finances. Longest-prefix matching puts this ahead of the OWNER rule above.
-  { prefix: "/api/storeadmin/finance/my-earnings", roles: { default: OWNER, GET: ALL_ROLES } },
+  { prefix: "/api/storeadmin/finance/my-earnings", roles: { default: OWNER, GET: OWNER_AND_EXECUTIVE } },
   { prefix: "/api/storeadmin/export/mastersheet", roles: OWNER },
   // Adding money to the float is the owner's; reading the log of what was added
   // goes with the balance card, which staff already see on the Expenses screen.
@@ -192,7 +204,7 @@ export const SCREEN_ACCESS: Record<string, readonly UserRole[]> = {
   "/storeadmin/expenses": STAFF,
   "/storeadmin/analytics": OWNER,
   "/storeadmin/appointments": ALL_ROLES,
-  "/storeadmin/my-earnings": ALL_ROLES,
+  "/storeadmin/my-earnings": OWNER_AND_EXECUTIVE,
   "/storeadmin/finance": STAFF,
   "/storeadmin/balance-sheet": OWNER,
   "/storeadmin/overview": OWNER,

@@ -6,6 +6,7 @@ import { useAuth } from "@/components/storeadmin/AuthProvider";
 import Sidebar from "@/components/storeadmin/Sidebar";
 import { api, clearApiCache } from "@/lib/storeadmin/api";
 import { formatCurrency, formatDate } from "@/lib/storeadmin/utils";
+import { canOpen } from "@/lib/auth/permissions";
 import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 
 /**
@@ -16,9 +17,11 @@ import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
  * "their own earnings only". The API takes the artist id from the account, so
  * this page has no way to ask about anyone else even if it wanted to.
  *
- * Managers and Admins can open it too and see their own figures, which are
- * empty unless their login is linked to an artist. That is why the empty state
- * explains the link rather than just showing zero.
+ * The owner and Executives only. A Manager login is not linked to an artist, so
+ * the screen only ever showed them zeroes, and Yogesh asked for the whole Admin
+ * section to be off that login: "these 3 are still showing up for storeadmin
+ * for the studio login (access level: manager)". The empty state still explains
+ * the artist link, because an Executive whose login is not linked lands there.
  */
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -47,7 +50,7 @@ interface Earnings {
 }
 
 export default function MyEarningsPage() {
-    const { isAuthenticated, loading: authLoading, username } = useAuth();
+    const { isAuthenticated, loading: authLoading, username, role } = useAuth();
     const router = useRouter();
 
     const [month, setMonth] = useState(() => new Date());
@@ -55,6 +58,13 @@ export default function MyEarningsPage() {
     const [linked, setLinked] = useState(true);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Sent back rather than left on a screen the API refuses.
+    useEffect(() => {
+        if (!authLoading && isAuthenticated && role && !canOpen(role, "/storeadmin/my-earnings")) {
+            router.push("/storeadmin");
+        }
+    }, [authLoading, isAuthenticated, role, router]);
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
