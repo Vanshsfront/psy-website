@@ -805,25 +805,71 @@ export async function createExpense(inputData: Record<string, unknown>) {
   for (const k of Object.keys(payload)) {
     if (payload[k] == null) delete payload[k];
   }
-  const { data } = await getDb().from("expenses").insert(payload).select();
+  const { data, error } = await getDb().from("expenses").insert(payload).select();
+  if (error) throw new Error(`Could not save the expense: ${error.message}`);
   return data?.[0] ?? {};
 }
 
 // ── Petty Cash ──
 
+/**
+ * Is this row money leaving the petty cash tin?
+ *
+ * Only rows marked `petty` are. The balance used to subtract EVERY expense,
+ * which is what Yogesh reported: "business expenses logged are being deducted
+ * from petty cash". A bill paid by bank transfer or UPI cannot take cash out of
+ * a tin, so it must not move the float.
+ *
+ * Top-ups are the money going in and are counted separately, never here, even
+ * though they are stored in the same table.
+ */
+function isFloatSpend(row: { category: string | null; expense_type?: string | null }) {
+  if (row.category === "topup") return false;
+  return (row.expense_type ?? "business") === "petty";
+}
+
 export async function getPettyCashBalance() {
-  const list = await selectRowsInRange<{ amount: number | null; category: string | null }>(
-    "expenses",
-    "amount, category",
-    "expense_date"
-  );
-  const totalTopups = list.filter(e => e.category === "topup").reduce((s, e) => s + Number(e.amount ?? 0), 0);
-  const totalExpenses = list.filter(e => e.category !== "topup").reduce((s, e) => s + Number(e.amount ?? 0), 0);
+  const list = await selectRowsInRange<{
+    amount: number | null;
+    category: string | null;
+    expense_type: string | null;
+  }>("expenses", "amount, category, expense_type", "expense_date");
+
+  const sum = (rows: typeof list) => rows.reduce((s, e) => s + Number(e.amount ?? 0), 0);
+  const topups = list.filter(e => e.category === "topup");
+  const floatSpends = list.filter(isFloatSpend);
+  const businessSpends = list.filter(e => e.category !== "topup" && !isFloatSpend(e));
+
+  const totalTopups = sum(topups);
+  const totalExpenses = sum(floatSpends);
   return {
     balance: totalTopups - totalExpenses,
     total_topups: totalTopups,
+    /** Spent out of the tin. The name is kept: the finance summary reads it. */
     total_expenses: totalExpenses,
+    /** Paid by the business by other means. Shown so the split is visible. */
+    total_business: sum(businessSpends),
+    topup_count: topups.length,
   };
+}
+
+/**
+ * The top-up log: money put into the tin, newest first.
+ *
+ * These rows live in `expenses` with category 'topup' and are filtered out of
+ * every expense list and total, so before this there was nowhere at all to see
+ * them. "Unable to see top up logs", 2026-08-20.
+ */
+export async function getPettyCashTopups(limit = 100) {
+  const { data, error } = await getDb()
+    .from("expenses")
+    .select("id, expense_date, amount, description, payment_mode, created_at")
+    .eq("category", "topup")
+    .order("expense_date", { ascending: false })
+    .order("id", { ascending: true })
+    .limit(limit);
+  if (error) throw new Error(`Failed to read the top-up log: ${error.message}`);
+  return data ?? [];
 }
 
 export async function createPettyCashTopup(amount: number, note?: string) {
@@ -835,8 +881,12 @@ export async function createPettyCashTopup(amount: number, note?: string) {
     description: note || "Petty cash top-up",
     vendor: null,
     payment_mode: "cash",
+    // Float movement, not a business cost. Matches migration 012, which set
+    // every existing top-up to 'petty' for the same reason.
+    expense_type: "petty",
   };
-  const { data } = await getDb().from("expenses").insert(payload).select();
+  const { data, error } = await getDb().from("expenses").insert(payload).select();
+  if (error) throw new Error(`Could not record the top-up: ${error.message}`);
   return data?.[0] ?? {};
 }
 

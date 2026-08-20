@@ -44,7 +44,8 @@ export function emptyExpenseFields(): ExpenseFieldValues {
         payment_mode: "cash",
         date: new Date().toISOString().split("T")[0],
         raw_input: "",
-        expense_type: "business",
+        // Matches the default payment mode above: cash comes out of the tin.
+        expense_type: "petty",
         receipt_url: null,
     };
 }
@@ -109,7 +110,18 @@ export default function ExpenseFields({ values, onChange, disabled }: Props) {
                 <label className={labelCls}>Payment Mode</label>
                 <select
                     value={values.payment_mode}
-                    onChange={(e) => set("payment_mode", e.target.value)}
+                    // Changing how it was paid re-answers the petty/business
+                    // question: cash comes out of the tin, a card or a transfer
+                    // does not. The Type field below stays editable, so this is
+                    // a starting point rather than a rule.
+                    onChange={(e) => {
+                        const mode = e.target.value;
+                        onChange({
+                            ...values,
+                            payment_mode: mode,
+                            expense_type: mode.toLowerCase() === "cash" ? "petty" : "business",
+                        });
+                    }}
                     disabled={disabled}
                     className="w-full px-3 py-2 neo-input text-sm"
                 >
@@ -158,12 +170,18 @@ export default function ExpenseFields({ values, onChange, disabled }: Props) {
                     value={values.expense_type}
                     onChange={(e) => set("expense_type", e.target.value)}
                     disabled={disabled}
-                    className="w-full px-3 py-2 neo-input text-sm capitalize"
+                    className="w-full px-3 py-2 neo-input text-sm"
                 >
-                    {EXPENSE_TYPES.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                    ))}
+                    {/* Spelt out, because this is the field that decides whether
+                        the petty cash balance moves. */}
+                    <option value="petty">Paid from petty cash</option>
+                    <option value="business">Business (not from the tin)</option>
                 </select>
+                <p className="text-[10px] text-[var(--muted)] mt-1">
+                    {values.expense_type === "petty"
+                        ? "Comes off the petty cash balance."
+                        : "Does not touch the petty cash balance."}
+                </p>
             </div>
 
             <div className="col-span-2 md:col-span-3">

@@ -25,6 +25,7 @@ import {
     X,
     Wallet,
     ArrowUpCircle,
+    History,
 } from "lucide-react";
 import { can } from "@/lib/auth/permissions";
 
@@ -66,6 +67,9 @@ function ExpensesContent() {
 
     // Petty cash balance
     const [pettyCashBalance, setPettyCashBalance] = useState<number | null>(null);
+    const [pettyTotals, setPettyTotals] = useState<{ topups: number; spent: number } | null>(null);
+    const [topups, setTopups] = useState<Array<{ id: string; expense_date: string; amount: number; description: string | null }>>([]);
+    const [showTopupLog, setShowTopupLog] = useState(false);
     const [showTopup, setShowTopup] = useState(false);
     const [topupAmount, setTopupAmount] = useState("");
     const [topupNote, setTopupNote] = useState("");
@@ -82,12 +86,17 @@ function ExpensesContent() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [res, balRes] = await Promise.all([
+            const [res, balRes, topupRes] = await Promise.all([
                 api.getExpenses(),
                 api.getPettyCashBalance(),
+                // The log of money put into the tin. Nothing else lists these
+                // rows: every expense view filters category 'topup' out.
+                api.getPettyCashTopups(),
             ]);
             setExpenses(res.expenses);
             setPettyCashBalance(balRes.balance);
+            setPettyTotals({ topups: balRes.total_topups, spent: balRes.total_expenses });
+            setTopups(topupRes.topups);
         } catch (e) {
             console.error("Failed to load:", e);
         } finally {
@@ -128,9 +137,10 @@ function ExpensesContent() {
                     payment_mode: String(f.payment_mode || "cash"),
                     date: String(f.date || new Date().toISOString().split("T")[0]),
                     raw_input: String(f.raw_input || expenseText),
-                    // The parser has no notion of petty vs business and cannot see
-                    // a receipt, so both stay at their defaults for the user to set.
-                    expense_type: "business",
+                    // The parser has no notion of petty vs business, so this
+                    // follows how it was paid: cash came out of the tin,
+                    // anything else did not. Editable before saving either way.
+                    expense_type: String(f.payment_mode || "cash").toLowerCase() === "cash" ? "petty" : "business",
                     receipt_url: null,
                 });
             }
@@ -262,17 +272,64 @@ function ExpensesContent() {
                             <p className={`text-3xl font-bold tracking-tight ${(pettyCashBalance ?? 0) >= 0 ? "text-[var(--accent)]" : "text-[var(--danger)]"}`}>
                                 {pettyCashBalance !== null ? formatCurrency(pettyCashBalance) : "..."}
                             </p>
+                            {/* What the number is made of. Only expenses marked
+                                "from petty cash" come off it; a bill paid by UPI
+                                or bank transfer never touches the tin. */}
+                            {pettyTotals && (
+                                <p className="text-xs text-[var(--muted)] mt-1">
+                                    {formatCurrency(pettyTotals.topups)} topped up
+                                    &nbsp;&minus;&nbsp;
+                                    {formatCurrency(pettyTotals.spent)} spent from the tin
+                                </p>
+                            )}
                         </div>
-                        {canTopup && (
+                        <div className="flex items-center gap-2">
                             <button
-                                onClick={() => setShowTopup(!showTopup)}
-                                className="neo-btn neo-btn-primary px-4 py-2.5 text-sm flex items-center gap-2 cursor-pointer"
+                                onClick={() => setShowTopupLog(!showTopupLog)}
+                                className="neo-btn px-4 py-2.5 text-sm flex items-center gap-2 cursor-pointer"
                             >
-                                <ArrowUpCircle className="w-4 h-4" />
-                                Top Up
+                                <History className="w-4 h-4" />
+                                Top-up log
+                                <span className="text-[var(--muted)]">({topups.length})</span>
                             </button>
-                        )}
+                            {canTopup && (
+                                <button
+                                    onClick={() => setShowTopup(!showTopup)}
+                                    className="neo-btn neo-btn-primary px-4 py-2.5 text-sm flex items-center gap-2 cursor-pointer"
+                                >
+                                    <ArrowUpCircle className="w-4 h-4" />
+                                    Top Up
+                                </button>
+                            )}
+                        </div>
                     </div>
+
+                    {/* Top-up log. These rows are stored as expenses with
+                        category 'topup' and are filtered out of every expense
+                        list, so this is the only place they appear. */}
+                    {showTopupLog && (
+                        <div className="mt-4 pt-4 border-t border-[var(--border-color)] animate-fadeIn">
+                            {topups.length === 0 ? (
+                                <p className="text-sm text-[var(--muted)]">No top-ups recorded yet.</p>
+                            ) : (
+                                <div className="max-h-64 overflow-y-auto">
+                                    <table className="w-full text-sm">
+                                        <tbody>
+                                            {topups.map((t) => (
+                                                <tr key={t.id} className="border-b border-[var(--border-color)] last:border-0">
+                                                    <td className="py-2 pr-4 text-[var(--muted)] whitespace-nowrap">{formatDate(t.expense_date)}</td>
+                                                    <td className="py-2 pr-4">{t.description || "Petty cash top-up"}</td>
+                                                    <td className="py-2 text-right font-medium text-[var(--accent)] whitespace-nowrap">
+                                                        + {formatCurrency(t.amount)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Topup form */}
                     {showTopup && (
@@ -466,8 +523,8 @@ function ExpensesContent() {
                             className="px-3 py-2.5 neo-input text-sm capitalize"
                         >
                             <option value="">All Types</option>
-                            <option value="business">Business</option>
-                            <option value="petty">Petty</option>
+                            <option value="business">Business (not from the tin)</option>
+                            <option value="petty">Paid from petty cash</option>
                         </select>
                         <select
                             value={paymentFilter}
@@ -551,6 +608,14 @@ function ExpensesContent() {
                                                     <span className={`text-sm ${getPaymentColor(exp.payment_mode)}`}>
                                                         {exp.payment_mode || "\u2014"}
                                                     </span>
+                                                    {/* Whether this row moved the petty cash balance.
+                                                        Rows saved before the type existed read as
+                                                        business, the same default the column carries. */}
+                                                    {(exp.expense_type || "business") === "petty" && (
+                                                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-[var(--accent)]/15 text-[var(--accent)] whitespace-nowrap">
+                                                            from tin
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="px-5 py-3 text-right text-sm font-semibold text-[var(--danger)]">
                                                     {formatCurrency(exp.amount)}

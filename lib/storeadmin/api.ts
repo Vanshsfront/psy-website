@@ -442,7 +442,26 @@ export const api = {
 
     // Petty Cash
     getPettyCashBalance: () =>
-        apiFetch<{ balance: number; total_topups: number; total_expenses: number }>("/api/storeadmin/petty-cash/balance"),
+        apiFetch<{
+            balance: number;
+            total_topups: number;
+            /** Spent out of the tin, i.e. expenses marked petty. */
+            total_expenses: number;
+            /** Paid by the business some other way, so it never touches the float. */
+            total_business: number;
+            topup_count: number;
+        }>("/api/storeadmin/petty-cash/balance"),
+
+    getPettyCashTopups: () =>
+        apiFetch<{
+            topups: Array<{
+                id: string;
+                expense_date: string;
+                amount: number;
+                description: string | null;
+                payment_mode: string | null;
+            }>;
+        }>("/api/storeadmin/petty-cash/topup"),
 
     topupPettyCash: (amount: number, note?: string) =>
         apiFetch<{ success: boolean; expense: import("@/types/storeadmin").Expense }>("/api/storeadmin/petty-cash/topup", {

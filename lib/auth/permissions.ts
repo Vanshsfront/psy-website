@@ -107,7 +107,9 @@ export const API_ACCESS: ReadonlyArray<{ prefix: string; roles: MethodAccess }> 
   // finances. Longest-prefix matching puts this ahead of the OWNER rule above.
   { prefix: "/api/storeadmin/finance/my-earnings", roles: { default: OWNER, GET: ALL_ROLES } },
   { prefix: "/api/storeadmin/export/mastersheet", roles: OWNER },
-  { prefix: "/api/storeadmin/petty-cash/topup", roles: OWNER },
+  // Adding money to the float is the owner's; reading the log of what was added
+  // goes with the balance card, which staff already see on the Expenses screen.
+  { prefix: "/api/storeadmin/petty-cash/topup", roles: { default: OWNER, GET: STAFF } },
 
   // Artists reach appointments and nothing else. Their view is narrowed
   // further by scoping, see OWN_RECORDS_ONLY below.

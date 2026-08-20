@@ -6,7 +6,16 @@ export async function POST(request: NextRequest) {
   try {
     await requireRoute(request);
     const body = await request.json();
-    const expense = await createExpense(body);
+    let expense;
+    try {
+      expense = await createExpense(body);
+    } catch (dbError) {
+      // Say what the database refused, rather than reporting a rejected insert
+      // as a saved expense or as a generic server fault.
+      const detail = dbError instanceof Error ? dbError.message : "Could not save the expense";
+      console.error("createExpense failed:", dbError);
+      return NextResponse.json({ detail }, { status: 400 });
+    }
     return NextResponse.json({ success: true, expense });
   } catch (e) {
     const { detail, status } = authErrorResponse(e);
