@@ -431,7 +431,9 @@ export async function createCustomer(inputData: Record<string, unknown>) {
   for (const k of Object.keys(payload)) {
     if (payload[k] == null) delete payload[k];
   }
-  const { data } = await getDb().from("customers").insert(payload).select();
+  const { data, error } = await getDb().from("customers").insert(payload).select();
+  // Same rule as createOrder: a rejected insert must not read as a saved row.
+  if (error) throw new Error(`Could not save the customer: ${error.message}`);
   return data?.[0] ?? {};
 }
 
@@ -680,11 +682,22 @@ export async function createOrder(inputData: Record<string, unknown>) {
     sourced_by: inputData.sourced_by,
     consent_signed: inputData.consent_signed,
   };
+  // An unanswered dropdown arrives as "", which is not the same as "not
+  // recorded". `sourced_by` is constrained to studio/artist or NULL, so an
+  // empty string fails orders_sourced_by_check and the whole insert is
+  // rejected. Blank optional text means NULL, here and for every other field
+  // that is allowed to be absent.
   for (const k of Object.keys(payload)) {
-    if (payload[k] == null) delete payload[k];
+    if (payload[k] == null || payload[k] === "") delete payload[k];
   }
-  const { data } = await getDb().from("orders").insert(payload).select();
-  return data?.[0] ?? {};
+  const { data, error } = await getDb().from("orders").insert(payload).select();
+  // Never swallow this. A rejected insert used to return {} and the caller
+  // reported success, so the customer was created, the order was not, and
+  // nobody was told: the order simply never appeared in the list.
+  if (error) throw new Error(`Could not save the order: ${error.message}`);
+  const row = data?.[0];
+  if (!row) throw new Error("Could not save the order: the database returned no row.");
+  return row;
 }
 
 export async function updateOrder(orderId: string, inputData: Record<string, unknown>) {

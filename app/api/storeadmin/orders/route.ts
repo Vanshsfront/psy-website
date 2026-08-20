@@ -38,7 +38,17 @@ export async function POST(request: NextRequest) {
     if (!customer) {
       return NextResponse.json({ detail: "Customer not found" }, { status: 404 });
     }
-    const order = await createOrder(body);
+    let order;
+    try {
+      order = await createOrder(body);
+    } catch (dbError) {
+      // Say what actually went wrong. A rejected insert used to be reported as
+      // a successful save, which is how an order could vanish while its
+      // customer was created.
+      const detail = dbError instanceof Error ? dbError.message : "Could not save the order";
+      console.error("createOrder failed:", dbError);
+      return NextResponse.json({ detail }, { status: 400 });
+    }
     return NextResponse.json({ created: true, order });
   } catch (e) {
     const { detail, status } = authErrorResponse(e);

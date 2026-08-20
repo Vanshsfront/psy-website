@@ -222,10 +222,12 @@ function NewOrderContent() {
                 payment_mode: manualForm.payment_mode,
                 deposit: parseFloat(manualForm.deposit) || 0,
                 total: parseFloat(manualForm.total) || 0,
-                comments: manualForm.comments,
+                comments: manualForm.comments || null,
                 consent_signed: manualForm.consent_signed,
-                source: manualForm.source,
-                sourced_by: manualForm.sourced_by,
+                source: manualForm.source || null,
+                // "Not recorded" is the blank option. It has to travel as null:
+                // the column only accepts studio, artist or nothing at all.
+                sourced_by: manualForm.sourced_by || null,
             });
             setStep("success");
         } catch (err) {
