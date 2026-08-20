@@ -6,7 +6,7 @@ import { useAuth } from "@/components/storeadmin/AuthProvider";
 import Sidebar from "@/components/storeadmin/Sidebar";
 import { api, clearApiCache } from "@/lib/storeadmin/api";
 import { formatCurrency } from "@/lib/storeadmin/utils";
-import { can, OWN_RECORDS_ONLY } from "@/lib/auth/permissions";
+import { can, canOpen, OWN_RECORDS_ONLY } from "@/lib/auth/permissions";
 import { Loader2, ChevronLeft, ChevronRight, AlertTriangle, X } from "lucide-react";
 
 /**
@@ -64,9 +64,16 @@ export default function SalaryPage() {
         if (!authLoading && !isAuthenticated) router.push("/storeadmin/login");
     }, [authLoading, isAuthenticated, router]);
 
-    // No redirect. Admins see every slip; an Executive sees their own, which the
-    // API decides. Bouncing them would contradict "Salary Slip" appearing under
-    // Executive in the spec.
+    // The slips are everyone's pay, so the screen belongs to the owner alone.
+    // Executives could once open their own; Yogesh asked for that to come off
+    // ("salary slips are visible to everyone, can you pls take that off too").
+    // Anyone else is sent back rather than left on a screen the API refuses.
+    useEffect(() => {
+        if (!authLoading && isAuthenticated && role && !canOpen(role, "/storeadmin/salary")) {
+            router.push("/storeadmin");
+        }
+    }, [authLoading, isAuthenticated, role, router]);
+
     const ownSlipOnly = Boolean(role && OWN_RECORDS_ONLY.includes(role));
 
     const load = useCallback(async () => {

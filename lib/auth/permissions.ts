@@ -94,8 +94,13 @@ export const API_ACCESS: ReadonlyArray<{ prefix: string; roles: MethodAccess }> 
   // Owner only.
   { prefix: "/api/storeadmin/users", roles: OWNER },
   { prefix: "/api/storeadmin/overview", roles: OWNER },
-  // Executives may read their own slip; the route narrows it to them.
-  { prefix: "/api/storeadmin/salary", roles: { default: OWNER, GET: ALL_ROLES } },
+  // Salary slips are everyone's pay, so nobody but the owner reads them.
+  // Executives could once open their own slip; Yogesh asked for that to come
+  // off ("salary slips are visible to everyone, can you pls take that off").
+  { prefix: "/api/storeadmin/salary", roles: OWNER },
+  // Analytics sits in the Admin section with the rest of the management
+  // screens, so it follows the same rule.
+  { prefix: "/api/storeadmin/analytics", roles: OWNER },
   { prefix: "/api/storeadmin/manual-entries", roles: OWNER },
   // Revenue is not gated: "We don't want to gate revenue numbers because the
   // team works on revenue targets." The summary therefore admits staff, and the
@@ -116,7 +121,6 @@ export const API_ACCESS: ReadonlyArray<{ prefix: string; roles: MethodAccess }> 
   { prefix: "/api/storeadmin/appointments", roles: ALL_ROLES },
 
   // Staff.
-  { prefix: "/api/storeadmin/analytics", roles: STAFF },
   { prefix: "/api/storeadmin/artists", roles: STAFF },
   { prefix: "/api/storeadmin/campaigns", roles: STAFF },
   { prefix: "/api/storeadmin/customers", roles: STAFF },
@@ -186,13 +190,13 @@ export const SCREEN_ACCESS: Record<string, readonly UserRole[]> = {
   "/storeadmin/artists": STAFF,
   "/storeadmin/campaigns": STAFF,
   "/storeadmin/expenses": STAFF,
-  "/storeadmin/analytics": STAFF,
+  "/storeadmin/analytics": OWNER,
   "/storeadmin/appointments": ALL_ROLES,
   "/storeadmin/my-earnings": ALL_ROLES,
   "/storeadmin/finance": STAFF,
   "/storeadmin/balance-sheet": OWNER,
   "/storeadmin/overview": OWNER,
-  "/storeadmin/salary": ALL_ROLES,
+  "/storeadmin/salary": OWNER,
   "/storeadmin/users": OWNER,
 
   // The shop and website screens, formerly the separate /admin panel. NextAuth
