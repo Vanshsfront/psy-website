@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Save, Trash2, AlertTriangle } from "lucide-react";
 import Drawer from "./Drawer";
 import { api } from "@/lib/storeadmin/api";
-import { formatDate } from "@/lib/storeadmin/utils";
+import { formatDate, ORDER_DATE_MIN, orderDateMax } from "@/lib/storeadmin/utils";
 import type { Order, Artist } from "@/types/storeadmin";
 
 interface OrderEditDrawerProps {
@@ -305,6 +305,8 @@ export default function OrderEditDrawer({
                         <Field label="Date">
                             <input
                                 type="date"
+                                min={ORDER_DATE_MIN}
+                                max={orderDateMax()}
                                 value={form.order_date}
                                 onChange={(e) => update("order_date", e.target.value)}
                                 className="w-full px-3 py-2 neo-input text-sm [color-scheme:dark]"

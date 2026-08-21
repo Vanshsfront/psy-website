@@ -79,7 +79,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     );
   }
 
-  const order = await updateOrder(id, patch);
+  let order;
+  try {
+    order = await updateOrder(id, patch);
+  } catch (dbError) {
+    // A rejected update is the editor's mistake far more often than ours (a
+    // mistyped year, a value the column refuses), so say what was wrong
+    // instead of returning a bare 500 the inline cell can only show as
+    // "Failed to update order".
+    const detail = dbError instanceof Error ? dbError.message : "Could not update the order";
+    console.error("updateOrder failed:", dbError);
+    return NextResponse.json({ detail }, { status: 400 });
+  }
   if (!order) {
     return NextResponse.json({ detail: "Failed to update order" }, { status: 500 });
   }

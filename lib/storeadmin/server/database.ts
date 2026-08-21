@@ -671,6 +671,40 @@ export async function getArtistEarnings(
   };
 }
 
+/**
+ * The earliest date the studio could plausibly have taken an order. The real
+ * data starts in April 2020, so this floor is generous and still catches the
+ * failure it exists for.
+ */
+export const ORDER_DATE_FLOOR = "2015-01-01";
+
+/**
+ * A `<input type="date">` happily accepts a mistyped year and nothing
+ * downstream questions it. On 2026-08-21 an order was saved as 1998-08-10:
+ * the list sorts by order_date descending, so it landed on the last of ~99
+ * pages and looked like it had never saved at all, while the customer's
+ * "Last Visit" read "28 years ago".
+ *
+ * Every write path (manual form, OCR confirm, bulk confirm, inline cell, edit
+ * drawer) goes through createOrder/updateOrder, so guarding here covers all of
+ * them at once.
+ */
+export function assertSaneOrderDate(value: unknown) {
+  if (value == null || value === "") return;
+  const text = String(value).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    throw new Error(`Could not save the order: "${String(value)}" is not a valid date.`);
+  }
+  const ceiling = new Date();
+  ceiling.setFullYear(ceiling.getFullYear() + 1);
+  const max = ceiling.toISOString().split("T")[0];
+  if (text < ORDER_DATE_FLOOR || text > max) {
+    throw new Error(
+      `Could not save the order: ${text} is outside ${ORDER_DATE_FLOOR} to ${max}. Check the year.`
+    );
+  }
+}
+
 export async function createOrder(inputData: Record<string, unknown>) {
   const today = new Date().toISOString().split("T")[0];
   const rawPaymentMode = inputData.payment_mode;
@@ -697,6 +731,7 @@ export async function createOrder(inputData: Record<string, unknown>) {
   for (const k of Object.keys(payload)) {
     if (payload[k] == null || payload[k] === "") delete payload[k];
   }
+  assertSaneOrderDate(payload.order_date);
   const { data, error } = await getDb().from("orders").insert(payload).select();
   // Never swallow this. A rejected insert used to return {} and the caller
   // reported success, so the customer was created, the order was not, and
@@ -734,6 +769,7 @@ export async function updateOrder(orderId: string, inputData: Record<string, unk
     }
   }
   if (!Object.keys(payload).length) return null;
+  if ("order_date" in payload) assertSaneOrderDate(payload.order_date);
 
   const { data } = await getDb()
     .from("orders")

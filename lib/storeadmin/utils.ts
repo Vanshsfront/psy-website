@@ -27,6 +27,23 @@ export function formatCurrency(amount: number): string {
     }).format(amount);
 }
 
+/**
+ * Bounds for any order/appointment date field.
+ *
+ * The browser's own date picker is the last place a mistyped year can be
+ * caught before it reaches the database, where it sorts the row to the bottom
+ * of a 99-page list and reads as "last visit 28 years ago". The server
+ * enforces the same window in `assertSaneOrderDate`; this only saves the user
+ * the round trip.
+ */
+export const ORDER_DATE_MIN = "2015-01-01";
+
+export function orderDateMax(): string {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString().split("T")[0];
+}
+
 export function formatDate(dateStr: string | null | undefined): string {
     if (!dateStr) return "—";
     const d = new Date(dateStr);

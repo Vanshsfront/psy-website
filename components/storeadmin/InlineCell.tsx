@@ -14,6 +14,9 @@ export interface InlineCellProps {
     display?: React.ReactNode;
     className?: string;
     disabled?: boolean;
+    /** Bounds for `type="date"` / `type="number"` — keeps a mistyped year out. */
+    min?: string;
+    max?: string;
     /**
      * Render as plain text with no editing affordance at all.
      *
@@ -37,6 +40,8 @@ export default function InlineCell({
     display,
     className,
     disabled,
+    min,
+    max,
     readOnly,
 }: InlineCellProps) {
     const [editing, setEditing] = useState(false);
@@ -163,6 +168,8 @@ export default function InlineCell({
                         }
                     }}
                     placeholder={placeholder}
+                    min={min}
+                    max={max}
                     disabled={saving}
                     className="w-full px-2 py-1 neo-input text-sm"
                 />

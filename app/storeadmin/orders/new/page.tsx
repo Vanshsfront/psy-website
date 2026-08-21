@@ -6,7 +6,7 @@ import { useAuth } from "@/components/storeadmin/AuthProvider";
 import Sidebar from "@/components/storeadmin/Sidebar";
 import CustomerAutofill from "@/components/storeadmin/CustomerAutofill";
 import { api } from "@/lib/storeadmin/api";
-import { capitalizeWords, stripAtSign, formatCurrency, formatRelativeDate } from "@/lib/storeadmin/utils";
+import { capitalizeWords, stripAtSign, formatCurrency, formatRelativeDate, ORDER_DATE_MIN, orderDateMax } from "@/lib/storeadmin/utils";
 import type { Artist, Customer, OCRResult } from "@/types/storeadmin";
 import {
     Upload,
@@ -602,6 +602,8 @@ function NewOrderContent() {
                                             <div className="relative">
                                                 <input
                                                     type="date"
+                                                    min={ORDER_DATE_MIN}
+                                                    max={orderDateMax()}
                                                     value={manualForm.order_date}
                                                     onChange={(e) => setManualForm({ ...manualForm, order_date: e.target.value })}
                                                     className="w-full px-4 py-3 neo-input text-sm cursor-pointer [color-scheme:dark]"

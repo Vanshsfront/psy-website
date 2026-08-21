@@ -10,7 +10,7 @@ import DataTable, { DataTableColumn } from "@/components/storeadmin/DataTable";
 import InlineCell from "@/components/storeadmin/InlineCell";
 import OrderEditDrawer from "@/components/storeadmin/OrderEditDrawer";
 import { api, clearApiCache } from "@/lib/storeadmin/api";
-import { formatCurrency, formatDate, getPaymentColor } from "@/lib/storeadmin/utils";
+import { formatCurrency, formatDate, getPaymentColor, ORDER_DATE_MIN, orderDateMax } from "@/lib/storeadmin/utils";
 import type { Order, Artist } from "@/types/storeadmin";
 import { Loader2, PlusCircle, Pencil, CheckCircle2, Circle, Download } from "lucide-react";
 
@@ -137,6 +137,8 @@ function OrdersContent() {
                     <InlineCell
                         readOnly={readOnly}
                         type="date"
+                        min={ORDER_DATE_MIN}
+                        max={orderDateMax()}
                         value={o.order_date ? o.order_date.split("T")[0] : ""}
                         display={<span>{formatDate(o.order_date)}</span>}
                         onSave={(next) =>
