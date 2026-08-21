@@ -484,6 +484,9 @@ export const api = {
     deleteManualEntry: (id: string) =>
         apiFetch<{ deleted: boolean }>(`/api/storeadmin/manual-entries?id=${id}`, { method: "DELETE" }),
 
+    deleteExpense: (id: string) =>
+        apiFetch<{ deleted: boolean }>(`/api/storeadmin/expenses/${id}`, { method: "DELETE" }),
+
     getSalarySlips: (from: string, to: string) =>
         apiFetch<{
             slips: Array<{

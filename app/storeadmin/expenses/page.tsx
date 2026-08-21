@@ -24,6 +24,7 @@ import {
     Search,
     X,
     Wallet,
+    Trash2,
     ArrowUpCircle,
     History,
 } from "lucide-react";
@@ -203,6 +204,27 @@ function ExpensesContent() {
     };
 
     const canTopup = can(role, "pettyCash.topup");
+
+    // Two-step, because removing an expense silently changes profit, the petty
+    // cash balance and a commission that is calculated from profit.
+    const [confirmingId, setConfirmingId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+
+    const removeExpense = async (id: string) => {
+        setDeletingId(id);
+        try {
+            await api.deleteExpense(id);
+            setConfirmingId(null);
+            // Reload rather than splicing the row out: the petty cash balance
+            // and the totals above the table are computed server-side and would
+            // otherwise still count what was just removed.
+            await loadData();
+        } catch (e) {
+            setActionError(e instanceof Error ? e.message : "Could not remove that entry");
+        } finally {
+            setDeletingId(null);
+        }
+    };
 
     if (authLoading || !isAuthenticated) {
         return (
@@ -587,6 +609,7 @@ function ExpensesContent() {
                                             <th className="text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider px-5 py-3">Vendor</th>
                                             <th className="text-left text-xs font-medium text-[var(--muted)] uppercase tracking-wider px-5 py-3">Payment</th>
                                             <th className="text-right text-xs font-medium text-[var(--muted)] uppercase tracking-wider px-5 py-3">Amount</th>
+                                            <th className="w-10 px-2 py-3"><span className="sr-only">Remove</span></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -619,6 +642,34 @@ function ExpensesContent() {
                                                 </td>
                                                 <td className="px-5 py-3 text-right text-sm font-semibold text-[var(--danger)]">
                                                     {formatCurrency(exp.amount)}
+                                                </td>
+                                                <td className="px-2 py-3 text-right">
+                                                    {confirmingId === exp.id ? (
+                                                        <span className="flex items-center gap-2 justify-end whitespace-nowrap">
+                                                            <button
+                                                                onClick={() => removeExpense(exp.id)}
+                                                                disabled={deletingId === exp.id}
+                                                                className="text-xs text-[var(--danger)] hover:underline disabled:opacity-40"
+                                                            >
+                                                                {deletingId === exp.id ? "Removing…" : "Confirm"}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setConfirmingId(null)}
+                                                                className="text-xs text-[var(--muted)] hover:underline"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => setConfirmingId(exp.id)}
+                                                            title="Remove this entry"
+                                                            aria-label="Remove this entry"
+                                                            className="p-1.5 rounded text-[var(--muted)] hover:text-[var(--danger)] hover:bg-[var(--surface-hover)] transition-colors"
+                                                        >
+                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}

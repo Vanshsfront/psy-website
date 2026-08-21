@@ -29,11 +29,18 @@ async function selectRowsInRange<T>(
   columns: string,
   dateColumn: string,
   dateFrom = "",
-  dateTo = ""
+  dateTo = "",
+  /**
+   * Skip soft-deleted rows. Off by default and passed explicitly, because not
+   * every table here has the column: `orders` has no `is_deleted`, so filtering
+   * on it unconditionally would make every order query fail outright.
+   */
+  excludeDeleted = false
 ): Promise<T[]> {
   const rows: T[] = [];
   for (let offset = 0; ; offset += PAGE_SIZE) {
     let q = getDb().from(table).select(columns);
+    if (excludeDeleted) q = q.eq("is_deleted", false);
     if (dateFrom) q = q.gte(dateColumn, dateFrom);
     if (dateTo) q = q.lt(dateColumn, endExclusive(dateTo));
     const { data, error } = await q
@@ -768,7 +775,7 @@ export async function getExpenses(
   const PAGE = 1000;
   const rows: Record<string, unknown>[] = [];
   for (let fetched = 0; fetched < limit; fetched += PAGE) {
-    let q = getDb().from("expenses").select("*").neq("category", "topup");
+    let q = getDb().from("expenses").select("*").eq("is_deleted", false).neq("category", "topup");
     if (date_from) q = q.gte("expense_date", date_from);
     if (date_to) q = q.lte("expense_date", date_to);
     if (category) q = q.eq("category", category);
@@ -828,12 +835,31 @@ function isFloatSpend(row: { category: string | null; expense_type?: string | nu
   return (row.expense_type ?? "business") === "petty";
 }
 
+/**
+ * Remove an expense from every total, keeping the row.
+ *
+ * Soft, because these feed the finance summary, the balance sheet, the petty
+ * cash balance and a profit-share commission. A hard delete would leave no way
+ * to answer who removed an entry, and a wrong deletion would be unrecoverable.
+ */
+export async function deleteExpense(id: string, deletedBy: string) {
+  const { data, error } = await getDb()
+    .from("expenses")
+    .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: deletedBy })
+    .eq("id", id)
+    .eq("is_deleted", false)
+    .select();
+  if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error("Expense not found");
+  return data[0];
+}
+
 export async function getPettyCashBalance() {
   const list = await selectRowsInRange<{
     amount: number | null;
     category: string | null;
     expense_type: string | null;
-  }>("expenses", "amount, category, expense_type", "expense_date");
+  }>("expenses", "amount, category, expense_type", "expense_date", "", "", true);
 
   const sum = (rows: typeof list) => rows.reduce((s, e) => s + Number(e.amount ?? 0), 0);
   const topups = list.filter(e => e.category === "topup");
@@ -864,6 +890,7 @@ export async function getPettyCashTopups(limit = 100) {
   const { data, error } = await getDb()
     .from("expenses")
     .select("id, expense_date, amount, description, payment_mode, created_at")
+    .eq("is_deleted", false)
     .eq("category", "topup")
     .order("expense_date", { ascending: false })
     .order("id", { ascending: true })
@@ -1023,7 +1050,8 @@ export async function getFinancialSummary(dateFrom = "", dateTo = "") {
     "amount, category",
     "expense_date",
     dateFrom,
-    dateTo
+    dateTo,
+    true
   );
   // Exclude topup entries from expense calculations
   const expensesList = expensesData.filter(e => e.category !== "topup");
@@ -1244,7 +1272,8 @@ export async function getBalanceSheet(dateFrom: string, dateTo: string) {
     "amount, category, description, vendor, expense_date, expense_type, payment_mode",
     "expense_date",
     dateFrom,
-    dateTo
+    dateTo,
+    true
   );
 
   // Top-ups move cash between the float and the till; they are not a cost.
